@@ -77,7 +77,7 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
         Keep your tone encouraging, professional, and actionable. Use Markdown for formatting.`;
 
         chatRef.current = ai.chats.create({
-          model: "gemini-3.1-pro-preview",
+          model: "gemini-3-flash-preview",
           config: {
             systemInstruction,
           },
