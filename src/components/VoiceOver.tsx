@@ -187,7 +187,7 @@ export default function VoiceOver() {
     try {
       const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
       const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
+        model: "gemini-2.5-flash",
         contents: script,
         config: {
           systemInstruction: "Analyze this script and identify the most dramatic, emotional, tense, or expressive moments. Automatically wrap the text in appropriate expressive tags like [Whispering], [Serious], [Excited], [Sad], [Angry], [Happy], [Breath], or [Pause 1s] to enhance the vocal delivery. Return only the tagged script without any additional commentary."

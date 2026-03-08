@@ -276,7 +276,7 @@ For every video provided, evaluate segments based on:
 `;
 
       const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
+        model: 'gemini-2.5-flash',
         contents: [
           { fileData: { fileUri: uploadResult.uri, mimeType: uploadResult.mimeType } },
           { text: 'Analyze this video and find 5 viral clips.' }
@@ -961,7 +961,7 @@ Confidence level: ${confidence}
 Provide a 1-2 sentence actionable recommendation for the creator about when to post videos for maximum reach. Consider audience timezone patterns and YouTube algorithm behavior. Be specific and encouraging.`;
 
           const response = await ai.models.generateContent({
-            model: "gemini-3-flash-preview",
+            model: "gemini-2.5-flash",
             contents: prompt,
           });
 
@@ -1029,7 +1029,7 @@ Goals:
 Return concise, practical recommendations.`;
 
       const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
+        model: "gemini-2.5-flash",
         contents: prompt,
         config: {
           responseMimeType: "application/json",
@@ -1155,7 +1155,7 @@ Generate:
 Return as JSON.`;
 
           const response = await ai.models.generateContent({
-            model: "gemini-3-flash-preview",
+            model: "gemini-2.5-flash",
             contents: prompt,
             config: {
               responseMimeType: "application/json",
