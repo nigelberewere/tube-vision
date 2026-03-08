@@ -109,6 +109,7 @@ export default function CompetitorAnalysis() {
   const [selectedForCompare, setSelectedForCompare] = useState<string[]>([]);
   const [competitorMetrics, setCompetitorMetrics] = useState<CompetitorMetrics | null>(null);
   const [gapAnalysis, setGapAnalysis] = useState<ContentGapAnalysis | null>(null);
+  const [gapAnalysisError, setGapAnalysisError] = useState<string | null>(null);
   const [loadingGapAnalysis, setLoadingGapAnalysis] = useState(false);
 
   // Load tracked competitors from localStorage
@@ -252,6 +253,7 @@ export default function CompetitorAnalysis() {
     setAnalysis(null);
     setCompetitorMetrics(null);
     setGapAnalysis(null);
+    setGapAnalysisError(null);
     try {
       const response = await fetch(`/api/competitors/videos?channelId=${channelId}`);
       if (response.ok) {
@@ -272,6 +274,9 @@ export default function CompetitorAnalysis() {
   const handleContentGapAnalysis = async () => {
     if (!selectedCompetitor) return;
     setLoadingGapAnalysis(true);
+    setGapAnalysisError(null);
+    setGapAnalysis(null);
+    
     try {
       const videoTopics = selectedCompetitor.videos.slice(0, 20).map(v => v.snippet.title);
       
@@ -299,10 +304,31 @@ export default function CompetitorAnalysis() {
       
       const response = await generateVidVisionInsight(prompt, schema);
       if (response) {
-        setGapAnalysis(JSON.parse(response));
+        const parsed = JSON.parse(response);
+        // Ensure all expected properties exist and are arrays/strings
+        setGapAnalysis({
+          theirTopics: Array.isArray(parsed.theirTopics) ? parsed.theirTopics : [],
+          missingTopics: Array.isArray(parsed.missingTopics) ? parsed.missingTopics : [],
+          opportunities: Array.isArray(parsed.opportunities) ? parsed.opportunities : [],
+          recommendations: typeof parsed.recommendations === 'string' ? parsed.recommendations : 'No recommendations available'
+        });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Gap analysis error:', error);
+      
+      // Show user-friendly error messages
+      let errorMessage = 'Failed to analyze content gaps. Please try again.';
+      
+      if (error?.message?.includes('429') || error?.message?.includes('RESOURCE_EXHAUSTED')) {
+        errorMessage = 'API quota exceeded. Please try again in a few minutes.';
+      } else if (error?.message?.includes('quota') || error?.message?.includes('Quota')) {
+        errorMessage = 'API quota exceeded. You\'ve reached the daily limit.';
+      } else if (error?.message?.includes('API key')) {
+        errorMessage = 'API key error. Please check your configuration.';
+      }
+      
+      setGapAnalysisError(errorMessage);
+      setGapAnalysis(null);
     } finally {
       setLoadingGapAnalysis(false);
     }
@@ -1088,6 +1114,17 @@ export default function CompetitorAnalysis() {
             </button>
           </div>
 
+          {/* Content Gap Analysis Error */}
+          {gapAnalysisError && (
+            <div className="bg-red-950/30 border border-red-500/50 rounded-2xl p-6 flex items-start gap-4">
+              <AlertCircle size={24} className="text-red-400 flex-shrink-0 mt-0.5" />
+              <div>
+                <h3 className="text-lg font-bold text-red-300 mb-1">Unable to Analyze Content Gaps</h3>
+                <p className="text-sm text-red-200">{gapAnalysisError}</p>
+              </div>
+            </div>
+          )}
+
           {/* Content Gap Analysis */}
           {gapAnalysis && (
             <div className="bg-gradient-to-br from-emerald-950/30 via-zinc-900 to-zinc-900 border border-emerald-500/30 rounded-2xl p-6 space-y-6">
@@ -1108,11 +1145,15 @@ export default function CompetitorAnalysis() {
                     <h4 className="font-bold text-zinc-100">Their Top Topics</h4>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    {gapAnalysis.theirTopics.map((topic, i) => (
-                      <span key={i} className="bg-zinc-800 text-zinc-300 px-3 py-1.5 rounded-lg text-xs font-medium">
-                        {topic}
-                      </span>
-                    ))}
+                    {gapAnalysis.theirTopics && gapAnalysis.theirTopics.length > 0 ? (
+                      gapAnalysis.theirTopics.map((topic, i) => (
+                        <span key={i} className="bg-zinc-800 text-zinc-300 px-3 py-1.5 rounded-lg text-xs font-medium">
+                          {topic}
+                        </span>
+                      ))
+                    ) : (
+                      <p className="text-sm text-zinc-400">No topics identified</p>
+                    )}
                   </div>
                 </div>
 
@@ -1122,11 +1163,15 @@ export default function CompetitorAnalysis() {
                     <h4 className="font-bold text-zinc-100">Missing From Their Content</h4>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    {gapAnalysis.missingTopics.map((topic, i) => (
-                      <span key={i} className="bg-yellow-500/10 text-yellow-400 px-3 py-1.5 rounded-lg text-xs font-medium border border-yellow-500/30">
-                        {topic}
-                      </span>
-                    ))}
+                    {gapAnalysis.missingTopics && gapAnalysis.missingTopics.length > 0 ? (
+                      gapAnalysis.missingTopics.map((topic, i) => (
+                        <span key={i} className="bg-yellow-500/10 text-yellow-400 px-3 py-1.5 rounded-lg text-xs font-medium border border-yellow-500/30">
+                          {topic}
+                        </span>
+                      ))
+                    ) : (
+                      <p className="text-sm text-yellow-400">No missing topics identified</p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1137,12 +1182,16 @@ export default function CompetitorAnalysis() {
                   <h4 className="font-bold text-zinc-100">Your Opportunities</h4>
                 </div>
                 <div className="space-y-2">
-                  {gapAnalysis.opportunities.map((opp, i) => (
-                    <div key={i} className="flex gap-3 items-start bg-emerald-500/5 border border-emerald-500/20 rounded-lg p-3">
-                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-1.5 flex-shrink-0"></div>
-                      <p className="text-sm text-zinc-300">{opp}</p>
-                    </div>
-                  ))}
+                  {gapAnalysis.opportunities && gapAnalysis.opportunities.length > 0 ? (
+                    gapAnalysis.opportunities.map((opp, i) => (
+                      <div key={i} className="flex gap-3 items-start bg-emerald-500/5 border border-emerald-500/20 rounded-lg p-3">
+                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-1.5 flex-shrink-0"></div>
+                        <p className="text-sm text-zinc-300">{opp}</p>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-sm text-zinc-400">No opportunities identified</p>
+                  )}
                 </div>
               </div>
 

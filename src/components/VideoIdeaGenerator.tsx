@@ -14,7 +14,8 @@ import {
   Heart,
   FileText,
   Trash2,
-  Star
+  Star,
+  AlertCircle
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 
@@ -49,6 +50,8 @@ const SAVED_IDEAS_KEY = 'vid_vision_saved_ideas';
 export default function VideoIdeaGenerator({ channelContext, onNavigateToScript }: VideoIdeaGeneratorProps) {
   const [ideas, setIdeas] = useState<VideoIdea[]>([]);
   const [trends, setTrends] = useState<ViralTrend[]>([]);
+  const [ideasError, setIdeasError] = useState<string | null>(null);
+  const [trendsError, setTrendsError] = useState<string | null>(null);
   const [loadingIdeas, setLoadingIdeas] = useState(false);
   const [loadingTrends, setLoadingTrends] = useState(false);
   const [savedIdeas, setSavedIdeas] = useState<VideoIdea[]>([]);
@@ -85,6 +88,9 @@ export default function VideoIdeaGenerator({ channelContext, onNavigateToScript 
 
   const generateIdeas = async () => {
     setLoadingIdeas(true);
+    setIdeasError(null);
+    setIdeas([]);
+    
     try {
       const schema = {
         type: Type.ARRAY,
@@ -125,14 +131,24 @@ export default function VideoIdeaGenerator({ channelContext, onNavigateToScript 
       if (response) {
         const parsedIdeas = JSON.parse(response);
         // Add unique IDs to each idea
-        const ideasWithIds = parsedIdeas.map((idea: any) => ({
+        const ideasWithIds = (Array.isArray(parsedIdeas) ? parsedIdeas : []).map((idea: any) => ({
           ...idea,
           id: `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
         }));
         setIdeas(ideasWithIds);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to generate ideas:', error);
+      
+      let errorMessage = 'Failed to generate ideas. Please try again.';
+      if (error?.message?.includes('429') || error?.message?.includes('RESOURCE_EXHAUSTED')) {
+        errorMessage = 'API quota exceeded. Please try again in a few minutes.';
+      } else if (error?.message?.includes('quota') || error?.message?.includes('Quota')) {
+        errorMessage = 'API quota exceeded. You\'ve reached the daily limit.';
+      }
+      
+      setIdeasError(errorMessage);
+      setIdeas([]);
     } finally {
       setLoadingIdeas(false);
     }
@@ -140,6 +156,9 @@ export default function VideoIdeaGenerator({ channelContext, onNavigateToScript 
 
   const findTrends = async () => {
     setLoadingTrends(true);
+    setTrendsError(null);
+    setTrends([]);
+    
     try {
       const schema = {
         type: Type.ARRAY,
@@ -167,10 +186,21 @@ export default function VideoIdeaGenerator({ channelContext, onNavigateToScript 
       // Using googleSearch tool for real-time trends
       const response = await generateVidVisionInsight(prompt, schema);
       if (response) {
-        setTrends(JSON.parse(response));
+        const parsedTrends = JSON.parse(response);
+        setTrends(Array.isArray(parsedTrends) ? parsedTrends : []);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to find trends:', error);
+      
+      let errorMessage = 'Failed to find trends. Please try again.';
+      if (error?.message?.includes('429') || error?.message?.includes('RESOURCE_EXHAUSTED')) {
+        errorMessage = 'API quota exceeded. Please try again in a few minutes.';
+      } else if (error?.message?.includes('quota') || error?.message?.includes('Quota')) {
+        errorMessage = 'API quota exceeded. You\'ve reached the daily limit.';
+      }
+      
+      setTrendsError(errorMessage);
+      setTrends([]);
     } finally {
       setLoadingTrends(false);
     }
@@ -253,13 +283,23 @@ export default function VideoIdeaGenerator({ channelContext, onNavigateToScript 
                 <h2 className="text-xl font-bold text-zinc-100">AI-Generated Ideas</h2>
               </div>
 
+              {ideasError && (
+                <div className="bg-red-950/30 border border-red-500/50 rounded-2xl p-6 flex items-start gap-4">
+                  <AlertCircle size={24} className="text-red-400 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <h3 className="text-lg font-bold text-red-300 mb-1">Unable to Generate Ideas</h3>
+                    <p className="text-sm text-red-200">{ideasError}</p>
+                  </div>
+                </div>
+              )}
+
               {loadingIdeas ? (
                 <div className="space-y-4">
                   {[1, 2, 3].map(i => (
                     <div key={i} className="h-32 bg-zinc-900/50 border border-zinc-800 animate-pulse rounded-2xl"></div>
                   ))}
                 </div>
-              ) : (
+              ) : ideas && ideas.length > 0 ? (
                 <div className="space-y-4">
                   {ideas.map((idea, i) => {
                     const saved = isIdeaSaved(idea.id);
@@ -362,7 +402,15 @@ export default function VideoIdeaGenerator({ channelContext, onNavigateToScript 
                     );
                   })}
                 </div>
-              )}
+              ) : !loadingIdeas && !ideasError ? (
+                <div className="text-center py-12">
+                  <Lightbulb size={48} className="text-zinc-600 mx-auto mb-4" />
+                  <h3 className="text-xl font-bold text-zinc-100 mb-2">No Ideas Generated</h3>
+                  <p className="text-zinc-400 max-w-md mx-auto mb-6">
+                    Click "Generate Ideas" to create personalized video ideas
+                  </p>
+                </div>
+              ) : null}
             </>
           ) : (
             <>
@@ -512,13 +560,23 @@ export default function VideoIdeaGenerator({ channelContext, onNavigateToScript 
             <h2 className="text-xl font-bold text-zinc-100">Viral Trends</h2>
           </div>
 
+          {trendsError && (
+            <div className="bg-red-950/30 border border-red-500/50 rounded-2xl p-6 flex items-start gap-4">
+              <AlertCircle size={24} className="text-red-400 flex-shrink-0 mt-0.5" />
+              <div>
+                <h3 className="text-lg font-bold text-red-300 mb-1">Unable to Find Trends</h3>
+                <p className="text-sm text-red-200">{trendsError}</p>
+              </div>
+            </div>
+          )}
+
           {loadingTrends ? (
             <div className="space-y-4">
               {[1, 2].map(i => (
                 <div key={i} className="h-48 bg-zinc-900/50 border border-zinc-800 animate-pulse rounded-2xl"></div>
               ))}
             </div>
-          ) : (
+          ) : trends && trends.length > 0 ? (
             <div className="space-y-4">
               {trends.map((trend, i) => (
                 <div key={i} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 space-y-4 relative overflow-hidden group">
@@ -556,7 +614,15 @@ export default function VideoIdeaGenerator({ channelContext, onNavigateToScript 
                 </p>
               </div>
             </div>
-          )}
+          ) : !loadingTrends && !trendsError ? (
+            <div className="text-center py-12">
+              <Globe size={48} className="text-zinc-600 mx-auto mb-4" />
+              <h3 className="text-xl font-bold text-zinc-100 mb-2">No Trends Found</h3>
+              <p className="text-zinc-400 max-w-md mx-auto mb-6">
+                Click "Scan Trends" to discover current viral opportunities
+              </p>
+            </div>
+          ) : null}
         </div>
       </div>
     </div>
