@@ -201,10 +201,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           : null,
       };
 
+      console.log('[OAuth Callback] Existing accounts:', accounts.length);
+      console.log('[OAuth Callback] New channel ID:', newUserData.channel?.id);
+      console.log('[OAuth Callback] Existing channel IDs:', accounts.map((a: any) => a.channel?.id));
+
       // Deduplicate by channel ID when available so one Google login can keep multiple channels.
       const updatedAccounts = accounts.filter((acc: any) => {
         if (newUserData.channel && acc.channel) {
-          return acc.channel.id !== newUserData.channel.id;
+          const isDuplicate = acc.channel.id === newUserData.channel.id;
+          console.log(`[OAuth Callback] Comparing ${acc.channel.id} === ${newUserData.channel.id}: ${isDuplicate}`);
+          return !isDuplicate;
         }
         if (!newUserData.channel && !acc.channel) {
           return acc.id !== newUserData.id;
@@ -212,6 +218,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return true;
       });
       updatedAccounts.unshift(newUserData);
+      
+      console.log('[OAuth Callback] Accounts after dedup:', updatedAccounts.length);
 
       // Keep account list bounded to prevent cookie bloat.
       const boundedAccounts = updatedAccounts.slice(0, 5);
