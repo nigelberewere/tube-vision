@@ -1,0 +1,5 @@
+{
+  "name": "Viral Video Clip Extractor",
+  "description": "Analyze long-form video transcripts to identify high-impact, standalone segments for social media.",
+  "requestFramePermissions": []
+}
