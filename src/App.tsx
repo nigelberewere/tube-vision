@@ -85,6 +85,8 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<Tab>('home');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [user, setUser] = useState<User | null>(null);
+  const [accounts, setAccounts] = useState<User[]>([]);
+  const [activeAccountIndex, setActiveAccountIndex] = useState(0);
   const [loadingUser, setLoadingUser] = useState(true);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
 
@@ -198,15 +200,33 @@ export default function App() {
 
   const fetchUser = async () => {
     try {
-      const response = await fetch('/api/user/channel');
-      if (response.ok) {
-        const data = await response.json();
-        setUser(data);
+      // Fetch all accounts
+      const accountsResponse = await fetch('/api/user/accounts');
+      if (accountsResponse.ok) {
+        const accountsData = await accountsResponse.json();
+        setAccounts(accountsData.accounts || []);
+        setActiveAccountIndex(accountsData.activeIndex || 0);
+        
+        // Fetch active account details
+        if (accountsData.accounts && accountsData.accounts.length > 0) {
+          const channelResponse = await fetch('/api/user/channel');
+          if (channelResponse.ok) {
+            const channelData = await channelResponse.json();
+            setUser(channelData);
+          } else {
+            setUser(null);
+          }
+        } else {
+          setUser(null);
+        }
       } else {
         setUser(null);
+        setAccounts([]);
       }
     } catch (error) {
       console.error('Failed to fetch user:', error);
+      setUser(null);
+      setAccounts([]);
     } finally {
       setLoadingUser(false);
     }
@@ -300,11 +320,48 @@ export default function App() {
     try {
       await fetch('/api/auth/logout', { method: 'POST' });
       setUser(null);
+      setAccounts([]);
+      setActiveAccountIndex(0);
       if (CHANNEL_REQUIRED_TABS.includes(activeTab)) {
         setActiveTab('voiceover');
       }
     } catch (error) {
       console.error('Logout error:', error);
+    }
+  };
+
+  const handleSwitchAccount = async (index: number) => {
+    try {
+      const response = await fetch('/api/user/switch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ index }),
+      });
+      
+      if (response.ok) {
+        await fetchUser();
+        setIsProfileMenuOpen(false);
+      }
+    } catch (error) {
+      console.error('Switch account error:', error);
+    }
+  };
+
+  const handleRemoveAccount = async (index: number) => {
+    if (!confirm('Remove this account?')) return;
+    
+    try {
+      const response = await fetch('/api/user/remove', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ index }),
+      });
+      
+      if (response.ok) {
+        await fetchUser();
+      }
+    } catch (error) {
+      console.error('Remove account error:', error);
     }
   };
 
@@ -574,14 +631,74 @@ export default function App() {
                   />
                   
                   {/* Menu */}
-                  <div className="absolute bottom-full left-0 right-0 mb-2 z-50 bg-[#1a1a1a] border border-white/20 rounded-xl shadow-2xl overflow-hidden">
+                  <div className="absolute bottom-full left-0 right-0 mb-2 z-50 bg-[#1a1a1a] border border-white/20 rounded-xl shadow-2xl overflow-hidden max-h-[70vh] overflow-y-auto">
+                    {/* Current Active Account Header */}
                     <div className="p-3 border-b border-white/10 bg-white/5">
+                      <p className="text-[10px] uppercase tracking-wider text-slate-500 mb-1.5">Active Account</p>
                       <p className="text-xs font-semibold text-white truncate">{user.channel?.title || user.name}</p>
                       <p className="text-[10px] text-slate-400 truncate mt-0.5">
                         {user.channel ? `${Number(user.channel.statistics.subscriberCount).toLocaleString()} subscribers` : 'No channel'}
                       </p>
                     </div>
                     
+                    {/* All Accounts - for switching */}
+                    {accounts.length > 1 && (
+                      <div className="border-b border-white/10">
+                        <p className="px-4 pt-3 pb-1.5 text-[10px] uppercase tracking-wider text-slate-500">Switch Account</p>
+                        <div className="py-1">
+                          {accounts.map((account, index) => (
+                            <div key={account.id} className="relative group">
+                              <button
+                                onClick={() => {
+                                  if (index !== activeAccountIndex) {
+                                    handleSwitchAccount(index);
+                                  }
+                                }}
+                                disabled={index === activeAccountIndex}
+                                className={cn(
+                                  'w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors',
+                                  index === activeAccountIndex
+                                    ? 'bg-blue-500/10 text-blue-400 cursor-default'
+                                    : 'text-slate-300 hover:bg-white/10 hover:text-white'
+                                )}
+                              >
+                                <img
+                                  src={account.channel?.thumbnails?.default?.url || account.picture}
+                                  alt={account.name}
+                                  className="w-8 h-8 rounded-full border border-white/20"
+                                  referrerPolicy="no-referrer"
+                                />
+                                <div className="flex-1 min-w-0 text-left">
+                                  <p className="text-xs font-medium truncate">
+                                    {account.channel?.title || account.name}
+                                  </p>
+                                  <p className="text-[10px] text-slate-400 truncate">
+                                    {account.channel ? `${Number(account.channel.statistics.subscriberCount).toLocaleString()} subs` : 'No channel'}
+                                  </p>
+                                </div>
+                                {index === activeAccountIndex && (
+                                  <ShieldCheck size={14} className="text-blue-400" />
+                                )}
+                              </button>
+                              {index !== activeAccountIndex && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleRemoveAccount(index);
+                                  }}
+                                  className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-red-500/20 transition-opacity"
+                                  title="Remove account"
+                                >
+                                  <X size={14} className="text-red-400" />
+                                </button>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Actions */}
                     <div className="py-1">
                       <button
                         onClick={() => {
