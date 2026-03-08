@@ -232,31 +232,59 @@ export default function App() {
 
   const handleConnect = async () => {
     try {
+      console.log('[Connect] Fetching auth URL...');
       const response = await fetch('/api/auth/google/url');
+
+      const raw = await response.text();
+      let data: any = {};
+      if (raw) {
+        try {
+          data = JSON.parse(raw);
+        } catch {
+          data = { raw };
+        }
+      }
+
       if (!response.ok) {
-        const error = await response.json();
-        alert(error.error || 'Failed to get auth URL');
+        console.error('[Connect Error] Response not ok:', response.status, data);
+        const message = data.error || `Failed to get authorization URL (HTTP ${response.status}).`;
+        alert(message);
         return;
       }
 
-      const { url } = await response.json();
-      const popup = window.open(url, 'oauth_popup', 'width=600,height=700,scrollbars=yes');
+      console.log('[Connect] Auth URL received, length:', data.url?.length);
+      
+      if (!data.url) {
+        console.error('[Connect Error] No URL in response:', data);
+        alert('Failed to generate auth URL');
+        return;
+      }
+
+      const popup = window.open(data.url, 'oauth_popup', 'width=600,height=700,scrollbars=yes');
+      
+      if (!popup) {
+        console.error('[Connect Error] Popup blocked or could not open');
+        alert('Popup was blocked. Please allow popups and try again.');
+        return;
+      }
+
+      console.log('[Connect] Popup opened, polling for closure...');
       
       // Poll to check if popup closed or auth succeeded
-      if (popup) {
-        const checkInterval = setInterval(() => {
-          if (popup.closed) {
-            clearInterval(checkInterval);
-            // Refresh user state when popup closes
-            fetchUser();
-          }
-        }, 500);
-        
-        // Safety timeout: stop checking after 5 minutes
-        setTimeout(() => clearInterval(checkInterval), 5 * 60 * 1000);
-      }
+      const checkInterval = setInterval(() => {
+        if (popup.closed) {
+          clearInterval(checkInterval);
+          console.log('[Connect] Popup closed, refreshing user...');
+          // Refresh user state when popup closes
+          fetchUser();
+        }
+      }, 500);
+      
+      // Safety timeout: stop checking after 5 minutes
+      setTimeout(() => clearInterval(checkInterval), 5 * 60 * 1000);
     } catch (error) {
-      console.error('OAuth error:', error);
+      console.error('[Connect Error] Exception:', error);
+      alert('An error occurred. Check browser console for details.');
     }
   };
 

@@ -1,5 +1,4 @@
 import express from "express";
-import { createServer as createViteServer } from "vite";
 import { OAuth2Client } from "google-auth-library";
 import cookieParser from "cookie-parser";
 import session from "express-session";
@@ -72,12 +71,21 @@ function toNumber(value: unknown): number {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-async function startServer() {
+type CreateAppOptions = {
+  includeFrontend?: boolean;
+};
+
+export async function createApp(options: CreateAppOptions = {}) {
+  const { includeFrontend = true } = options;
   const app = express();
 
   if (OAUTH_MISSING_VARS.length > 0) {
     console.warn(`Missing OAuth env vars: ${OAUTH_MISSING_VARS.join(", ")}. Update .env.local before connecting YouTube.`);
   }
+
+  console.log(`[OAuth Config] APP_URL: ${APP_URL}`);
+  console.log(`[OAuth Config] REDIRECT_URI: ${REDIRECT_URI}`);
+  console.log(`[OAuth Config] NODE_ENV: ${IS_PRODUCTION ? 'production' : 'development'}`);
 
   // Create uploads directory if it doesn't exist
   if (!fs.existsSync('uploads')) {
@@ -278,12 +286,30 @@ For every video provided, evaluate segments based on:
   });
 
   // OAuth and API Routes
+  app.get("/api/auth/config", (req, res) => {
+    res.json({
+      appUrl: APP_URL,
+      redirectUri: REDIRECT_URI,
+      nodeEnv: process.env.NODE_ENV || 'development',
+      hasClientId: Boolean(GOOGLE_CLIENT_ID),
+      hasClientSecret: Boolean(GOOGLE_CLIENT_SECRET),
+      missingVars: OAUTH_MISSING_VARS,
+    });
+  });
+
   app.get("/api/auth/google/url", (req, res) => {
+    console.log(`[Auth URL Request] REDIRECT_URI: ${REDIRECT_URI}`);
+    
     if (OAUTH_MISSING_VARS.length > 0) {
+      console.error(`[Auth Error] Missing OAuth vars: ${OAUTH_MISSING_VARS.join(", ")}`);
       return res.status(500).json({
-        error: "Google OAuth credentials not configured in .env.local",
+        error: "Google OAuth credentials not configured",
         missingEnv: OAUTH_MISSING_VARS,
       });
+    }
+
+    if (!APP_URL || APP_URL.includes('localhost')) {
+      console.warn(`[Auth Warning] APP_URL not properly set for production: ${APP_URL}`);
     }
 
     const url = oauth2Client.generateAuthUrl({
@@ -295,10 +321,11 @@ For every video provided, evaluate segments based on:
       ],
       prompt: "consent",
     });
+    console.log(`[Auth URL Generated] URL contains redirect_uri: ${url.includes(REDIRECT_URI)}`);
     res.json({ url });
   });
 
-  app.get("/auth/google/callback", async (req, res) => {
+  app.get(["/auth/google/callback", "/api/auth/google/callback"], async (req, res) => {
     const { code } = req.query;
 
     if (!code) {
@@ -924,23 +951,34 @@ Return concise, practical recommendations.`;
     });
   });
 
-  // Vite middleware for development
-  if (process.env.NODE_ENV !== "production") {
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: "spa",
-    });
-    app.use(vite.middlewares);
-  } else {
-    app.use(express.static(path.join(__dirname, "dist")));
-    app.get("*", (req, res) => {
-      res.sendFile(path.join(__dirname, "dist", "index.html"));
-    });
+  if (includeFrontend) {
+    // Vite middleware for development
+    if (process.env.NODE_ENV !== "production") {
+      const { createServer: createViteServer } = await import("vite");
+      const vite = await createViteServer({
+        server: { middlewareMode: true },
+        appType: "spa",
+      });
+      app.use(vite.middlewares);
+    } else {
+      app.use(express.static(path.join(__dirname, "dist")));
+      app.get("*", (req, res) => {
+        res.sendFile(path.join(__dirname, "dist", "index.html"));
+      });
+    }
   }
+
+  return app;
+}
+
+async function startServer() {
+  const app = await createApp({ includeFrontend: true });
 
   app.listen(PORT, "0.0.0.0", () => {
     console.log(`Server running on http://localhost:${PORT}`);
   });
 }
 
-startServer();
+if (!process.env.VERCEL) {
+  startServer();
+}
