@@ -5,6 +5,7 @@ import session from "express-session";
 import dotenv from "dotenv";
 import path from "path";
 import { fileURLToPath } from "url";
+import net from "net";
 import multer from "multer";
 import { GoogleGenAI, Type } from "@google/genai";
 import fs from "fs";
@@ -19,11 +20,9 @@ dotenv.config({ path: path.join(__dirname, ".env") });
 
 const upload = multer({ dest: 'uploads/' });
 
-const PORT = 3000;
+const DEFAULT_PORT = Number(process.env.PORT || 3000);
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
-const APP_URL = process.env.APP_URL || `http://localhost:${PORT}`;
-const REDIRECT_URI = `${APP_URL}/auth/google/callback`;
 const SHORTS_MAX_SECONDS = 61;
 const LONG_FORM_MIN_SECONDS = 120;
 const IS_PRODUCTION = process.env.NODE_ENV === "production";
@@ -73,6 +72,7 @@ function toNumber(value: unknown): number {
 
 type CreateAppOptions = {
   includeFrontend?: boolean;
+  port?: number;
 };
 
 function getSessionAccountsAndActiveIndex(req: express.Request) {
@@ -109,15 +109,17 @@ function setSessionAccountsAndActiveIndex(req: express.Request, accounts: any[],
 }
 
 export async function createApp(options: CreateAppOptions = {}) {
-  const { includeFrontend = true } = options;
+  const { includeFrontend = true, port = DEFAULT_PORT } = options;
   const app = express();
+  const appUrl = process.env.APP_URL || `http://localhost:${port}`;
+  const redirectUri = `${appUrl}/auth/google/callback`;
 
   if (OAUTH_MISSING_VARS.length > 0) {
     console.warn(`Missing OAuth env vars: ${OAUTH_MISSING_VARS.join(", ")}. Update .env.local before connecting YouTube.`);
   }
 
-  console.log(`[OAuth Config] APP_URL: ${APP_URL}`);
-  console.log(`[OAuth Config] REDIRECT_URI: ${REDIRECT_URI}`);
+  console.log(`[OAuth Config] APP_URL: ${appUrl}`);
+  console.log(`[OAuth Config] REDIRECT_URI: ${redirectUri}`);
   console.log(`[OAuth Config] NODE_ENV: ${IS_PRODUCTION ? 'production' : 'development'}`);
 
   // Create uploads directory if it doesn't exist
@@ -154,7 +156,7 @@ export async function createApp(options: CreateAppOptions = {}) {
   const oauth2Client = new OAuth2Client(
     GOOGLE_CLIENT_ID,
     GOOGLE_CLIENT_SECRET,
-    REDIRECT_URI
+    redirectUri
   );
 
   // Viral Clip Analyzer Endpoint
@@ -321,8 +323,8 @@ For every video provided, evaluate segments based on:
   // OAuth and API Routes
   app.get("/api/auth/config", (req, res) => {
     res.json({
-      appUrl: APP_URL,
-      redirectUri: REDIRECT_URI,
+      appUrl,
+      redirectUri,
       nodeEnv: process.env.NODE_ENV || 'development',
       hasClientId: Boolean(GOOGLE_CLIENT_ID),
       hasClientSecret: Boolean(GOOGLE_CLIENT_SECRET),
@@ -331,7 +333,7 @@ For every video provided, evaluate segments based on:
   });
 
   app.get("/api/auth/google/url", (req, res) => {
-    console.log(`[Auth URL Request] REDIRECT_URI: ${REDIRECT_URI}`);
+    console.log(`[Auth URL Request] REDIRECT_URI: ${redirectUri}`);
     
     if (OAUTH_MISSING_VARS.length > 0) {
       console.error(`[Auth Error] Missing OAuth vars: ${OAUTH_MISSING_VARS.join(", ")}`);
@@ -341,8 +343,8 @@ For every video provided, evaluate segments based on:
       });
     }
 
-    if (!APP_URL || APP_URL.includes('localhost')) {
-      console.warn(`[Auth Warning] APP_URL not properly set for production: ${APP_URL}`);
+    if (!appUrl || appUrl.includes('localhost')) {
+      console.warn(`[Auth Warning] APP_URL not properly set for production: ${appUrl}`);
     }
 
     const url = oauth2Client.generateAuthUrl({
@@ -354,7 +356,7 @@ For every video provided, evaluate segments based on:
       ],
       prompt: "consent",
     });
-    console.log(`[Auth URL Generated] URL contains redirect_uri: ${url.includes(REDIRECT_URI)}`);
+    console.log(`[Auth URL Generated] URL contains redirect_uri: ${url.includes(redirectUri)}`);
     res.json({ url });
   });
 
@@ -1083,11 +1085,49 @@ Return concise, practical recommendations.`;
   return app;
 }
 
-async function startServer() {
-  const app = await createApp({ includeFrontend: true });
+async function isPortAvailable(port: number): Promise<boolean> {
+  return new Promise((resolve) => {
+    const tester = net
+      .createServer()
+      .once("error", (error: NodeJS.ErrnoException) => {
+        if (error.code === "EADDRINUSE") {
+          resolve(false);
+        } else {
+          resolve(false);
+        }
+      })
+      .once("listening", () => {
+        tester.close(() => resolve(true));
+      })
+      .listen(port, "0.0.0.0");
+  });
+}
 
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+async function findAvailablePort(startPort: number, maxAttempts = 20): Promise<number> {
+  for (let offset = 0; offset < maxAttempts; offset += 1) {
+    const candidate = startPort + offset;
+    if (await isPortAvailable(candidate)) {
+      return candidate;
+    }
+  }
+
+  throw new Error(`Unable to find an open port from ${startPort} to ${startPort + maxAttempts - 1}`);
+}
+
+async function startServer() {
+  const port = await findAvailablePort(DEFAULT_PORT);
+
+  if (port !== DEFAULT_PORT) {
+    console.warn(`[Startup] Port ${DEFAULT_PORT} is in use. Starting on port ${port} instead.`);
+    if (process.env.APP_URL) {
+      console.warn(`[Startup] APP_URL is set to ${process.env.APP_URL}. Ensure it matches the active local port.`);
+    }
+  }
+
+  const app = await createApp({ includeFrontend: true, port });
+
+  app.listen(port, "0.0.0.0", () => {
+    console.log(`Server running on http://localhost:${port}`);
   });
 }
 

@@ -23,7 +23,7 @@ import SEOOptimizer from './components/SEOOptimizer';
 import ContentStrategy from './components/ContentStrategy';
 import KeywordResearch from './components/KeywordResearch';
 import ScriptArchitect from './components/ScriptArchitect';
-import ThumbnailConcepting from './components/ThumbnailConcepting';
+import ThumbnailConcepting from './components/ThumbnailConcepting.tsx';
 import HomeDashboard from './components/HomeDashboard';
 import ChannelAnalysis from './components/ChannelAnalysis';
 import AICoach from './components/AICoach';
@@ -32,7 +32,7 @@ import CompetitorAnalysis from './components/CompetitorAnalysis';
 import ChannelInsights from './components/ChannelInsights';
 import VideoList from './components/VideoList';
 import VoiceOver from './components/VoiceOver';
-import ViralClipExtractor from './components/ViralClipExtractor';
+import ViralClipExtractor from './components/ViralClipExtractor.tsx';
 import OnboardingTour, { type OnboardingStep } from './components/OnboardingTour';
 import SettingsPanel from './components/SettingsPanel';
 import YouTubeShortsIcon from './components/icons/YouTubeShortsIcon';
@@ -114,10 +114,9 @@ const ONBOARDING_STEPS: TourStep[] = [
     description: 'Connect, switch, or manage channel accounts from here so data and actions stay personalized.',
   },
   {
-    targetId: 'tour-settings-tab',
+    targetId: 'tour-settings-entry',
     title: 'Settings & Theme',
-    description: 'Open settings to switch dark/light mode and personalize the workspace experience.',
-    focusTab: 'settings',
+    description: 'Click your account in the bottom-left corner, then open Settings to switch dark/light mode.',
   },
 ];
 
@@ -248,7 +247,7 @@ export default function App() {
   ];
 
   const activeTabConfig = tabs.find((tab) => tab.id === activeTab) || tabs[0];
-  const overviewTabs = tabs.filter((tab) => tab.section === 'overview');
+  const overviewTabs = tabs.filter((tab) => tab.section === 'overview' && tab.id !== 'settings');
   const studioTabs = tabs.filter((tab) => tab.section === 'studios');
   const growthTabs = tabs.filter((tab) => tab.section === 'growth');
   const requiresChannelConnection = CHANNEL_REQUIRED_TABS.includes(activeTab);
@@ -339,10 +338,16 @@ export default function App() {
       setActiveTab(step.focusTab);
     }
 
+    if (step?.targetId === 'tour-settings-entry' && user) {
+      setIsProfileMenuOpen(true);
+    } else {
+      setIsProfileMenuOpen(false);
+    }
+
     if (window.innerWidth < 1024) {
       setIsSidebarOpen(true);
     }
-  }, [isOnboardingOpen, onboardingStepIndex]);
+  }, [isOnboardingOpen, onboardingStepIndex, user]);
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
@@ -693,13 +698,7 @@ export default function App() {
               return (
                 <button
                   key={tab.id}
-                  data-tour-id={
-                    tab.id === 'home'
-                      ? 'tour-home-tab'
-                      : tab.id === 'settings'
-                        ? 'tour-settings-tab'
-                        : undefined
-                  }
+                  data-tour-id={tab.id === 'home' ? 'tour-home-tab' : undefined}
                   onClick={() => {
                     setActiveTab(tab.id);
                     setIsSidebarOpen(false);
@@ -858,6 +857,19 @@ export default function App() {
                     
                     {/* Actions */}
                     <div className="py-1">
+                      <button
+                        data-tour-id="tour-settings-entry"
+                        onClick={() => {
+                          setIsProfileMenuOpen(false);
+                          setActiveTab('settings');
+                          setIsSidebarOpen(false);
+                        }}
+                        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-300 hover:bg-white/10 hover:text-white transition-colors"
+                      >
+                        <Settings2 size={16} />
+                        <span>Settings</span>
+                      </button>
+
                       <button
                         onClick={() => {
                           setIsProfileMenuOpen(false);
