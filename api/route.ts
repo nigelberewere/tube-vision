@@ -1,32 +1,21 @@
-import { createApp } from "../server";
+import type { VercelRequest, VercelResponse } from '@vercel/node';
 
-let appPromise: ReturnType<typeof createApp> | null = null;
-
-function normalizePath(pathValue: unknown): string {
-  if (Array.isArray(pathValue)) return pathValue.join("/");
-  if (typeof pathValue === "string") return pathValue;
-  return "api/auth/config";
-}
-
-function rewriteRequestUrl(req: any): void {
-  const incomingUrl = typeof req.url === "string" ? req.url : "/api/route";
-  const url = new URL(incomingUrl, "http://localhost");
-  const targetPath = normalizePath(req.query?.path).replace(/^\/+/, "");
-
-  // Remove routing helper param before handing off to Express.
-  url.searchParams.delete("path");
-
-  const query = url.searchParams.toString();
-  req.url = `/${targetPath}${query ? `?${query}` : ""}`;
-}
-
-export default async function handler(req: any, res: any) {
-  if (!appPromise) {
-    appPromise = createApp({ includeFrontend: false });
-  }
-
-  rewriteRequestUrl(req);
-
-  const app = await appPromise;
-  return app(req, res);
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  // For now, return a simple diagnostic response
+  // This will be replaced with actual route handling once we verify it works
+  const path = Array.isArray(req.query?.path) ? req.query.path.join('/') : req.query?.path || 'unknown';
+  
+  res.status(200).json({
+    message: 'API function is working',
+    requestedPath: path,
+    method: req.method,
+    url: req.url,
+    env: {
+      hasGoogleClientId: !!process.env.GOOGLE_CLIENT_ID,
+      hasGoogleClientSecret: !!process.env.GOOGLE_CLIENT_SECRET,
+      hasGeminiKey: !!process.env.GEMINI_API_KEY,
+      appUrl: process.env.APP_URL || 'not set',
+      nodeEnv: process.env.NODE_ENV || 'not set'
+    }
+  });
 }
