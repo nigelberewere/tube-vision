@@ -87,7 +87,7 @@ function hourMap(report?: AnalyticsReport): Record<number, number> {
   const mapped: Record<number, number> = {};
   const rows = rowsToObjects(report);
   for (const row of rows) {
-    const hour = toNumber(row.hourOfDay);
+    const hour = toNumber(row.hour);
     mapped[hour] = toNumber(row.views);
   }
   return mapped;
@@ -197,7 +197,7 @@ export default function HomeDashboard({ channel, isConnected, onConnect }: HomeD
       netSubs30Days,
       viewsLastHour,
       viewsLast24Hours,
-      bestHour: bestHour ? `${bestHour.hourOfDay}:00` : '--:--',
+      bestHour: bestHour ? `${bestHour.hour}:00` : '--:--',
     };
   }, [analytics, dailyObjects, hourlyObjects]);
 

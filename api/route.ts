@@ -261,39 +261,53 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       const authHeader = { Authorization: `Bearer ${userData.tokens.access_token}` };
 
-      const [reportsResponse, hourlyResponse, todayHourlyResponse, yesterdayHourlyResponse] = await Promise.all([
-        fetch(
-          `https://youtubeanalytics.googleapis.com/v2/reports?ids=channel==MINE&startDate=${startDate}&endDate=${endDate}&metrics=views,subscribersGained,subscribersLost,estimatedMinutesWatched&dimensions=day&sort=day`,
-          { headers: authHeader }
-        ),
-        fetch(
-          `https://youtubeanalytics.googleapis.com/v2/reports?ids=channel==MINE&startDate=${startDate}&endDate=${endDate}&metrics=views&dimensions=hourOfDay&sort=hourOfDay`,
-          { headers: authHeader }
-        ),
-        fetch(
-          `https://youtubeanalytics.googleapis.com/v2/reports?ids=channel==MINE&startDate=${endDate}&endDate=${endDate}&metrics=views&dimensions=hourOfDay&sort=hourOfDay`,
-          { headers: authHeader }
-        ),
-        fetch(
-          `https://youtubeanalytics.googleapis.com/v2/reports?ids=channel==MINE&startDate=${yesterdayDate}&endDate=${yesterdayDate}&metrics=views&dimensions=hourOfDay&sort=hourOfDay`,
-          { headers: authHeader }
-        ),
-      ]);
-
+      // Fetch daily analytics (always works)
+      const reportsResponse = await fetch(
+        `https://youtubeanalytics.googleapis.com/v2/reports?ids=channel==MINE&startDate=${startDate}&endDate=${endDate}&metrics=views,subscribersGained,subscribersLost,estimatedMinutesWatched&dimensions=day&sort=day`,
+        { headers: authHeader }
+      );
       const reportsData = await reportsResponse.json();
-      const hourlyData = await hourlyResponse.json();
-      const todayHourlyData = await todayHourlyResponse.json();
-      const yesterdayHourlyData = await yesterdayHourlyResponse.json();
 
-      // Check if any response contains an error
-      const apiError = reportsData.error || hourlyData.error || todayHourlyData.error || yesterdayHourlyData.error;
-      if (apiError) {
-        console.error('YouTube Analytics API error:', apiError);
+      if (reportsData.error) {
+        console.error('YouTube Analytics API error:', reportsData.error);
         return res.status(403).json({
-          error: apiError.message || 'YouTube Analytics API error',
-          code: apiError.code,
-          details: apiError,
+          error: reportsData.error.message || 'YouTube Analytics API error',
+          code: reportsData.error.code,
+          details: reportsData.error,
         });
+      }
+
+      // Try to fetch hourly data (may not be available for all channels)
+      let hourlyData = { rows: [] };
+      let todayHourlyData = { rows: [] };
+      let yesterdayHourlyData = { rows: [] };
+
+      try {
+        const [hourlyResponse, todayHourlyResponse, yesterdayHourlyResponse] = await Promise.all([
+          fetch(
+            `https://youtubeanalytics.googleapis.com/v2/reports?ids=channel==MINE&startDate=${startDate}&endDate=${endDate}&metrics=views&dimensions=hour&sort=hour`,
+            { headers: authHeader }
+          ),
+          fetch(
+            `https://youtubeanalytics.googleapis.com/v2/reports?ids=channel==MINE&startDate=${endDate}&endDate=${endDate}&metrics=views&dimensions=hour&sort=hour`,
+            { headers: authHeader }
+          ),
+          fetch(
+            `https://youtubeanalytics.googleapis.com/v2/reports?ids=channel==MINE&startDate=${yesterdayDate}&endDate=${yesterdayDate}&metrics=views&dimensions=hour&sort=hour`,
+            { headers: authHeader }
+          ),
+        ]);
+
+        const hourlyJson = await hourlyResponse.json();
+        const todayHourlyJson = await todayHourlyResponse.json();
+        const yesterdayHourlyJson = await yesterdayHourlyResponse.json();
+
+        // Only use hourly data if no errors
+        if (!hourlyJson.error) hourlyData = hourlyJson;
+        if (!todayHourlyJson.error) todayHourlyData = todayHourlyJson;
+        if (!yesterdayHourlyJson.error) yesterdayHourlyData = yesterdayHourlyJson;
+      } catch (hourlyError) {
+        console.log('Hourly analytics not available, continuing with daily data only');
       }
 
       return res.json({
