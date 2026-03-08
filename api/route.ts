@@ -203,6 +203,111 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   }
 
+  // Get user videos
+  if (path === 'api/user/videos') {
+    const cookies = req.headers.cookie || '';
+    const userCookie = cookies.split('; ').find(c => c.startsWith('tube_vision_user='));
+    
+    if (!userCookie) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    try {
+      const userData = JSON.parse(decodeURIComponent(userCookie.split('=')[1]));
+      
+      const response = await fetch(
+        'https://www.googleapis.com/youtube/v3/search?part=snippet&forMine=true&type=video&maxResults=50&order=date',
+        {
+          headers: { Authorization: `Bearer ${userData.tokens.access_token}` },
+        }
+      );
+      const data = await response.json();
+      
+      // Fetch detailed statistics for each video
+      const videoIds = data.items?.map((item: any) => item.id.videoId).join(',');
+      if (videoIds) {
+        const statsResponse = await fetch(
+          `https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics,contentDetails&id=${videoIds}`,
+          {
+            headers: { Authorization: `Bearer ${userData.tokens.access_token}` },
+          }
+        );
+        const statsData = await statsResponse.json();
+        return res.json(statsData.items);
+      }
+      
+      return res.json([]);
+    } catch (error) {
+      console.error('Fetch videos error:', error);
+      return res.status(500).json({ error: 'Failed to fetch videos' });
+    }
+  }
+
+  // Get user analytics
+  if (path === 'api/user/analytics') {
+    const cookies = req.headers.cookie || '';
+    const userCookie = cookies.split('; ').find(c => c.startsWith('tube_vision_user='));
+    
+    if (!userCookie) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    try {
+      const userData = JSON.parse(decodeURIComponent(userCookie.split('=')[1]));
+      
+      const endDate = new Date().toISOString().split('T')[0];
+      const startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      const yesterdayDate = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+      const authHeader = { Authorization: `Bearer ${userData.tokens.access_token}` };
+
+      const [reportsResponse, hourlyResponse, todayHourlyResponse, yesterdayHourlyResponse] = await Promise.all([
+        fetch(
+          `https://youtubeanalytics.googleapis.com/v2/reports?ids=channel==MINE&startDate=${startDate}&endDate=${endDate}&metrics=views,subscribersGained,subscribersLost,estimatedMinutesWatched&dimensions=day&sort=day`,
+          { headers: authHeader }
+        ),
+        fetch(
+          `https://youtubeanalytics.googleapis.com/v2/reports?ids=channel==MINE&startDate=${startDate}&endDate=${endDate}&metrics=views&dimensions=hourOfDay&sort=hourOfDay`,
+          { headers: authHeader }
+        ),
+        fetch(
+          `https://youtubeanalytics.googleapis.com/v2/reports?ids=channel==MINE&startDate=${endDate}&endDate=${endDate}&metrics=views&dimensions=hourOfDay&sort=hourOfDay`,
+          { headers: authHeader }
+        ),
+        fetch(
+          `https://youtubeanalytics.googleapis.com/v2/reports?ids=channel==MINE&startDate=${yesterdayDate}&endDate=${yesterdayDate}&metrics=views&dimensions=hourOfDay&sort=hourOfDay`,
+          { headers: authHeader }
+        ),
+      ]);
+
+      const reportsData = await reportsResponse.json();
+      const hourlyData = await hourlyResponse.json();
+      const todayHourlyData = await todayHourlyResponse.json();
+      const yesterdayHourlyData = await yesterdayHourlyResponse.json();
+
+      // Check if any response contains an error
+      const apiError = reportsData.error || hourlyData.error || todayHourlyData.error || yesterdayHourlyData.error;
+      if (apiError) {
+        console.error('YouTube Analytics API error:', apiError);
+        return res.status(403).json({
+          error: apiError.message || 'YouTube Analytics API error',
+          code: apiError.code,
+          details: apiError,
+        });
+      }
+
+      return res.json({
+        daily: reportsData,
+        hourly: hourlyData,
+        todayHourly: todayHourlyData,
+        yesterdayHourly: yesterdayHourlyData,
+      });
+    } catch (error) {
+      console.error('Fetch analytics error:', error);
+      return res.status(500).json({ error: 'Failed to fetch analytics' });
+    }
+  }
+
   // Logout
   if (path === 'api/auth/logout') {
     res.setHeader('Set-Cookie', 'tube_vision_user=; Path=/; HttpOnly; SameSite=None; Secure; Max-Age=0');
