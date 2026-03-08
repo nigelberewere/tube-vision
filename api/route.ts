@@ -34,6 +34,11 @@ function createOAuthClient() {
 
 const oauth2Client = createOAuthClient();
 
+function toNumber(value: unknown): number {
+  const parsed = Number(value ?? 0);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
 function getCookieValue(cookieHeader: string, name: string): string | null {
   const prefix = `${name}=`;
   for (const chunk of cookieHeader.split(';')) {
@@ -154,7 +159,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const channel = youtubeData.items?.[0];
 
       const { accounts } = readAccountsFromCookies(req);
-      const existingAccount = accounts.find((acc: any) => acc.id === userInfo.id);
+      const existingAccount = accounts.find((acc: any) => {
+        if (channel?.id && acc.channel?.id) {
+          return acc.channel.id === channel.id;
+        }
+        return acc.id === userInfo.id;
+      });
 
       // Store refresh token only to keep cookie small enough for multi-account support.
       const compactTokens = tokens.refresh_token
@@ -178,17 +188,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           ? {
               id: channel.id,
               title: channel.snippet.title,
-              description: channel.snippet.description,
+              description: (channel.snippet.description || '').slice(0, 300),
               thumbnails: channel.snippet.thumbnails?.default
                 ? { default: channel.snippet.thumbnails.default }
                 : channel.snippet.thumbnails,
-              statistics: channel.statistics,
+              statistics: {
+                subscriberCount: channel.statistics?.subscriberCount || '0',
+                viewCount: channel.statistics?.viewCount || '0',
+                videoCount: channel.statistics?.videoCount || '0',
+              },
             }
           : null,
       };
 
-      // Remove existing account with same ID, then prepend the latest login as active.
-      const updatedAccounts = accounts.filter((acc: any) => acc.id !== newUserData.id);
+      // Deduplicate by channel ID when available so one Google login can keep multiple channels.
+      const updatedAccounts = accounts.filter((acc: any) => {
+        if (newUserData.channel && acc.channel) {
+          return acc.channel.id !== newUserData.channel.id;
+        }
+        if (!newUserData.channel && !acc.channel) {
+          return acc.id !== newUserData.id;
+        }
+        return true;
+      });
       updatedAccounts.unshift(newUserData);
 
       // Keep account list bounded to prevent cookie bloat.
@@ -512,6 +534,152 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     } catch (error) {
       console.error('Fetch analytics error:', error);
       return res.status(500).json({ error: 'Failed to fetch analytics' });
+    }
+  }
+
+  // Best posting time recommendation
+  if (path === 'api/user/best-posting-time') {
+    const { accounts, activeIndex } = readAccountsFromCookies(req);
+    if (accounts.length === 0) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    try {
+      const userData = accounts[activeIndex];
+      if (!userData) {
+        return res.status(401).json({ error: 'No active account' });
+      }
+
+      const authHeader = await getAuthHeaderForAccount(userData);
+
+      const searchResponse = await fetch(
+        'https://www.googleapis.com/youtube/v3/search?part=snippet&forMine=true&type=video&maxResults=50&order=date',
+        { headers: authHeader }
+      );
+      const searchData = await searchResponse.json();
+
+      const videoIds = searchData.items?.map((item: any) => item.id.videoId).filter(Boolean).join(',');
+      if (!videoIds) {
+        return res.json({
+          bestHour: null,
+          bestDay: null,
+          confidence: 'low',
+          message: 'Not enough video data to analyze posting patterns',
+        });
+      }
+
+      const videosResponse = await fetch(
+        `https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics,contentDetails&id=${videoIds}`,
+        { headers: authHeader }
+      );
+      const videosData = await videosResponse.json();
+      const videos = videosData.items || [];
+
+      if (videos.length < 5) {
+        return res.json({
+          bestHour: null,
+          bestDay: null,
+          confidence: 'low',
+          message: 'Need at least 5 videos to analyze posting patterns',
+        });
+      }
+
+      const hourlyPerformance: Record<number, { totalViews: number; totalEngagement: number; count: number; avgViewsPerDay: number }> = {};
+      const dailyPerformance: Record<number, { totalViews: number; totalEngagement: number; count: number; avgViewsPerDay: number }> = {};
+      const now = Date.now();
+
+      for (const video of videos) {
+        const publishedAt = new Date(video.snippet?.publishedAt || '');
+        if (Number.isNaN(publishedAt.getTime())) {
+          continue;
+        }
+
+        const hour = publishedAt.getUTCHours();
+        const day = publishedAt.getUTCDay();
+
+        const viewCount = toNumber(video.statistics?.viewCount);
+        const likeCount = toNumber(video.statistics?.likeCount);
+        const commentCount = toNumber(video.statistics?.commentCount);
+        const engagement = likeCount + commentCount;
+        const ageDays = Math.max(1, (now - publishedAt.getTime()) / (24 * 60 * 60 * 1000));
+        const viewsPerDay = viewCount / ageDays;
+
+        if (!hourlyPerformance[hour]) {
+          hourlyPerformance[hour] = { totalViews: 0, totalEngagement: 0, count: 0, avgViewsPerDay: 0 };
+        }
+        hourlyPerformance[hour].totalViews += viewCount;
+        hourlyPerformance[hour].totalEngagement += engagement;
+        hourlyPerformance[hour].avgViewsPerDay += viewsPerDay;
+        hourlyPerformance[hour].count += 1;
+
+        if (!dailyPerformance[day]) {
+          dailyPerformance[day] = { totalViews: 0, totalEngagement: 0, count: 0, avgViewsPerDay: 0 };
+        }
+        dailyPerformance[day].totalViews += viewCount;
+        dailyPerformance[day].totalEngagement += engagement;
+        dailyPerformance[day].avgViewsPerDay += viewsPerDay;
+        dailyPerformance[day].count += 1;
+      }
+
+      const hourlyEntries = Object.entries(hourlyPerformance);
+      const dailyEntries = Object.entries(dailyPerformance);
+      if (hourlyEntries.length === 0 || dailyEntries.length === 0) {
+        return res.json({
+          bestHour: null,
+          bestDay: null,
+          confidence: 'low',
+          message: 'Not enough valid publishing data to analyze patterns',
+        });
+      }
+
+      let bestHour = 0;
+      let bestHourScore = 0;
+      for (const [hour, data] of hourlyEntries) {
+        const score = data.avgViewsPerDay / data.count;
+        if (score > bestHourScore) {
+          bestHourScore = score;
+          bestHour = parseInt(hour, 10);
+        }
+      }
+
+      let bestDay = 0;
+      let bestDayScore = 0;
+      for (const [day, data] of dailyEntries) {
+        const score = data.avgViewsPerDay / data.count;
+        if (score > bestDayScore) {
+          bestDayScore = score;
+          bestDay = parseInt(day, 10);
+        }
+      }
+
+      const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      const uniqueHours = hourlyEntries.length;
+      let confidence: 'low' | 'medium' | 'high' = 'low';
+      if (videos.length >= 20 && uniqueHours >= 5) {
+        confidence = 'high';
+      } else if (videos.length >= 10 && uniqueHours >= 3) {
+        confidence = 'medium';
+      }
+
+      return res.json({
+        bestHour,
+        bestHourFormatted: `${String(bestHour).padStart(2, '0')}:00 UTC`,
+        bestDay: dayNames[bestDay],
+        bestDayIndex: bestDay,
+        confidence,
+        videosAnalyzed: videos.length,
+        aiInsight: `Based on your recent uploads, ${dayNames[bestDay]} around ${String(bestHour).padStart(2, '0')}:00 UTC tends to drive the strongest daily view velocity.`,
+        hourlyBreakdown: hourlyEntries
+          .map(([hour, data]) => ({
+            hour: parseInt(hour, 10),
+            avgViewsPerDay: Math.round(data.avgViewsPerDay / data.count),
+            videoCount: data.count,
+          }))
+          .sort((a, b) => b.avgViewsPerDay - a.avgViewsPerDay),
+      });
+    } catch (error) {
+      console.error('Best posting time analysis error:', error);
+      return res.status(500).json({ error: 'Failed to analyze best posting time' });
     }
   }
 

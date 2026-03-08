@@ -418,20 +418,39 @@ export default function App() {
         return;
       }
 
-      console.log('[Connect] Popup opened, polling for closure...');
-      
-      // Poll to check if popup closed or auth succeeded
-      const checkInterval = setInterval(() => {
-        if (popup.closed) {
-          clearInterval(checkInterval);
-          console.log('[Connect] Popup closed, refreshing user...');
-          // Refresh user state when popup closes
-          fetchUser();
+      console.log('[Connect] Popup opened, waiting for OAuth completion...');
+
+      const previousAccountCount = accounts.length;
+      const previousActiveChannelId = user?.channel?.id || null;
+
+      // Poll account state instead of popup.closed to avoid COOP warnings in modern browsers.
+      const checkInterval = window.setInterval(async () => {
+        try {
+          const accountsResponse = await fetch('/api/user/accounts');
+          if (!accountsResponse.ok) {
+            return;
+          }
+
+          const accountsData = await accountsResponse.json();
+          const nextAccounts = Array.isArray(accountsData.accounts) ? accountsData.accounts : [];
+          const nextActiveIndex = Number.isInteger(accountsData.activeIndex) ? accountsData.activeIndex : 0;
+          const nextActiveChannelId = nextAccounts[nextActiveIndex]?.channel?.id || null;
+
+          const accountAdded = nextAccounts.length > previousAccountCount;
+          const activeChannelChanged = Boolean(nextActiveChannelId && nextActiveChannelId !== previousActiveChannelId);
+
+          if (accountAdded || activeChannelChanged) {
+            window.clearInterval(checkInterval);
+            console.log('[Connect] OAuth state updated, refreshing user...');
+            fetchUser();
+          }
+        } catch {
+          // Ignore transient polling errors while OAuth flow is in progress.
         }
-      }, 500);
-      
-      // Safety timeout: stop checking after 5 minutes
-      setTimeout(() => clearInterval(checkInterval), 5 * 60 * 1000);
+      }, 1500);
+
+      // Safety timeout: stop checking after 2 minutes
+      window.setTimeout(() => window.clearInterval(checkInterval), 2 * 60 * 1000);
     } catch (error) {
       console.error('[Connect Error] Exception:', error);
       alert('An error occurred. Check browser console for details.');
