@@ -1,10 +1,15 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { OAuth2Client } from 'google-auth-library';
+import { GoogleGenAI, Type } from '@google/genai';
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
 const APP_URL = process.env.APP_URL || 'http://localhost:3000';
 const REDIRECT_URI = `${APP_URL}/auth/google/callback`;
+const SHORTS_MAX_SECONDS = 61;
+const LONG_FORM_MIN_SECONDS = 120;
+const THUMBNAIL_AUTH_COOKIE = 'tube_vision_thumbnail_authorizations';
+const THUMBNAIL_AUTH_MAX_ITEMS = 40;
 
 function isMissingConfigValue(value?: string): boolean {
   if (!value || !value.trim()) return true;
@@ -37,6 +42,90 @@ const oauth2Client = createOAuthClient();
 function toNumber(value: unknown): number {
   const parsed = Number(value ?? 0);
   return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function parseISODurationToSeconds(duration: string): number {
+  if (!duration) return 0;
+  const match = duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+  if (!match) return 0;
+
+  const hours = Number(match[1] || 0);
+  const minutes = Number(match[2] || 0);
+  const seconds = Number(match[3] || 0);
+  return hours * 3600 + minutes * 60 + seconds;
+}
+
+function formatDurationLabel(totalSeconds: number): string {
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  if (hours > 0) {
+    return `${hours}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  }
+  return `${minutes}:${String(seconds).padStart(2, '0')}`;
+}
+
+function readJsonBody(req: VercelRequest): any {
+  if (!req.body) return {};
+  if (typeof req.body === 'string') {
+    try {
+      return JSON.parse(req.body);
+    } catch {
+      return {};
+    }
+  }
+  return req.body;
+}
+
+type ThumbnailAuthorizationCookieItem = {
+  ownershipKey: string;
+  videoId: string;
+  videoTitle: string;
+  currentThumbnailUrl: string;
+  proposedTextOverlay: string;
+  titleTreatment: string;
+  layoutDescription: string;
+  colorDirection: string;
+  thumbnailImagePrompt: string;
+  projectedCtrLiftPercent: number;
+  swapPriority: number;
+  status: string;
+  approvedAt: string;
+};
+
+function getThumbnailOwnershipKey(userData: any): string {
+  if (userData?.channel?.id) {
+    return `channel:${userData.channel.id}`;
+  }
+  if (userData?.id) {
+    return `user:${userData.id}`;
+  }
+  return 'anonymous';
+}
+
+function readThumbnailAuthorizationsFromCookies(req: VercelRequest): ThumbnailAuthorizationCookieItem[] {
+  const cookies = req.headers.cookie || '';
+  const queueCookie = getCookieValue(cookies, THUMBNAIL_AUTH_COOKIE);
+  if (!queueCookie) {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(decodeURIComponent(queueCookie));
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+    return parsed;
+  } catch {
+    return [];
+  }
+}
+
+function setThumbnailAuthorizationsCookie(res: VercelResponse, queue: ThumbnailAuthorizationCookieItem[]) {
+  const bounded = queue.slice(-THUMBNAIL_AUTH_MAX_ITEMS);
+  const cookieValue = encodeURIComponent(JSON.stringify(bounded));
+  res.setHeader('Set-Cookie', `${THUMBNAIL_AUTH_COOKIE}=${cookieValue}; ${COOKIE_BASE_OPTIONS}`);
 }
 
 function getCookieValue(cookieHeader: string, name: string): string | null {
@@ -698,6 +787,394 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     } catch (error) {
       console.error('Best posting time analysis error:', error);
       return res.status(500).json({ error: 'Failed to analyze best posting time' });
+    }
+  }
+
+  // Thumbnail authorization queue
+  if (path === 'api/thumbnails/authorizations') {
+    const { accounts, activeIndex } = readAccountsFromCookies(req);
+    if (accounts.length === 0) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const userData = accounts[activeIndex];
+    if (!userData) {
+      return res.status(401).json({ error: 'No active account' });
+    }
+
+    const ownershipKey = getThumbnailOwnershipKey(userData);
+    const queue = readThumbnailAuthorizationsFromCookies(req)
+      .filter((item) => item.ownershipKey === ownershipKey)
+      .map(({ ownershipKey: _ownershipKey, ...item }) => item);
+
+    return res.json(queue);
+  }
+
+  if (path === 'api/thumbnails/authorize' && req.method === 'POST') {
+    const { accounts, activeIndex } = readAccountsFromCookies(req);
+    if (accounts.length === 0) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const userData = accounts[activeIndex];
+    if (!userData) {
+      return res.status(401).json({ error: 'No active account' });
+    }
+
+    const {
+      videoId,
+      videoTitle,
+      currentThumbnailUrl,
+      proposedTextOverlay,
+      titleTreatment,
+      layoutDescription,
+      colorDirection,
+      thumbnailImagePrompt,
+      projectedCtrLiftPercent,
+      swapPriority,
+    } = readJsonBody(req) || {};
+
+    if (!videoId || !videoTitle) {
+      return res.status(400).json({ error: 'videoId and videoTitle are required' });
+    }
+
+    const ownershipKey = getThumbnailOwnershipKey(userData);
+    const queue = readThumbnailAuthorizationsFromCookies(req);
+    const existingIndex = queue.findIndex(
+      (item) => item.ownershipKey === ownershipKey && item.videoId === videoId
+    );
+
+    const payload: ThumbnailAuthorizationCookieItem = {
+      ownershipKey,
+      videoId,
+      videoTitle,
+      currentThumbnailUrl: currentThumbnailUrl || '',
+      proposedTextOverlay: proposedTextOverlay || '',
+      titleTreatment: titleTreatment || '',
+      layoutDescription: layoutDescription || '',
+      colorDirection: colorDirection || '',
+      thumbnailImagePrompt: thumbnailImagePrompt || '',
+      projectedCtrLiftPercent: toNumber(projectedCtrLiftPercent),
+      swapPriority: toNumber(swapPriority || 50),
+      status: 'authorized',
+      approvedAt: new Date().toISOString(),
+    };
+
+    if (existingIndex >= 0) {
+      queue[existingIndex] = payload;
+    } else {
+      queue.push(payload);
+    }
+
+    setThumbnailAuthorizationsCookie(res, queue);
+
+    const accountQueue = queue
+      .filter((item) => item.ownershipKey === ownershipKey)
+      .map(({ ownershipKey: _ownershipKey, ...item }) => item);
+
+    const { ownershipKey: _removed, ...safePayload } = payload;
+    return res.json({ success: true, item: safePayload, count: accountQueue.length, queue: accountQueue });
+  }
+
+  if (path === 'api/thumbnails/authorize/clear' && req.method === 'POST') {
+    const { accounts, activeIndex } = readAccountsFromCookies(req);
+    if (accounts.length === 0) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const userData = accounts[activeIndex];
+    if (!userData) {
+      return res.status(401).json({ error: 'No active account' });
+    }
+
+    const ownershipKey = getThumbnailOwnershipKey(userData);
+    const queue = readThumbnailAuthorizationsFromCookies(req).filter(
+      (item) => item.ownershipKey !== ownershipKey
+    );
+
+    setThumbnailAuthorizationsCookie(res, queue);
+    return res.json({ success: true, count: 0, queue: [] });
+  }
+
+  // Shorts source videos from connected channel
+  if (path === 'api/shorts/my-long-videos') {
+    const { accounts, activeIndex } = readAccountsFromCookies(req);
+    if (accounts.length === 0) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    try {
+      const userData = accounts[activeIndex];
+      if (!userData) {
+        return res.status(401).json({ error: 'No active account' });
+      }
+
+      const authHeader = await getAuthHeaderForAccount(userData);
+
+      const searchResponse = await fetch(
+        'https://www.googleapis.com/youtube/v3/search?part=snippet&forMine=true&type=video&maxResults=50&order=date',
+        { headers: authHeader }
+      );
+
+      if (!searchResponse.ok) {
+        const errorData = await searchResponse.json().catch(() => ({}));
+        console.error('YouTube search API error:', errorData);
+        return res.status(502).json({ error: 'Failed to fetch your channel videos from YouTube' });
+      }
+
+      const searchData = await searchResponse.json();
+      const videoIds = searchData.items
+        ?.map((item: any) => item.id?.videoId)
+        .filter(Boolean)
+        .join(',');
+
+      if (!videoIds) {
+        return res.json([]);
+      }
+
+      const videosResponse = await fetch(
+        `https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics,contentDetails&id=${videoIds}`,
+        { headers: authHeader }
+      );
+
+      if (!videosResponse.ok) {
+        const errorData = await videosResponse.json().catch(() => ({}));
+        console.error('YouTube videos API error:', errorData);
+        return res.status(502).json({ error: 'Failed to fetch video details from YouTube' });
+      }
+
+      const videosData = await videosResponse.json();
+
+      const longFormVideos = (videosData.items || [])
+        .map((video: any) => {
+          const durationSeconds = parseISODurationToSeconds(video.contentDetails?.duration || '');
+          return {
+            id: video.id,
+            title: video.snippet?.title || 'Untitled',
+            description: video.snippet?.description || '',
+            thumbnail:
+              video.snippet?.thumbnails?.high?.url ||
+              video.snippet?.thumbnails?.medium?.url ||
+              video.snippet?.thumbnails?.default?.url ||
+              '',
+            publishedAt: video.snippet?.publishedAt,
+            viewCount: toNumber(video.statistics?.viewCount),
+            likeCount: toNumber(video.statistics?.likeCount),
+            commentCount: toNumber(video.statistics?.commentCount),
+            durationSeconds,
+            durationLabel: formatDurationLabel(durationSeconds),
+            youtubeUrl: `https://www.youtube.com/watch?v=${video.id}`,
+          };
+        })
+        .filter((video: any) => video.durationSeconds >= LONG_FORM_MIN_SECONDS)
+        .sort(
+          (a: any, b: any) =>
+            new Date(b.publishedAt || 0).getTime() - new Date(a.publishedAt || 0).getTime()
+        );
+
+      return res.json(longFormVideos);
+    } catch (error) {
+      console.error('Fetch long-form videos error:', error);
+      return res.status(500).json({ error: 'Failed to fetch long-form videos' });
+    }
+  }
+
+  if (path === 'api/shorts/niche-high-performers') {
+    const { accounts, activeIndex } = readAccountsFromCookies(req);
+    if (accounts.length === 0) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const rawQuery = Array.isArray(req.query?.q) ? req.query.q[0] : req.query?.q;
+    const query = String(rawQuery || '').trim();
+    if (!query) {
+      return res.status(400).json({ error: 'Query is required' });
+    }
+
+    try {
+      const userData = accounts[activeIndex];
+      if (!userData) {
+        return res.status(401).json({ error: 'No active account' });
+      }
+
+      const authHeader = await getAuthHeaderForAccount(userData);
+
+      const searchResponse = await fetch(
+        `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&videoDuration=short&maxResults=25&order=viewCount&q=${encodeURIComponent(query)}`,
+        { headers: authHeader }
+      );
+
+      if (!searchResponse.ok) {
+        const errorData = await searchResponse.json().catch(() => ({}));
+        console.error('YouTube niche search API error:', errorData);
+        return res.status(502).json({ error: 'Failed to search niche Shorts on YouTube' });
+      }
+
+      const searchData = await searchResponse.json();
+      const videoIds = searchData.items
+        ?.map((item: any) => item.id?.videoId)
+        .filter(Boolean)
+        .join(',');
+
+      if (!videoIds) {
+        return res.json([]);
+      }
+
+      const videosResponse = await fetch(
+        `https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics,contentDetails&id=${videoIds}`,
+        { headers: authHeader }
+      );
+
+      if (!videosResponse.ok) {
+        const errorData = await videosResponse.json().catch(() => ({}));
+        console.error('YouTube videos details API error:', errorData);
+        return res.status(502).json({ error: 'Failed to fetch niche Shorts details from YouTube' });
+      }
+
+      const videosData = await videosResponse.json();
+      const now = Date.now();
+
+      const performers = (videosData.items || [])
+        .map((video: any) => {
+          const durationSeconds = parseISODurationToSeconds(video.contentDetails?.duration || '');
+          const viewCount = toNumber(video.statistics?.viewCount);
+          const likeCount = toNumber(video.statistics?.likeCount);
+          const commentCount = toNumber(video.statistics?.commentCount);
+          const publishedAt = video.snippet?.publishedAt || new Date().toISOString();
+          const ageDays = Math.max(1, (now - new Date(publishedAt).getTime()) / (24 * 60 * 60 * 1000));
+          const viewsPerDay = Math.round(viewCount / ageDays);
+          const engagementRate =
+            viewCount > 0 ? Number((((likeCount + commentCount) / viewCount) * 100).toFixed(2)) : 0;
+
+          return {
+            id: video.id,
+            title: video.snippet?.title || 'Untitled',
+            description: video.snippet?.description || '',
+            thumbnail:
+              video.snippet?.thumbnails?.high?.url ||
+              video.snippet?.thumbnails?.medium?.url ||
+              video.snippet?.thumbnails?.default?.url ||
+              '',
+            channelTitle: video.snippet?.channelTitle || 'Unknown Channel',
+            publishedAt,
+            durationSeconds,
+            durationLabel: formatDurationLabel(durationSeconds),
+            viewCount,
+            likeCount,
+            commentCount,
+            viewsPerDay,
+            engagementRate,
+            youtubeUrl: `https://www.youtube.com/watch?v=${video.id}`,
+          };
+        })
+        .filter((video: any) => video.durationSeconds <= SHORTS_MAX_SECONDS)
+        .sort((a: any, b: any) => {
+          if (b.viewsPerDay !== a.viewsPerDay) return b.viewsPerDay - a.viewsPerDay;
+          return b.viewCount - a.viewCount;
+        })
+        .slice(0, 12);
+
+      return res.json(performers);
+    } catch (error) {
+      console.error('Fetch niche shorts error:', error);
+      return res.status(500).json({ error: 'Failed to fetch high-performing Shorts' });
+    }
+  }
+
+  if (path === 'api/shorts/remix-plan' && req.method === 'POST') {
+    const { accounts, activeIndex } = readAccountsFromCookies(req);
+    if (accounts.length === 0) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const userData = accounts[activeIndex];
+    if (!userData) {
+      return res.status(401).json({ error: 'No active account' });
+    }
+
+    const body = readJsonBody(req) || {};
+    const niche = body.niche;
+    const source = body.source;
+
+    if (!source?.title) {
+      return res.status(400).json({ error: 'Source short data is required' });
+    }
+
+    if (!process.env.GEMINI_API_KEY) {
+      return res.status(500).json({ error: 'Missing GEMINI_API_KEY on server' });
+    }
+
+    try {
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const prompt = `Build an original YouTube Shorts remix plan for this niche and reference short.
+
+Niche: ${niche || 'General'}
+Source title: ${source.title}
+Source channel: ${source.channelTitle || 'Unknown'}
+Source url: ${source.youtubeUrl || 'N/A'}
+Source views: ${source.viewCount || 0}
+Source description: ${source.description || ''}
+
+Goals:
+- Keep the concept inspiration but avoid copying wording/structure line-by-line.
+- Deliver a remix that can be produced from original footage by the creator.
+- Optimize for YouTube Shorts retention and replay value.
+
+Return concise, practical recommendations.`;
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-3.1-pro-preview',
+        contents: prompt,
+        config: {
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              remixAngle: { type: Type.STRING },
+              hook: { type: Type.STRING },
+              titleOptions: {
+                type: Type.ARRAY,
+                items: { type: Type.STRING },
+              },
+              beatByBeatPlan: {
+                type: Type.ARRAY,
+                items: { type: Type.STRING },
+              },
+              shotIdeas: {
+                type: Type.ARRAY,
+                items: { type: Type.STRING },
+              },
+              scriptTemplate: { type: Type.STRING },
+              cta: { type: Type.STRING },
+              hashtagPack: {
+                type: Type.ARRAY,
+                items: { type: Type.STRING },
+              },
+              originalityGuardrails: {
+                type: Type.ARRAY,
+                items: { type: Type.STRING },
+              },
+            },
+            required: [
+              'remixAngle',
+              'hook',
+              'titleOptions',
+              'beatByBeatPlan',
+              'shotIdeas',
+              'scriptTemplate',
+              'cta',
+              'hashtagPack',
+              'originalityGuardrails',
+            ],
+          },
+        },
+      });
+
+      const parsed = JSON.parse(response.text || '{}');
+      return res.json(parsed);
+    } catch (error) {
+      console.error('Remix plan generation error:', error);
+      return res.status(500).json({ error: 'Failed to generate remix plan' });
     }
   }
 
