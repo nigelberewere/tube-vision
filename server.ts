@@ -75,6 +75,39 @@ type CreateAppOptions = {
   includeFrontend?: boolean;
 };
 
+function getSessionAccountsAndActiveIndex(req: express.Request) {
+  const session = req.session as any;
+  const rawAccounts = Array.isArray(session.accounts)
+    ? session.accounts
+    : session.user
+      ? [session.user]
+      : [];
+
+  let activeIndex = Number.isInteger(session.activeAccountIndex) ? session.activeAccountIndex : 0;
+  if (rawAccounts.length === 0) {
+    activeIndex = 0;
+  } else if (activeIndex < 0 || activeIndex >= rawAccounts.length) {
+    activeIndex = 0;
+  }
+
+  return { session, accounts: rawAccounts, activeIndex };
+}
+
+function setSessionAccountsAndActiveIndex(req: express.Request, accounts: any[], activeIndex: number) {
+  const session = req.session as any;
+  if (!Array.isArray(accounts) || accounts.length === 0) {
+    session.accounts = [];
+    session.activeAccountIndex = 0;
+    delete session.user;
+    return;
+  }
+
+  const normalizedIndex = Math.min(Math.max(activeIndex, 0), accounts.length - 1);
+  session.accounts = accounts;
+  session.activeAccountIndex = normalizedIndex;
+  session.user = accounts[normalizedIndex];
+}
+
 export async function createApp(options: CreateAppOptions = {}) {
   const { includeFrontend = true } = options;
   const app = express();
@@ -351,12 +384,11 @@ For every video provided, evaluate segments based on:
       const youtubeData = await youtubeResponse.json();
       const channel = youtubeData.items?.[0];
 
-      // Store in session
-      (req.session as any).user = {
+      const newUserData = {
         id: userInfo.id,
         name: userInfo.name,
         picture: userInfo.picture,
-        tokens: tokens, // Store tokens for later use
+        tokens: tokens,
         channel: channel ? {
           id: channel.id,
           title: channel.snippet.title,
@@ -365,6 +397,11 @@ For every video provided, evaluate segments based on:
           statistics: channel.statistics,
         } : null,
       };
+
+      const { accounts } = getSessionAccountsAndActiveIndex(req);
+      const dedupedAccounts = accounts.filter((account: any) => account.id !== newUserData.id);
+      dedupedAccounts.unshift(newUserData);
+      setSessionAccountsAndActiveIndex(req, dedupedAccounts, 0);
 
       res.send(`
         <!DOCTYPE html>
@@ -447,8 +484,69 @@ For every video provided, evaluate segments based on:
     }
   });
 
+  app.get("/api/user/accounts", (req, res) => {
+    const { accounts, activeIndex } = getSessionAccountsAndActiveIndex(req);
+
+    const safeAccounts = accounts.map((account: any) => {
+      const { tokens, ...safe } = account;
+      return safe;
+    });
+
+    res.json({ accounts: safeAccounts, activeIndex });
+  });
+
+  app.post("/api/user/switch", (req, res) => {
+    const { accounts } = getSessionAccountsAndActiveIndex(req);
+    if (accounts.length === 0) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
+    const index = Number(req.body?.index);
+    if (!Number.isInteger(index)) {
+      return res.status(400).json({ error: "Invalid index" });
+    }
+
+    if (index < 0 || index >= accounts.length) {
+      return res.status(400).json({ error: "Index out of range" });
+    }
+
+    setSessionAccountsAndActiveIndex(req, accounts, index);
+    res.json({ success: true, activeIndex: index });
+  });
+
+  app.post("/api/user/remove", (req, res) => {
+    const { accounts, activeIndex } = getSessionAccountsAndActiveIndex(req);
+    if (accounts.length === 0) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
+    const removeIndex = Number(req.body?.index);
+    if (!Number.isInteger(removeIndex)) {
+      return res.status(400).json({ error: "Invalid index" });
+    }
+
+    if (removeIndex < 0 || removeIndex >= accounts.length) {
+      return res.status(400).json({ error: "Index out of range" });
+    }
+
+    const updatedAccounts = accounts.filter((_: any, idx: number) => idx !== removeIndex);
+
+    let nextActiveIndex = activeIndex;
+    if (updatedAccounts.length === 0) {
+      nextActiveIndex = 0;
+    } else if (activeIndex === removeIndex) {
+      nextActiveIndex = Math.max(0, removeIndex - 1);
+    } else if (activeIndex > removeIndex) {
+      nextActiveIndex = activeIndex - 1;
+    }
+
+    setSessionAccountsAndActiveIndex(req, updatedAccounts, nextActiveIndex);
+    res.json({ success: true, activeIndex: nextActiveIndex });
+  });
+
   app.get("/api/user/channel", (req, res) => {
-    const user = (req.session as any).user;
+    const { accounts, activeIndex } = getSessionAccountsAndActiveIndex(req);
+    const user = accounts[activeIndex];
     if (!user) {
       return res.status(401).json({ error: "Not authenticated" });
     }

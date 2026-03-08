@@ -27,6 +27,10 @@ interface HomeDashboardProps {
   channel: ChannelInfo | null;
   isConnected: boolean;
   onConnect: () => void;
+  profileName?: string;
+  profileImage?: string;
+  activeAccountIndex?: number;
+  totalAccounts?: number;
 }
 
 interface AnalyticsReport {
@@ -70,6 +74,10 @@ function compact(value: number): string {
   return Intl.NumberFormat(undefined, { notation: 'compact', maximumFractionDigits: 1 }).format(value);
 }
 
+function full(value: number): string {
+  return Intl.NumberFormat(undefined, { maximumFractionDigits: 0 }).format(value);
+}
+
 function rowsToObjects(report?: AnalyticsReport): Array<Record<string, any>> {
   const headers = report?.columnHeaders || [];
   const rows = report?.rows || [];
@@ -93,7 +101,15 @@ function hourMap(report?: AnalyticsReport): Record<number, number> {
   return mapped;
 }
 
-export default function HomeDashboard({ channel, isConnected, onConnect }: HomeDashboardProps) {
+export default function HomeDashboard({
+  channel,
+  isConnected,
+  onConnect,
+  profileName,
+  profileImage,
+  activeAccountIndex = 0,
+  totalAccounts = 0,
+}: HomeDashboardProps) {
   const [analytics, setAnalytics] = useState<AnalyticsPayload | null>(null);
   const [videos, setVideos] = useState<VideoItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -265,6 +281,45 @@ export default function HomeDashboard({ channel, isConnected, onConnect }: HomeD
         </button>
       </div>
 
+      <div className="rounded-2xl border border-indigo-400/20 bg-gradient-to-r from-indigo-500/10 via-slate-900 to-cyan-500/10 p-5">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div className="flex items-center gap-4 min-w-0">
+            {profileImage ? (
+              <img
+                src={profileImage}
+                alt={profileName || 'Account profile'}
+                className="w-14 h-14 rounded-full border border-white/20 object-cover"
+                referrerPolicy="no-referrer"
+              />
+            ) : (
+              <div className="w-14 h-14 rounded-full border border-white/20 bg-white/10 text-white font-bold flex items-center justify-center">
+                {(profileName || channel?.title || 'T').slice(0, 1).toUpperCase()}
+              </div>
+            )}
+            <div className="min-w-0">
+              <p className="text-[10px] uppercase tracking-[0.2em] text-indigo-200/80 font-bold">Personal Workspace</p>
+              <h3 className="text-xl font-bold text-white truncate mt-1">Welcome back, {profileName || 'Creator'}</h3>
+              <p className="text-sm text-slate-300 truncate mt-1">
+                {channel?.title ? `${channel.title} is now your active dashboard.` : 'Your connected account is active.'}
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 w-full md:w-auto">
+            <div className="rounded-lg border border-white/15 bg-black/25 px-3 py-2 min-w-[130px]">
+              <p className="text-[10px] uppercase tracking-[0.18em] text-slate-400">Role</p>
+              <p className="text-sm font-semibold text-white mt-1">Workspace Owner</p>
+            </div>
+            <div className="rounded-lg border border-white/15 bg-black/25 px-3 py-2 min-w-[130px]">
+              <p className="text-[10px] uppercase tracking-[0.18em] text-slate-400">Active Account</p>
+              <p className="text-sm font-semibold text-white mt-1">
+                {totalAccounts > 0 ? `${activeAccountIndex + 1} of ${totalAccounts}` : '1 of 1'}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {error && (
         <div className="p-5 bg-amber-500/10 border border-amber-500/20 rounded-xl text-sm">
           <div className="flex items-start gap-3">
@@ -343,8 +398,9 @@ export default function HomeDashboard({ channel, isConnected, onConnect }: HomeD
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
         <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
-          <p className="text-xs uppercase tracking-wider text-zinc-500 font-bold">Total Channel Views</p>
-          <p className="text-2xl font-bold text-zinc-100 mt-1">{compact(toNumber(channel?.statistics?.viewCount))}</p>
+          <p className="text-xs uppercase tracking-wider text-zinc-500 font-bold">All Channel Views (All-Time)</p>
+          <p className="text-2xl font-bold text-zinc-100 mt-1">{full(toNumber(channel?.statistics?.viewCount))}</p>
+          <p className="text-xs text-zinc-500 mt-1">{compact(toNumber(channel?.statistics?.viewCount))} lifetime views</p>
         </div>
         <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
           <p className="text-xs uppercase tracking-wider text-zinc-500 font-bold">Total Videos</p>

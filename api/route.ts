@@ -23,11 +23,68 @@ const OAUTH_MISSING_VARS = [
   .filter(([, value]) => isMissingConfigValue(value as string))
   .map(([name]) => name);
 
-const oauth2Client = new OAuth2Client(
-  GOOGLE_CLIENT_ID,
-  GOOGLE_CLIENT_SECRET,
-  REDIRECT_URI
-);
+const COOKIE_MAX_AGE_SECONDS = 30 * 24 * 60 * 60;
+const COOKIE_BASE_OPTIONS = APP_URL.startsWith('https://')
+  ? `Path=/; HttpOnly; SameSite=None; Secure; Max-Age=${COOKIE_MAX_AGE_SECONDS}`
+  : `Path=/; HttpOnly; SameSite=Lax; Max-Age=${COOKIE_MAX_AGE_SECONDS}`;
+
+function createOAuthClient() {
+  return new OAuth2Client(GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, REDIRECT_URI);
+}
+
+const oauth2Client = createOAuthClient();
+
+function getCookieValue(cookieHeader: string, name: string): string | null {
+  const prefix = `${name}=`;
+  for (const chunk of cookieHeader.split(';')) {
+    const trimmed = chunk.trim();
+    if (trimmed.startsWith(prefix)) {
+      return trimmed.slice(prefix.length);
+    }
+  }
+  return null;
+}
+
+function readAccountsFromCookies(req: VercelRequest) {
+  const cookies = req.headers.cookie || '';
+  const accountsCookie = getCookieValue(cookies, 'tube_vision_accounts');
+  const activeCookie = getCookieValue(cookies, 'tube_vision_active');
+
+  if (!accountsCookie) {
+    return { accounts: [] as any[], activeIndex: 0 };
+  }
+
+  try {
+    const accounts = JSON.parse(decodeURIComponent(accountsCookie));
+    let activeIndex = activeCookie ? parseInt(activeCookie, 10) : 0;
+    if (!Number.isInteger(activeIndex) || activeIndex < 0 || activeIndex >= accounts.length) {
+      activeIndex = 0;
+    }
+    return { accounts, activeIndex };
+  } catch {
+    return { accounts: [] as any[], activeIndex: 0 };
+  }
+}
+
+async function getAuthHeaderForAccount(userData: any) {
+  const refreshToken = userData?.tokens?.refresh_token;
+  const fallbackAccessToken = userData?.tokens?.access_token;
+
+  if (refreshToken) {
+    const client = createOAuthClient();
+    client.setCredentials({ refresh_token: refreshToken });
+    const token = (await client.getAccessToken())?.token;
+    if (token) {
+      return { Authorization: `Bearer ${token}` };
+    }
+  }
+
+  if (fallbackAccessToken) {
+    return { Authorization: `Bearer ${fallbackAccessToken}` };
+  }
+
+  throw new Error('No OAuth token available for active account');
+}
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const path = Array.isArray(req.query?.path) ? req.query.path.join('/') : req.query?.path || '';
@@ -96,48 +153,53 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const youtubeData = await youtubeResponse.json();
       const channel = youtubeData.items?.[0];
 
+      const { accounts } = readAccountsFromCookies(req);
+      const existingAccount = accounts.find((acc: any) => acc.id === userInfo.id);
+
+      // Store refresh token only to keep cookie small enough for multi-account support.
+      const compactTokens = tokens.refresh_token
+        ? { refresh_token: tokens.refresh_token }
+        : existingAccount?.tokens?.refresh_token
+          ? { refresh_token: existingAccount.tokens.refresh_token }
+          : tokens.access_token
+            ? { access_token: tokens.access_token }
+            : null;
+
+      if (!compactTokens) {
+        return res.status(400).send('Google did not return a usable OAuth token.');
+      }
+
       const newUserData = {
         id: userInfo.id,
         name: userInfo.name,
         picture: userInfo.picture,
-        tokens: tokens,
+        tokens: compactTokens,
         channel: channel
           ? {
               id: channel.id,
               title: channel.snippet.title,
               description: channel.snippet.description,
-              thumbnails: channel.snippet.thumbnails,
+              thumbnails: channel.snippet.thumbnails?.default
+                ? { default: channel.snippet.thumbnails.default }
+                : channel.snippet.thumbnails,
               statistics: channel.statistics,
             }
           : null,
       };
 
-      // Get existing accounts from cookie
-      const cookies = req.headers.cookie || '';
-      const accountsCookie = cookies.split('; ').find(c => c.startsWith('tube_vision_accounts='));
-      let accounts: any[] = [];
-      
-      if (accountsCookie) {
-        try {
-          accounts = JSON.parse(decodeURIComponent(accountsCookie.split('=')[1]));
-        } catch (e) {
-          accounts = [];
-        }
-      }
+      // Remove existing account with same ID, then prepend the latest login as active.
+      const updatedAccounts = accounts.filter((acc: any) => acc.id !== newUserData.id);
+      updatedAccounts.unshift(newUserData);
 
-      // Remove existing account with same ID if it exists (update instead of duplicate)
-      accounts = accounts.filter(acc => acc.id !== newUserData.id);
-      
-      // Add new account at the beginning (makes it active)
-      accounts.unshift(newUserData);
+      // Keep account list bounded to prevent cookie bloat.
+      const boundedAccounts = updatedAccounts.slice(0, 5);
 
       // Store all accounts and set the active account index
-      const cookieValue = encodeURIComponent(JSON.stringify(accounts));
-      const cookieOptions = 'Path=/; HttpOnly; SameSite=None; Secure; Max-Age=' + (30 * 24 * 60 * 60); // 30 days
+      const cookieValue = encodeURIComponent(JSON.stringify(boundedAccounts));
       
       res.setHeader('Set-Cookie', [
-        `tube_vision_accounts=${cookieValue}; ${cookieOptions}`,
-        `tube_vision_active=0; ${cookieOptions}` // Active account is index 0
+        `tube_vision_accounts=${cookieValue}; ${COOKIE_BASE_OPTIONS}`,
+        `tube_vision_active=0; ${COOKIE_BASE_OPTIONS}`
       ]);
 
       return res.send(`
@@ -211,17 +273,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   // Get user channel data
   if (path === 'api/user/channel') {
-    const cookies = req.headers.cookie || '';
-    const accountsCookie = cookies.split('; ').find(c => c.startsWith('tube_vision_accounts='));
-    const activeCookie = cookies.split('; ').find(c => c.startsWith('tube_vision_active='));
-    
-    if (!accountsCookie) {
+    const { accounts, activeIndex } = readAccountsFromCookies(req);
+    if (accounts.length === 0) {
       return res.status(401).json({ error: 'Not authenticated' });
     }
 
     try {
-      const accounts = JSON.parse(decodeURIComponent(accountsCookie.split('=')[1]));
-      const activeIndex = activeCookie ? parseInt(activeCookie.split('=')[1]) : 0;
       const userData = accounts[activeIndex];
       
       if (!userData) {
@@ -237,18 +294,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   // Get all accounts
   if (path === 'api/user/accounts') {
-    const cookies = req.headers.cookie || '';
-    const accountsCookie = cookies.split('; ').find(c => c.startsWith('tube_vision_accounts='));
-    const activeCookie = cookies.split('; ').find(c => c.startsWith('tube_vision_active='));
-    
-    if (!accountsCookie) {
+    const { accounts, activeIndex } = readAccountsFromCookies(req);
+    if (accounts.length === 0) {
       return res.json({ accounts: [], activeIndex: 0 });
     }
 
     try {
-      const accounts = JSON.parse(decodeURIComponent(accountsCookie.split('=')[1]));
-      const activeIndex = activeCookie ? parseInt(activeCookie.split('=')[1]) : 0;
-      
       // Send accounts without tokens for security
       const safeAccounts = accounts.map((acc: any) => {
         const { tokens, ...safe } = acc;
@@ -263,10 +314,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   // Switch active account
   if (path === 'api/user/switch' && req.method === 'POST') {
-    const cookies = req.headers.cookie || '';
-    const accountsCookie = cookies.split('; ').find(c => c.startsWith('tube_vision_accounts='));
-    
-    if (!accountsCookie) {
+    const { accounts } = readAccountsFromCookies(req);
+    if (accounts.length === 0) {
       return res.status(401).json({ error: 'Not authenticated' });
     }
 
@@ -278,14 +327,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(400).json({ error: 'Invalid index' });
       }
 
-      const accounts = JSON.parse(decodeURIComponent(accountsCookie.split('=')[1]));
-      
       if (newIndex < 0 || newIndex >= accounts.length) {
         return res.status(400).json({ error: 'Index out of range' });
       }
 
-      const cookieOptions = 'Path=/; HttpOnly; SameSite=None; Secure; Max-Age=' + (30 * 24 * 60 * 60);
-      res.setHeader('Set-Cookie', `tube_vision_active=${newIndex}; ${cookieOptions}`);
+      res.setHeader('Set-Cookie', `tube_vision_active=${newIndex}; ${COOKIE_BASE_OPTIONS}`);
       
       return res.json({ success: true, activeIndex: newIndex });
     } catch (error) {
@@ -295,11 +341,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   // Remove an account
   if (path === 'api/user/remove' && req.method === 'POST') {
-    const cookies = req.headers.cookie || '';
-    const accountsCookie = cookies.split('; ').find(c => c.startsWith('tube_vision_accounts='));
-    const activeCookie = cookies.split('; ').find(c => c.startsWith('tube_vision_active='));
-    
-    if (!accountsCookie) {
+    const state = readAccountsFromCookies(req);
+    let accounts = state.accounts;
+    let activeIndex = state.activeIndex;
+    if (accounts.length === 0) {
       return res.status(401).json({ error: 'Not authenticated' });
     }
 
@@ -311,9 +356,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(400).json({ error: 'Invalid index' });
       }
 
-      let accounts = JSON.parse(decodeURIComponent(accountsCookie.split('=')[1]));
-      let activeIndex = activeCookie ? parseInt(activeCookie.split('=')[1]) : 0;
-      
       if (removeIndex < 0 || removeIndex >= accounts.length) {
         return res.status(400).json({ error: 'Index out of range' });
       }
@@ -328,19 +370,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         activeIndex--;
       }
 
-      const cookieOptions = 'Path=/; HttpOnly; SameSite=None; Secure; Max-Age=' + (30 * 24 * 60 * 60);
-      
       if (accounts.length === 0) {
         // Clear cookies if no accounts left
         res.setHeader('Set-Cookie', [
-          'tube_vision_accounts=; Path=/; HttpOnly; SameSite=None; Secure; Max-Age=0',
-          'tube_vision_active=; Path=/; HttpOnly; SameSite=None; Secure; Max-Age=0'
+          APP_URL.startsWith('https://')
+            ? 'tube_vision_accounts=; Path=/; HttpOnly; SameSite=None; Secure; Max-Age=0'
+            : 'tube_vision_accounts=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0',
+          APP_URL.startsWith('https://')
+            ? 'tube_vision_active=; Path=/; HttpOnly; SameSite=None; Secure; Max-Age=0'
+            : 'tube_vision_active=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0'
         ]);
       } else {
         const cookieValue = encodeURIComponent(JSON.stringify(accounts));
         res.setHeader('Set-Cookie', [
-          `tube_vision_accounts=${cookieValue}; ${cookieOptions}`,
-          `tube_vision_active=${activeIndex}; ${cookieOptions}`
+          `tube_vision_accounts=${cookieValue}; ${COOKIE_BASE_OPTIONS}`,
+          `tube_vision_active=${activeIndex}; ${COOKIE_BASE_OPTIONS}`
         ]);
       }
       
@@ -352,28 +396,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   // Get user videos
   if (path === 'api/user/videos') {
-    const cookies = req.headers.cookie || '';
-    const accountsCookie = cookies.split('; ').find(c => c.startsWith('tube_vision_accounts='));
-    const activeCookie = cookies.split('; ').find(c => c.startsWith('tube_vision_active='));
-    
-    if (!accountsCookie) {
+    const { accounts, activeIndex } = readAccountsFromCookies(req);
+    if (accounts.length === 0) {
       return res.status(401).json({ error: 'Not authenticated' });
     }
 
     try {
-      const accounts = JSON.parse(decodeURIComponent(accountsCookie.split('=')[1]));
-      const activeIndex = activeCookie ? parseInt(activeCookie.split('=')[1]) : 0;
       const userData = accounts[activeIndex];
       
       if (!userData) {
         return res.status(401).json({ error: 'No active account' });
       }
+
+      const authHeader = await getAuthHeaderForAccount(userData);
       
       const response = await fetch(
         'https://www.googleapis.com/youtube/v3/search?part=snippet&forMine=true&type=video&maxResults=50&order=date',
-        {
-          headers: { Authorization: `Bearer ${userData.tokens.access_token}` },
-        }
+        { headers: authHeader }
       );
       const data = await response.json();
       
@@ -382,9 +421,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (videoIds) {
         const statsResponse = await fetch(
           `https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics,contentDetails&id=${videoIds}`,
-          {
-            headers: { Authorization: `Bearer ${userData.tokens.access_token}` },
-          }
+          { headers: authHeader }
         );
         const statsData = await statsResponse.json();
         return res.json(statsData.items);
@@ -399,17 +436,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   // Get user analytics
   if (path === 'api/user/analytics') {
-    const cookies = req.headers.cookie || '';
-    const accountsCookie = cookies.split('; ').find(c => c.startsWith('tube_vision_accounts='));
-    const activeCookie = cookies.split('; ').find(c => c.startsWith('tube_vision_active='));
-    
-    if (!accountsCookie) {
+    const { accounts, activeIndex } = readAccountsFromCookies(req);
+    if (accounts.length === 0) {
       return res.status(401).json({ error: 'Not authenticated' });
     }
 
     try {
-      const accounts = JSON.parse(decodeURIComponent(accountsCookie.split('=')[1]));
-      const activeIndex = activeCookie ? parseInt(activeCookie.split('=')[1]) : 0;
       const userData = accounts[activeIndex];
       
       if (!userData) {
@@ -420,7 +452,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
       const yesterdayDate = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
-      const authHeader = { Authorization: `Bearer ${userData.tokens.access_token}` };
+      const authHeader = await getAuthHeaderForAccount(userData);
 
       // Fetch daily analytics (always works)
       const reportsResponse = await fetch(
@@ -486,8 +518,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Logout
   if (path === 'api/auth/logout') {
     res.setHeader('Set-Cookie', [
-      'tube_vision_accounts=; Path=/; HttpOnly; SameSite=None; Secure; Max-Age=0',
-      'tube_vision_active=; Path=/; HttpOnly; SameSite=None; Secure; Max-Age=0'
+      APP_URL.startsWith('https://')
+        ? 'tube_vision_accounts=; Path=/; HttpOnly; SameSite=None; Secure; Max-Age=0'
+        : 'tube_vision_accounts=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0',
+      APP_URL.startsWith('https://')
+        ? 'tube_vision_active=; Path=/; HttpOnly; SameSite=None; Secure; Max-Age=0'
+        : 'tube_vision_active=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0'
     ]);
     return res.json({ success: true });
   }

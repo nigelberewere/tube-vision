@@ -16,6 +16,7 @@ import {
   LineChart as LineChartIcon,
   Play,
   Mic,
+  Settings2,
 } from 'lucide-react';
 import { cn } from './lib/utils';
 import SEOOptimizer from './components/SEOOptimizer';
@@ -32,6 +33,8 @@ import ChannelInsights from './components/ChannelInsights';
 import VideoList from './components/VideoList';
 import VoiceOver from './components/VoiceOver';
 import ViralClipExtractor from './components/ViralClipExtractor';
+import OnboardingTour, { type OnboardingStep } from './components/OnboardingTour';
+import SettingsPanel from './components/SettingsPanel';
 import YouTubeShortsIcon from './components/icons/YouTubeShortsIcon';
 import YouTubeLogoIcon from './components/icons/YouTubeLogoIcon';
 import YouTubeMyVideosIcon from './components/icons/YouTubeMyVideosIcon';
@@ -50,7 +53,14 @@ type Tab =
   | 'insights'
   | 'videos'
   | 'voiceover'
-  | 'clips';
+  | 'clips'
+  | 'settings';
+
+type Theme = 'dark' | 'light';
+
+type TourStep = OnboardingStep & {
+  focusTab?: Tab;
+};
 
 interface YouTubeChannel {
   id: string;
@@ -80,15 +90,54 @@ interface TabConfig {
 }
 
 const CHANNEL_REQUIRED_TABS: Tab[] = ['channel', 'competitors', 'insights', 'videos'];
+const ONBOARDING_STORAGE_KEY = 'tube_vision_onboarding_completed_v1';
+const ONBOARDING_STEPS: TourStep[] = [
+  {
+    targetId: 'tour-home-tab',
+    title: 'Home Starts Here',
+    description: 'This is your dashboard command center where your daily channel metrics and momentum are tracked.',
+    focusTab: 'home',
+  },
+  {
+    targetId: 'tour-studios-section',
+    title: 'Studios: Create Fast',
+    description: 'Use Neural Voice, Shorts Studio, and Thumbnail Studio to produce content assets quickly.',
+  },
+  {
+    targetId: 'tour-growth-section',
+    title: 'Growth OS: Optimize Results',
+    description: 'Everything here helps improve your titles, scripts, analytics, and strategic growth decisions.',
+  },
+  {
+    targetId: 'tour-account-entry',
+    title: 'Your Channel Identity',
+    description: 'Connect, switch, or manage channel accounts from here so data and actions stay personalized.',
+  },
+  {
+    targetId: 'tour-settings-tab',
+    title: 'Settings & Theme',
+    description: 'Open settings to switch dark/light mode and personalize the workspace experience.',
+    focusTab: 'settings',
+  },
+];
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<Tab>('home');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [theme, setTheme] = useState<Theme>(() => {
+    if (typeof window === 'undefined') {
+      return 'dark';
+    }
+    const savedTheme = window.localStorage.getItem('tube_vision_theme');
+    return savedTheme === 'light' ? 'light' : 'dark';
+  });
   const [user, setUser] = useState<User | null>(null);
   const [accounts, setAccounts] = useState<User[]>([]);
   const [activeAccountIndex, setActiveAccountIndex] = useState(0);
   const [loadingUser, setLoadingUser] = useState(true);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
+  const [onboardingStepIndex, setOnboardingStepIndex] = useState(0);
 
   const tabs: TabConfig[] = [
     {
@@ -97,6 +146,13 @@ export default function App() {
       icon: LayoutDashboard,
       section: 'overview',
       summary: 'Track your channel pulse: subscribers, last-hour views, and daily momentum.',
+    },
+    {
+      id: 'settings',
+      label: 'Settings',
+      icon: Settings2,
+      section: 'overview',
+      summary: 'Customize your workspace preferences, including dark and light mode.',
     },
     {
       id: 'voiceover',
@@ -251,12 +307,72 @@ export default function App() {
     return () => window.removeEventListener('message', handleMessage);
   }, []);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const completed = window.localStorage.getItem(ONBOARDING_STORAGE_KEY);
+    if (!completed) {
+      setIsOnboardingOpen(true);
+      setOnboardingStepIndex(0);
+      if (window.innerWidth < 1024) {
+        setIsSidebarOpen(true);
+      }
+    }
+  }, []);
+
   // Close profile menu when sidebar closes (mobile)
   useEffect(() => {
     if (!isSidebarOpen) {
       setIsProfileMenuOpen(false);
     }
   }, [isSidebarOpen]);
+
+  useEffect(() => {
+    if (!isOnboardingOpen) {
+      return;
+    }
+
+    const step = ONBOARDING_STEPS[onboardingStepIndex];
+    if (step?.focusTab) {
+      setActiveTab(step.focusTab);
+    }
+
+    if (window.innerWidth < 1024) {
+      setIsSidebarOpen(true);
+    }
+  }, [isOnboardingOpen, onboardingStepIndex]);
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('tube_vision_theme', theme);
+    }
+  }, [theme]);
+
+  const finishOnboarding = () => {
+    setIsOnboardingOpen(false);
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(ONBOARDING_STORAGE_KEY, 'true');
+      if (window.innerWidth < 1024) {
+        setIsSidebarOpen(false);
+      }
+    }
+  };
+
+  const handleOnboardingNext = () => {
+    if (onboardingStepIndex >= ONBOARDING_STEPS.length - 1) {
+      finishOnboarding();
+      return;
+    }
+
+    setOnboardingStepIndex((prev) => prev + 1);
+  };
+
+  const handleOnboardingSkip = () => {
+    finishOnboarding();
+  };
 
   const handleConnect = async () => {
     try {
@@ -477,7 +593,17 @@ export default function App() {
 
     switch (activeTab) {
       case 'home':
-        return <HomeDashboard channel={user?.channel || null} isConnected={Boolean(user)} onConnect={handleConnect} />;
+        return (
+          <HomeDashboard
+            channel={user?.channel || null}
+            isConnected={Boolean(user)}
+            onConnect={handleConnect}
+            profileName={user?.name}
+            profileImage={user?.picture}
+            activeAccountIndex={activeAccountIndex}
+            totalAccounts={accounts.length}
+          />
+        );
       case 'seo':
         return <SEOOptimizer />;
       case 'strategy':
@@ -492,6 +618,8 @@ export default function App() {
         return <VoiceOver />;
       case 'clips':
         return <ViralClipExtractor />;
+      case 'settings':
+        return <SettingsPanel theme={theme} onThemeChange={setTheme} />;
       case 'videos':
         return <VideoList />;
       case 'channel':
@@ -505,14 +633,36 @@ export default function App() {
       case 'insights':
         return <ChannelInsights />;
       default:
-        return <HomeDashboard channel={user?.channel || null} isConnected={Boolean(user)} onConnect={handleConnect} />;
+        return (
+          <HomeDashboard
+            channel={user?.channel || null}
+            isConnected={Boolean(user)}
+            onConnect={handleConnect}
+            profileName={user?.name}
+            profileImage={user?.picture}
+            activeAccountIndex={activeAccountIndex}
+            totalAccounts={accounts.length}
+          />
+        );
     }
   };
 
   return (
-    <div className="flex h-screen bg-[#050505] text-slate-200 font-sans selection:bg-white/20 selection:text-white">
+    <div
+      className={cn(
+        'theme-root flex h-screen font-sans transition-colors',
+        theme === 'light'
+          ? 'theme-light bg-slate-100 text-slate-900 selection:bg-slate-300 selection:text-slate-900'
+          : 'theme-dark bg-[#050505] text-slate-200 selection:bg-white/20 selection:text-white'
+      )}
+    >
       <button
-        className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-[#0a0a0a] rounded-md border border-white/10"
+        className={cn(
+          'lg:hidden fixed top-4 left-4 z-50 p-2 rounded-md border',
+          theme === 'light'
+            ? 'bg-white border-slate-300 text-slate-700'
+            : 'bg-[#0a0a0a] border-white/10'
+        )}
         onClick={() => setIsSidebarOpen(!isSidebarOpen)}
       >
         {isSidebarOpen ? <X size={20} /> : <Menu size={20} />}
@@ -520,7 +670,8 @@ export default function App() {
 
       <aside
         className={cn(
-          'fixed inset-y-0 left-0 z-40 w-72 bg-[#0a0a0a] border-r border-white/10 transform transition-transform duration-200 ease-in-out lg:translate-x-0 lg:static lg:block flex flex-col',
+          'fixed inset-y-0 left-0 z-40 w-72 border-r transform transition-transform duration-200 ease-in-out lg:translate-x-0 lg:static lg:block flex flex-col',
+          theme === 'light' ? 'bg-slate-50 border-slate-200' : 'bg-[#0a0a0a] border-white/10',
           isSidebarOpen ? 'translate-x-0' : '-translate-x-full',
         )}
       >
@@ -542,6 +693,13 @@ export default function App() {
               return (
                 <button
                   key={tab.id}
+                  data-tour-id={
+                    tab.id === 'home'
+                      ? 'tour-home-tab'
+                      : tab.id === 'settings'
+                        ? 'tour-settings-tab'
+                        : undefined
+                  }
                   onClick={() => {
                     setActiveTab(tab.id);
                     setIsSidebarOpen(false);
@@ -560,7 +718,7 @@ export default function App() {
             })}
           </div>
 
-          <div className="space-y-1">
+          <div className="space-y-1" data-tour-id="tour-studios-section">
             <p className="px-2 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">Studios</p>
             {studioTabs.map((tab) => {
               const Icon = tab.icon;
@@ -590,7 +748,7 @@ export default function App() {
             })}
           </div>
 
-          <div className="space-y-1">
+          <div className="space-y-1" data-tour-id="tour-growth-section">
             <p className="px-2 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">Growth OS</p>
             {growthTabs.map((tab) => {
               const Icon = tab.icon;
@@ -728,6 +886,7 @@ export default function App() {
               
               {/* Profile Button */}
               <button
+                data-tour-id="tour-account-entry"
                 onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
                 className="w-full flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-white/5 transition-colors group"
               >
@@ -750,6 +909,7 @@ export default function App() {
             </div>
           ) : (
             <button
+              data-tour-id="tour-account-entry"
               onClick={handleConnect}
               className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-white text-black hover:bg-slate-200 rounded-lg text-sm font-semibold transition-colors"
             >
@@ -760,7 +920,7 @@ export default function App() {
         </div>
       </aside>
 
-      <main className="flex-1 overflow-y-auto bg-[#050505]">
+      <main className={cn('flex-1 overflow-y-auto transition-colors', theme === 'light' ? 'bg-slate-100' : 'bg-[#050505]')}>
         <div className="max-w-6xl mx-auto p-6 lg:p-10">
           <div className="mb-8 rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl p-6">
             <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
@@ -768,10 +928,6 @@ export default function App() {
                 <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Active Workspace</p>
                 <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-white mt-1">{activeTabConfig.label}</h1>
                 <p className="text-sm text-slate-400 mt-2 max-w-3xl">{activeTabConfig.summary}</p>
-              </div>
-              <div className="flex items-center gap-2 px-3 py-2 rounded-full border border-white/15 bg-white/[0.04] w-fit">
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                <span className="text-[10px] font-bold text-slate-300 uppercase tracking-[0.2em]">Neural Mode</span>
               </div>
             </div>
           </div>
@@ -802,6 +958,14 @@ export default function App() {
           {renderContent()}
         </div>
       </main>
+
+      <OnboardingTour
+        isOpen={isOnboardingOpen}
+        stepIndex={onboardingStepIndex}
+        steps={ONBOARDING_STEPS}
+        onNext={handleOnboardingNext}
+        onSkip={handleOnboardingSkip}
+      />
     </div>
   );
 }
