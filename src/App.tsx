@@ -86,6 +86,7 @@ export default function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [loadingUser, setLoadingUser] = useState(true);
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
 
   const tabs: TabConfig[] = [
     {
@@ -229,6 +230,13 @@ export default function App() {
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
   }, []);
+
+  // Close profile menu when sidebar closes (mobile)
+  useEffect(() => {
+    if (!isSidebarOpen) {
+      setIsProfileMenuOpen(false);
+    }
+  }, [isSidebarOpen]);
 
   const handleConnect = async () => {
     try {
@@ -555,27 +563,72 @@ export default function App() {
           {loadingUser ? (
             <div className="h-12 bg-white/5 animate-pulse rounded-lg"></div>
           ) : user ? (
-            <div className="space-y-4">
-              <div className="flex items-center gap-3 px-2">
+            <div className="relative">
+              {/* Profile Menu Dropdown */}
+              {isProfileMenuOpen && (
+                <>
+                  {/* Backdrop to close menu */}
+                  <div 
+                    className="fixed inset-0 z-40" 
+                    onClick={() => setIsProfileMenuOpen(false)}
+                  />
+                  
+                  {/* Menu */}
+                  <div className="absolute bottom-full left-0 right-0 mb-2 z-50 bg-[#1a1a1a] border border-white/20 rounded-xl shadow-2xl overflow-hidden">
+                    <div className="p-3 border-b border-white/10 bg-white/5">
+                      <p className="text-xs font-semibold text-white truncate">{user.channel?.title || user.name}</p>
+                      <p className="text-[10px] text-slate-400 truncate mt-0.5">
+                        {user.channel ? `${Number(user.channel.statistics.subscriberCount).toLocaleString()} subscribers` : 'No channel'}
+                      </p>
+                    </div>
+                    
+                    <div className="py-1">
+                      <button
+                        onClick={() => {
+                          setIsProfileMenuOpen(false);
+                          handleConnect();
+                        }}
+                        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-300 hover:bg-white/10 hover:text-white transition-colors"
+                      >
+                        <Users size={16} />
+                        <span>Add Another Account</span>
+                      </button>
+                      
+                      <button
+                        onClick={() => {
+                          setIsProfileMenuOpen(false);
+                          handleLogout();
+                        }}
+                        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-colors"
+                      >
+                        <LogOut size={16} />
+                        <span>Disconnect</span>
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
+              
+              {/* Profile Button */}
+              <button
+                onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
+                className="w-full flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-white/5 transition-colors group"
+              >
                 <img
                   src={user.channel?.thumbnails?.default?.url || user.picture}
                   alt={user.name}
-                  className="w-10 h-10 rounded-full border border-white/20"
+                  className="w-10 h-10 rounded-full border border-white/20 group-hover:border-white/40 transition-colors"
                   referrerPolicy="no-referrer"
                 />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-white truncate">{user.channel?.title || user.name}</p>
-                  <p className="text-xs text-slate-400 truncate">
+                <div className="flex-1 min-w-0 text-left">
+                  <p className="text-sm font-semibold text-white truncate group-hover:text-slate-100">
+                    {user.channel?.title || user.name}
+                  </p>
+                  <p className="text-xs text-slate-400 truncate group-hover:text-slate-300">
                     {user.channel ? `${Number(user.channel.statistics.subscriberCount).toLocaleString()} subscribers` : 'No channel found'}
                   </p>
                 </div>
-              </div>
-              <button
-                onClick={handleLogout}
-                className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-slate-300 hover:bg-white/10 hover:text-white transition-colors"
-              >
-                <LogOut size={14} />
-                Disconnect
+                <Menu size={16} className="text-slate-500 group-hover:text-slate-300 transition-colors" />
               </button>
             </div>
           ) : (
