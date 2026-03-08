@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { generateVidVisionInsight } from '../services/geminiService';
 import { Type } from '@google/genai';
 import { 
@@ -12,9 +12,12 @@ import {
   Sparkles,
   Play,
   Eye,
-  ThumbsUp
+  ThumbsUp,
+  Target,
+  CheckCircle2
 } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { ShimmerCard, ShimmerVideoCard } from './Shimmer';
 
 interface CompetitorChannel {
   id: string;
@@ -26,6 +29,13 @@ interface CompetitorChannel {
     videoCount: string;
     viewCount: string;
   };
+  matchScore?: string;
+}
+
+interface DiscoveredCompetitors {
+  niche: string;
+  suggestions: CompetitorChannel[];
+  message: string;
 }
 
 interface CompetitorVideo {
@@ -48,6 +58,8 @@ export default function CompetitorAnalysis() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [searching, setSearching] = useState(false);
+  const [discoveredCompetitors, setDiscoveredCompetitors] = useState<DiscoveredCompetitors | null>(null);
+  const [loadingDiscovery, setLoadingDiscovery] = useState(true);
   const [selectedCompetitor, setSelectedCompetitor] = useState<{
     channel: CompetitorChannel;
     videos: CompetitorVideo[];
@@ -55,6 +67,25 @@ export default function CompetitorAnalysis() {
   const [loadingVideos, setLoadingVideos] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [analysis, setAnalysis] = useState<any>(null);
+
+  useEffect(() => {
+    const discoverCompetitors = async () => {
+      setLoadingDiscovery(true);
+      try {
+        const response = await fetch('/api/competitors/discover');
+        if (response.ok) {
+          const data = await response.json();
+          setDiscoveredCompetitors(data);
+        }
+      } catch (error) {
+        console.error('Discovery error:', error);
+      } finally {
+        setLoadingDiscovery(false);
+      }
+    };
+
+    discoverCompetitors();
+  }, []);
 
   const handleSearch = async () => {
     if (!searchQuery.trim()) return;
@@ -139,54 +170,167 @@ export default function CompetitorAnalysis() {
         </div>
       </div>
 
-      {/* Search Bar */}
-      <div className="relative max-w-2xl">
-        <div className="relative flex items-center">
-          <Search className="absolute left-4 text-zinc-500" size={20} />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-            placeholder="Search for a competitor channel..."
-            className="w-full bg-zinc-900 border border-zinc-800 rounded-2xl pl-12 pr-4 py-4 text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all"
-          />
-          {searching && (
-            <div className="absolute right-4">
-              <Loader2 className="animate-spin text-indigo-500" size={20} />
+      {/* AI-Discovered Competitors Section */}
+      {!selectedCompetitor && (
+        <>
+          {loadingDiscovery ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <ShimmerCard />
+              <ShimmerCard />
+              <ShimmerCard />
+              <ShimmerCard />
+              <ShimmerCard />
+              <ShimmerCard />
+              <ShimmerCard />
+              <ShimmerCard />
             </div>
-          )}
-        </div>
-
-        {/* Search Results Dropdown */}
-        {searchResults.length > 0 && (
-          <div className="absolute top-full left-0 right-0 mt-2 bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden z-50 shadow-2xl">
-            {searchResults.map((result) => (
-              <button
-                key={result.id.channelId}
-                onClick={() => handleSelectCompetitor(result.id.channelId)}
-                className="w-full flex items-center gap-4 p-4 hover:bg-zinc-800 transition-colors border-b border-zinc-800 last:border-0"
-              >
-                <img 
-                  src={result.snippet.thumbnails.default.url} 
-                  alt={result.snippet.title} 
-                  className="w-12 h-12 rounded-full"
-                  referrerPolicy="no-referrer"
-                />
-                <div className="text-left">
-                  <h3 className="font-bold text-zinc-100">{result.snippet.title}</h3>
-                  <p className="text-xs text-zinc-500 line-clamp-1">{result.snippet.description}</p>
+          ) : discoveredCompetitors && discoveredCompetitors.suggestions.length > 0 ? (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-indigo-500/20 flex items-center justify-center">
+                    <Target size={20} className="text-indigo-400" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-zinc-100">Suggested Competitors in {discoveredCompetitors.niche}</h2>
+                    <p className="text-sm text-zinc-400">{discoveredCompetitors.message}</p>
+                  </div>
                 </div>
-              </button>
-            ))}
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {discoveredCompetitors.suggestions.map((channel) => (
+                  <button
+                    key={channel.id}
+                    onClick={() => handleSelectCompetitor(channel.id)}
+                    className="bg-zinc-900 border border-zinc-800 hover:border-indigo-500/50 rounded-2xl p-5 text-left transition-all group"
+                  >
+                    <div className="flex items-start gap-3 mb-3">
+                      <img
+                        src={channel.thumbnails.medium?.url || channel.thumbnails.default?.url}
+                        alt={channel.title}
+                        className="w-14 h-14 rounded-full border-2 border-zinc-800 group-hover:border-indigo-500/50 transition-colors"
+                        referrerPolicy="no-referrer"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-bold text-zinc-100 text-sm line-clamp-2 group-hover:text-indigo-400 transition-colors">
+                          {channel.title}
+                        </h3>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-zinc-500">Subscribers</span>
+                        <span className="font-semibold text-zinc-300">
+                          {Number(channel.statistics.subscriberCount).toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-zinc-500">Videos</span>
+                        <span className="font-semibold text-zinc-300">
+                          {Number(channel.statistics.videoCount).toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="mt-3 pt-3 border-t border-zinc-800">
+                      <div className="flex items-center justify-center gap-2 text-xs font-semibold text-indigo-400 group-hover:text-indigo-300">
+                        <span>Analyze Channel</span>
+                        <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : discoveredCompetitors ? (
+            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-8 text-center">
+              <Target size={32} className="text-zinc-600 mx-auto mb-3" />
+              <p className="text-zinc-400">{discoveredCompetitors.message || 'No competitors discovered yet'}</p>
+              <p className="text-sm text-zinc-500 mt-2">Try searching manually below</p>
+            </div>
+          ) : null}
+        </>
+      )}
+
+      {/* Manual Search Bar */}
+      {!selectedCompetitor && (
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <Search size={18} className="text-zinc-500" />
+            <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-wider">Or Search Manually</h3>
           </div>
-        )}
-      </div>
+          <div className="relative max-w-2xl">
+            <div className="relative flex items-center">
+              <Search className="absolute left-4 text-zinc-500" size={20} />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                placeholder="Search for a competitor channel..."
+                className="w-full bg-zinc-900 border border-zinc-800 rounded-2xl pl-12 pr-4 py-4 text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all"
+              />
+              {searching && (
+                <div className="absolute right-4">
+                  <Loader2 className="animate-spin text-indigo-500" size={20} />
+                </div>
+              )}
+            </div>
+
+            {/* Search Results Dropdown */}
+            {searchResults.length > 0 && (
+              <div className="absolute top-full left-0 right-0 mt-2 bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden z-50 shadow-2xl">
+                {searchResults.map((result) => (
+                  <button
+                    key={result.id.channelId}
+                    onClick={() => handleSelectCompetitor(result.id.channelId)}
+                    className="w-full flex items-center gap-4 p-4 hover:bg-zinc-800 transition-colors border-b border-zinc-800 last:border-0"
+                  >
+                    <img 
+                      src={result.snippet.thumbnails.default.url} 
+                      alt={result.snippet.title} 
+                      className="w-12 h-12 rounded-full"
+                      referrerPolicy="no-referrer"
+                    />
+                    <div className="text-left">
+                      <h3 className="font-bold text-zinc-100">{result.snippet.title}</h3>
+                      <p className="text-xs text-zinc-500 line-clamp-1">{result.snippet.description}</p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Back Button When Competitor Selected */}
+      {selectedCompetitor && (
+        <button
+          onClick={() => {
+            setSelectedCompetitor(null);
+            setAnalysis(null);
+          }}
+          className="flex items-center gap-2 text-sm text-indigo-400 hover:text-indigo-300 transition-colors"
+        >
+          <ArrowRight size={16} className="rotate-180" />
+          <span>Back to Competitor Discovery</span>
+        </button>
+      )}
 
       {loadingVideos && (
-        <div className="flex flex-col items-center justify-center h-64 gap-4">
-          <Loader2 className="animate-spin text-indigo-500" size={32} />
-          <p className="text-zinc-400">Fetching competitor data...</p>
+        <div className="space-y-6">
+          <div className="h-32 bg-zinc-800/50 rounded-2xl animate-pulse" />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <ShimmerVideoCard />
+            <ShimmerVideoCard />
+            <ShimmerVideoCard />
+            <ShimmerVideoCard />
+            <ShimmerVideoCard />
+            <ShimmerVideoCard />
+          </div>
         </div>
       )}
 

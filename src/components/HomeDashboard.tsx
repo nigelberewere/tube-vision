@@ -9,7 +9,10 @@ import {
   Sparkles,
   TrendingUp,
   Users,
+  Calendar,
+  Lightbulb,
 } from 'lucide-react';
+import { ShimmerCard, ShimmerStat, ShimmerChart } from './Shimmer';
 
 interface ChannelInfo {
   id: string;
@@ -65,6 +68,21 @@ interface VideoItem {
   };
 }
 
+interface BestPostingTime {
+  bestHour: number;
+  bestHourFormatted: string;
+  bestDay: string;
+  bestDayIndex: number;
+  confidence: 'low' | 'medium' | 'high';
+  videosAnalyzed: number;
+  aiInsight: string;
+  hourlyBreakdown?: Array<{
+    hour: number;
+    avgViewsPerDay: number;
+    videoCount: number;
+  }>;
+}
+
 function toNumber(value: unknown): number {
   const parsed = Number(value ?? 0);
   return Number.isFinite(parsed) ? parsed : 0;
@@ -112,6 +130,7 @@ export default function HomeDashboard({
 }: HomeDashboardProps) {
   const [analytics, setAnalytics] = useState<AnalyticsPayload | null>(null);
   const [videos, setVideos] = useState<VideoItem[]>([]);
+  const [bestPostingTime, setBestPostingTime] = useState<BestPostingTime | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -124,9 +143,10 @@ export default function HomeDashboard({
     setError(null);
 
     try {
-      const [analyticsResponse, videosResponse] = await Promise.all([
+      const [analyticsResponse, videosResponse, bestTimeResponse] = await Promise.all([
         fetch('/api/user/analytics'),
         fetch('/api/user/videos'),
+        fetch('/api/user/best-posting-time'),
       ]);
 
       if (analyticsResponse.status === 401 || videosResponse.status === 401) {
@@ -156,6 +176,13 @@ export default function HomeDashboard({
         setVideos(videosData || []);
       } else {
         setVideos([]);
+      }
+
+      if (bestTimeResponse.ok) {
+        const bestTimeData = (await bestTimeResponse.json()) as BestPostingTime;
+        setBestPostingTime(bestTimeData);
+      } else {
+        setBestPostingTime(null);
       }
     } catch (fetchError: any) {
       if (fetchError.message === 'ANALYTICS_API_DISABLED') {
@@ -258,9 +285,26 @@ export default function HomeDashboard({
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center h-64 gap-4">
-        <Loader2 className="animate-spin text-indigo-500" size={32} />
-        <p className="text-zinc-400">Loading your creator home metrics...</p>
+      <div className="space-y-8 pb-10">
+        <div className="space-y-4">
+          <div className="h-8 w-64 bg-zinc-800/50 rounded animate-pulse" />
+          <div className="h-4 w-96 bg-zinc-800/50 rounded animate-pulse" />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <ShimmerStat />
+          <ShimmerStat />
+          <ShimmerStat />
+          <ShimmerStat />
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <ShimmerChart />
+          <ShimmerChart />
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <ShimmerCard />
+          <ShimmerCard />
+          <ShimmerCard />
+        </div>
       </div>
     );
   }
@@ -423,6 +467,78 @@ export default function HomeDashboard({
           <p className="text-2xl font-bold text-zinc-100 mt-1">{metrics.bestHour}</p>
         </div>
       </div>
+
+      {/* AI-Powered Best Posting Time Recommendation */}
+      {bestPostingTime && bestPostingTime.bestHour !== null && (
+        <div className="rounded-2xl border border-indigo-400/30 bg-gradient-to-br from-indigo-500/10 via-purple-500/10 to-pink-500/10 p-6">
+          <div className="flex items-start gap-4">
+            <div className="w-12 h-12 rounded-xl bg-indigo-500/20 flex items-center justify-center flex-shrink-0">
+              <Lightbulb size={24} className="text-indigo-300" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-2">
+                <h3 className="text-lg font-bold text-white">AI-Powered Posting Recommendation</h3>
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                  bestPostingTime.confidence === 'high' 
+                    ? 'bg-emerald-500/20 text-emerald-300' 
+                    : bestPostingTime.confidence === 'medium'
+                    ? 'bg-amber-500/20 text-amber-300'
+                    : 'bg-zinc-500/20 text-zinc-300'
+                }`}>
+                  {bestPostingTime.confidence} confidence
+                </span>
+              </div>
+              
+              <p className="text-zinc-300 text-sm leading-relaxed mb-4">
+                {bestPostingTime.aiInsight}
+              </p>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Clock3 size={16} className="text-indigo-300" />
+                    <p className="text-xs uppercase tracking-wider text-zinc-400 font-bold">Best Hour</p>
+                  </div>
+                  <p className="text-2xl font-bold text-white">{bestPostingTime.bestHourFormatted}</p>
+                  <p className="text-xs text-zinc-500 mt-1">Optimal posting time</p>
+                </div>
+
+                <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Calendar size={16} className="text-purple-300" />
+                    <p className="text-xs uppercase tracking-wider text-zinc-400 font-bold">Best Day</p>
+                  </div>
+                  <p className="text-2xl font-bold text-white">{bestPostingTime.bestDay}</p>
+                  <p className="text-xs text-zinc-500 mt-1">Best performing day</p>
+                </div>
+
+                <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+                  <div className="flex items-center gap-2 mb-1">
+                    <BarChart3 size={16} className="text-pink-300" />
+                    <p className="text-xs uppercase tracking-wider text-zinc-400 font-bold">Data Points</p>
+                  </div>
+                  <p className="text-2xl font-bold text-white">{bestPostingTime.videosAnalyzed}</p>
+                  <p className="text-xs text-zinc-500 mt-1">Videos analyzed</p>
+                </div>
+              </div>
+
+              {bestPostingTime.hourlyBreakdown && bestPostingTime.hourlyBreakdown.length > 0 && (
+                <div className="mt-4 pt-4 border-t border-white/10">
+                  <p className="text-xs uppercase tracking-wider text-zinc-400 font-bold mb-2">Top Performing Hours</p>
+                  <div className="flex flex-wrap gap-2">
+                    {bestPostingTime.hourlyBreakdown.slice(0, 5).map((hourData) => (
+                      <div key={hourData.hour} className="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5">
+                        <span className="text-xs font-mono text-indigo-300">{String(hourData.hour).padStart(2, '0')}:00</span>
+                        <span className="text-xs text-zinc-500 ml-2">({hourData.videoCount} videos)</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
         <div className="flex items-center justify-between mb-4">

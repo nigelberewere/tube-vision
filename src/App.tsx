@@ -137,6 +137,7 @@ export default function App() {
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
   const [onboardingStepIndex, setOnboardingStepIndex] = useState(0);
+  const [seoVideoTopic, setSeoVideoTopic] = useState<string>('');
 
   const tabs: TabConfig[] = [
     {
@@ -610,7 +611,7 @@ export default function App() {
           />
         );
       case 'seo':
-        return <SEOOptimizer />;
+        return <SEOOptimizer initialTopic={seoVideoTopic} onTopicUsed={() => setSeoVideoTopic('')} />;
       case 'strategy':
         return <ContentStrategy />;
       case 'keywords':
@@ -626,11 +627,18 @@ export default function App() {
       case 'settings':
         return <SettingsPanel theme={theme} onThemeChange={setTheme} />;
       case 'videos':
-        return <VideoList />;
+        return <VideoList onOptimizeSEO={(videoTitle) => {
+          setSeoVideoTopic(videoTitle);
+          setActiveTab('seo');
+          setIsSidebarOpen(false);
+        }} />;
       case 'channel':
         return <ChannelAnalysis />;
       case 'coach':
-        return <AICoach channelContext={user?.channel} />;
+        return <AICoach 
+          channelContext={user?.channel} 
+          userProfile={user ? { name: user.name, picture: user.picture } : undefined}
+        />;
       case 'ideas':
         return <VideoIdeaGenerator channelContext={user?.channel} />;
       case 'competitors':

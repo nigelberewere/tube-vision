@@ -401,7 +401,19 @@ For every video provided, evaluate segments based on:
       };
 
       const { accounts } = getSessionAccountsAndActiveIndex(req);
-      const dedupedAccounts = accounts.filter((account: any) => account.id !== newUserData.id);
+      // Deduplicate based on channel ID (if available) or Google account ID
+      // This allows multiple YouTube channels under the same Google account
+      const dedupedAccounts = accounts.filter((account: any) => {
+        if (newUserData.channel && account.channel) {
+          // Both have channels - compare channel IDs
+          return account.channel.id !== newUserData.channel.id;
+        } else if (!newUserData.channel && !account.channel) {
+          // Neither has a channel - compare Google account IDs
+          return account.id !== newUserData.id;
+        }
+        // One has channel, one doesn't - keep both
+        return true;
+      });
       dedupedAccounts.unshift(newUserData);
       setSessionAccountsAndActiveIndex(req, dedupedAccounts, 0);
 
@@ -558,7 +570,8 @@ For every video provided, evaluate segments based on:
   });
 
   app.get("/api/user/videos", async (req, res) => {
-    const user = (req.session as any).user;
+    const { accounts, activeIndex } = getSessionAccountsAndActiveIndex(req);
+    const user = accounts[activeIndex];
     if (!user || !user.tokens) {
       return res.status(401).json({ error: "Not authenticated" });
     }
@@ -663,7 +676,8 @@ For every video provided, evaluate segments based on:
   });
 
   app.get("/api/shorts/my-long-videos", async (req, res) => {
-    const user = (req.session as any).user;
+    const { accounts, activeIndex } = getSessionAccountsAndActiveIndex(req);
+    const user = accounts[activeIndex];
     if (!user || !user.tokens) {
       return res.status(401).json({ error: "Not authenticated" });
     }
@@ -688,6 +702,13 @@ For every video provided, evaluate segments based on:
           headers: { Authorization: `Bearer ${user.tokens.access_token}` },
         }
       );
+      
+        if (!videosResponse.ok) {
+          const errorData = await videosResponse.json().catch(() => ({}));
+          console.error("YouTube videos API error:", errorData);
+          throw new Error(errorData.error?.message || "Failed to fetch video details from YouTube");
+        }
+      
       const videosData = await videosResponse.json();
 
       const longFormVideos = (videosData.items || [])
@@ -805,6 +826,174 @@ For every video provided, evaluate segments based on:
     }
   });
 
+  app.get("/api/user/best-posting-time", async (req, res) => {
+    const { accounts, activeIndex } = getSessionAccountsAndActiveIndex(req);
+    const user = accounts[activeIndex];
+    if (!user || !user.tokens) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
+    try {
+      // Fetch user's video history
+      const response = await fetch(
+        "https://www.googleapis.com/youtube/v3/search?part=snippet&forMine=true&type=video&maxResults=50&order=date",
+        {
+          headers: { Authorization: `Bearer ${user.tokens.access_token}` },
+        }
+      );
+      const data = await response.json();
+      
+      const videoIds = data.items?.map((item: any) => item.id.videoId).join(",");
+      if (!videoIds) {
+        return res.json({ 
+          bestHour: null, 
+          bestDay: null, 
+          confidence: 'low',
+          message: 'Not enough video data to analyze posting patterns' 
+        });
+      }
+
+      // Fetch detailed statistics
+      const statsResponse = await fetch(
+        `https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics,contentDetails&id=${videoIds}`,
+        {
+          headers: { Authorization: `Bearer ${user.tokens.access_token}` },
+        }
+      );
+      const statsData = await statsResponse.json();
+      const videos = statsData.items || [];
+
+      if (videos.length < 5) {
+        return res.json({ 
+          bestHour: null, 
+          bestDay: null, 
+          confidence: 'low',
+          message: 'Need at least 5 videos to analyze posting patterns' 
+        });
+      }
+
+      // Analyze posting times and performance
+      const hourlyPerformance: Record<number, { totalViews: number; totalEngagement: number; count: number; avgViewsPerDay: number }> = {};
+      const dailyPerformance: Record<number, { totalViews: number; totalEngagement: number; count: number; avgViewsPerDay: number }> = {};
+      const now = Date.now();
+
+      for (const video of videos) {
+        const publishedAt = new Date(video.snippet.publishedAt);
+        const hour = publishedAt.getUTCHours();
+        const day = publishedAt.getUTCDay(); // 0 = Sunday, 6 = Saturday
+        
+        const viewCount = toNumber(video.statistics?.viewCount);
+        const likeCount = toNumber(video.statistics?.likeCount);
+        const commentCount = toNumber(video.statistics?.commentCount);
+        const engagement = likeCount + commentCount;
+        
+        // Calculate views per day (normalize by video age)
+        const ageDays = Math.max(1, (now - publishedAt.getTime()) / (24 * 60 * 60 * 1000));
+        const viewsPerDay = viewCount / ageDays;
+
+        // Track hourly performance
+        if (!hourlyPerformance[hour]) {
+          hourlyPerformance[hour] = { totalViews: 0, totalEngagement: 0, count: 0, avgViewsPerDay: 0 };
+        }
+        hourlyPerformance[hour].totalViews += viewCount;
+        hourlyPerformance[hour].totalEngagement += engagement;
+        hourlyPerformance[hour].avgViewsPerDay += viewsPerDay;
+        hourlyPerformance[hour].count += 1;
+
+        // Track daily performance
+        if (!dailyPerformance[day]) {
+          dailyPerformance[day] = { totalViews: 0, totalEngagement: 0, count: 0, avgViewsPerDay: 0 };
+        }
+        dailyPerformance[day].totalViews += viewCount;
+        dailyPerformance[day].totalEngagement += engagement;
+        dailyPerformance[day].avgViewsPerDay += viewsPerDay;
+        dailyPerformance[day].count += 1;
+      }
+
+      // Calculate best hour based on average views per day (most reliable metric)
+      let bestHour = 0;
+      let bestHourScore = 0;
+      for (const [hour, data] of Object.entries(hourlyPerformance)) {
+        const avgViewsPerDay = data.avgViewsPerDay / data.count;
+        const score = avgViewsPerDay; // Could add engagement weight here
+        if (score > bestHourScore) {
+          bestHourScore = score;
+          bestHour = parseInt(hour);
+        }
+      }
+
+      // Calculate best day
+      const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      let bestDay = 0;
+      let bestDayScore = 0;
+      for (const [day, data] of Object.entries(dailyPerformance)) {
+        const avgViewsPerDay = data.avgViewsPerDay / data.count;
+        const score = avgViewsPerDay;
+        if (score > bestDayScore) {
+          bestDayScore = score;
+          bestDay = parseInt(day);
+        }
+      }
+
+      // Determine confidence level
+      const uniqueHours = Object.keys(hourlyPerformance).length;
+      const totalVideos = videos.length;
+      let confidence: 'low' | 'medium' | 'high' = 'low';
+      if (totalVideos >= 20 && uniqueHours >= 5) {
+        confidence = 'high';
+      } else if (totalVideos >= 10 && uniqueHours >= 3) {
+        confidence = 'medium';
+      }
+
+      // Generate AI-powered insight using Gemini
+      let aiInsight = '';
+      if (process.env.GEMINI_API_KEY) {
+        try {
+          const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+          const prompt = `Analyze this YouTube channel's posting performance and provide a concise recommendation.
+
+Videos analyzed: ${videos.length}
+Best performing hour (UTC): ${bestHour}:00 (${hourlyPerformance[bestHour]?.count || 0} videos posted)
+Best performing day: ${dayNames[bestDay]} (${dailyPerformance[bestDay]?.count || 0} videos posted)
+Average views per day at best hour: ${Math.round(bestHourScore)}
+Confidence level: ${confidence}
+
+Provide a 1-2 sentence actionable recommendation for the creator about when to post videos for maximum reach. Consider audience timezone patterns and YouTube algorithm behavior. Be specific and encouraging.`;
+
+          const response = await ai.models.generateContent({
+            model: "gemini-3.1-pro-preview",
+            contents: prompt,
+          });
+
+          aiInsight = response.text || '';
+        } catch (aiError) {
+          console.error('AI insight generation error:', aiError);
+          aiInsight = `Based on your video history, posting around ${bestHour}:00 UTC on ${dayNames[bestDay]}s tends to perform best.`;
+        }
+      } else {
+        aiInsight = `Based on your video history, posting around ${bestHour}:00 UTC on ${dayNames[bestDay]}s tends to perform best.`;
+      }
+
+      res.json({
+        bestHour,
+        bestHourFormatted: `${String(bestHour).padStart(2, '0')}:00 UTC`,
+        bestDay: dayNames[bestDay],
+        bestDayIndex: bestDay,
+        confidence,
+        videosAnalyzed: videos.length,
+        aiInsight: aiInsight.trim(),
+        hourlyBreakdown: Object.entries(hourlyPerformance).map(([hour, data]) => ({
+          hour: parseInt(hour),
+          avgViewsPerDay: Math.round(data.avgViewsPerDay / data.count),
+          videoCount: data.count,
+        })).sort((a, b) => b.avgViewsPerDay - a.avgViewsPerDay),
+      });
+    } catch (error) {
+      console.error("Best posting time analysis error:", error);
+      res.status(500).json({ error: "Failed to analyze best posting time" });
+    }
+  });
+
   app.post("/api/shorts/remix-plan", async (req, res) => {
     const user = (req.session as any).user;
     const { niche, source } = req.body || {};
@@ -891,6 +1080,193 @@ Return concise, practical recommendations.`;
     } catch (error) {
       console.error("Remix plan generation error:", error);
       res.status(500).json({ error: "Failed to generate remix plan" });
+    }
+  });
+
+  app.get("/api/competitors/discover", async (req, res) => {
+    const user = (req.session as any).user;
+    if (!user || !user.tokens) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
+    if (!user.channel) {
+      return res.status(400).json({ error: "No channel connected" });
+    }
+
+    try {
+      // Fetch user's recent videos to analyze niche
+      const myVideosResponse = await fetch(
+        "https://www.googleapis.com/youtube/v3/search?part=snippet&forMine=true&type=video&maxResults=10&order=date",
+        {
+          headers: { Authorization: `Bearer ${user.tokens.access_token}` },
+        }
+      );
+      const myVideosData = await myVideosResponse.json();
+      const myVideoIds = myVideosData.items?.map((item: any) => item.id.videoId).join(",");
+
+      if (!myVideoIds) {
+        return res.json({ 
+          message: 'Not enough video data to discover competitors',
+          suggestions: [] 
+        });
+      }
+
+      // Get detailed info including tags
+      const myStatsResponse = await fetch(
+        `https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics&id=${myVideoIds}`,
+        {
+          headers: { Authorization: `Bearer ${user.tokens.access_token}` },
+        }
+      );
+      const myStatsData = await myStatsResponse.json();
+      const myVideos = myStatsData.items || [];
+
+      if (myVideos.length === 0) {
+        return res.json({ 
+          message: 'Not enough video data to discover competitors',
+          suggestions: [] 
+        });
+      }
+
+      // Use AI to analyze niche and generate search queries
+      let searchQueries: string[] = [];
+      let nicheDescription = '';
+      
+      const videoTitles = myVideos.map((v: any) => v.snippet.title);
+      const videoTags = myVideos.flatMap((v: any) => v.snippet.tags || []);
+      const channelDescription = user.channel.description || '';
+
+      if (process.env.GEMINI_API_KEY) {
+        try {
+          const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+
+          const prompt = `Analyze this YouTube channel and identify its niche and optimal competitor search queries.
+
+Channel: ${user.channel.title}
+Description: ${channelDescription}
+Recent Video Titles: ${videoTitles.join(', ')}
+Common Tags: ${videoTags.slice(0, 20).join(', ')}
+
+Generate:
+1. A concise niche description (2-3 words)
+2. 3-5 search queries to find similar successful channels in this niche
+3. Make queries specific enough to find real competitors, not just related topics
+
+Return as JSON.`;
+
+          const response = await ai.models.generateContent({
+            model: "gemini-3.1-pro-preview",
+            contents: prompt,
+            config: {
+              responseMimeType: "application/json",
+              responseSchema: {
+                type: Type.OBJECT,
+                properties: {
+                  niche: { type: Type.STRING },
+                  searchQueries: {
+                    type: Type.ARRAY,
+                    items: { type: Type.STRING },
+                  },
+                },
+                required: ["niche", "searchQueries"],
+              },
+            },
+          });
+
+          const aiResult = JSON.parse(response.text);
+          nicheDescription = aiResult.niche || 'Your Niche';
+          searchQueries = aiResult.searchQueries || [];
+        } catch (aiError) {
+          console.error('AI niche analysis error:', aiError);
+          // Fallback to tag-based search
+          const topTags = videoTags.slice(0, 5);
+          searchQueries = topTags.length > 0 ? topTags : [user.channel.title];
+        }
+      } else {
+        // Fallback without AI
+        const topTags = videoTags.slice(0, 3);
+        searchQueries = topTags.length > 0 ? topTags : [user.channel.title];
+      }
+
+      // Search YouTube for competing channels using the generated queries
+      const competitorChannels = new Map();
+      const myChannelId = user.channel.id;
+
+      for (const query of searchQueries.slice(0, 3)) {
+        try {
+          const searchResponse = await fetch(
+            `https://www.googleapis.com/youtube/v3/search?part=snippet&type=channel&q=${encodeURIComponent(query)}&maxResults=10&order=relevance`,
+            {
+              headers: { Authorization: `Bearer ${user.tokens.access_token}` },
+            }
+          );
+          const searchData = await searchResponse.json();
+
+          if (searchData.items) {
+            for (const item of searchData.items) {
+              const channelId = item.id.channelId;
+              // Skip own channel
+              if (channelId === myChannelId) continue;
+              
+              if (!competitorChannels.has(channelId)) {
+                competitorChannels.set(channelId, item);
+              }
+            }
+          }
+        } catch (searchError) {
+          console.error(`Search error for query "${query}":`, searchError);
+        }
+      }
+
+      // Get detailed stats for discovered channels
+      const channelIds = Array.from(competitorChannels.keys()).slice(0, 12);
+      if (channelIds.length === 0) {
+        return res.json({ 
+          niche: nicheDescription,
+          message: 'No competing channels found',
+          suggestions: [] 
+        });
+      }
+
+      const channelsStatsResponse = await fetch(
+        `https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics&id=${channelIds.join(',')}`,
+        {
+          headers: { Authorization: `Bearer ${user.tokens.access_token}` },
+        }
+      );
+      const channelsStatsData = await channelsStatsResponse.json();
+
+      // Filter and rank channels by subscriber count
+      const rankedChannels = (channelsStatsData.items || [])
+        .filter((channel: any) => {
+          const subs = parseInt(channel.statistics.subscriberCount || '0');
+          const mySubs = parseInt(user.channel.statistics.subscriberCount || '0');
+          // Show channels with 50% to 500% of your subscriber count
+          return subs >= mySubs * 0.5 && subs <= mySubs * 5;
+        })
+        .sort((a: any, b: any) => 
+          parseInt(b.statistics.subscriberCount) - parseInt(a.statistics.subscriberCount)
+        )
+        .slice(0, 8)
+        .map((channel: any) => ({
+          id: channel.id,
+          title: channel.snippet.title,
+          description: channel.snippet.description,
+          thumbnails: channel.snippet.thumbnails,
+          statistics: channel.statistics,
+          matchScore: 'high', // Could compute similarity score here
+        }));
+
+      res.json({
+        niche: nicheDescription || 'Your Niche',
+        suggestions: rankedChannels,
+        message: rankedChannels.length > 0 
+          ? `Found ${rankedChannels.length} competing channels in your niche`
+          : 'No direct competitors found in your size range'
+      });
+    } catch (error) {
+      console.error("Discover competitors error:", error);
+      res.status(500).json({ error: "Failed to discover competitors" });
     }
   });
 

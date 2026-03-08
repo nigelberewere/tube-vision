@@ -11,6 +11,7 @@ import {
   ArrowRight,
   RefreshCw
 } from 'lucide-react';
+import { ShimmerTable, ShimmerCard } from './Shimmer';
 import { cn } from '../lib/utils';
 
 export default function ChannelAnalysis() {
@@ -96,9 +97,13 @@ export default function ChannelAnalysis() {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center h-64 gap-4">
-        <Loader2 className="animate-spin text-indigo-500" size={32} />
-        <p className="text-zinc-400">Fetching your channel data...</p>
+      <div className="space-y-6">
+        <div className="h-8 w-64 bg-zinc-800/50 rounded animate-pulse" />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <ShimmerCard />
+          <ShimmerCard />
+        </div>
+        <ShimmerTable rows={8} />
       </div>
     );
   }

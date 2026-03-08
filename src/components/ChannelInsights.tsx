@@ -24,6 +24,7 @@ import {
   ArrowUpRight,
   ArrowDownRight
 } from 'lucide-react';
+import { ShimmerChart, ShimmerStat } from './Shimmer';
 import { cn } from '../lib/utils';
 
 interface AnalyticsData {
@@ -73,9 +74,15 @@ export default function ChannelInsights() {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center h-64 gap-4">
-        <Loader2 className="animate-spin text-indigo-500" size={32} />
-        <p className="text-zinc-400">Fetching deep channel insights...</p>
+      <div className="space-y-6">
+        <div className="h-8 w-64 bg-zinc-800/50 rounded animate-pulse" />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <ShimmerStat />
+          <ShimmerStat />
+          <ShimmerStat />
+        </div>
+        <ShimmerChart />
+        <ShimmerChart />
       </div>
     );
   }

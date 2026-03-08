@@ -112,3 +112,33 @@ html[data-theme='light'] body {
 ::-webkit-scrollbar-thumb {
   @apply bg-white/15 rounded-full hover:bg-white/25 transition-colors;
 }
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.shimmer-animation {
+  animation: shimmer 2s ease-in-out infinite;
+  background: linear-gradient(
+    90deg,
+    rgba(39, 39, 42, 0.5) 0%,
+    rgba(63, 63, 70, 0.5) 50%,
+    rgba(39, 39, 42, 0.5) 100%
+  );
+  background-size: 200% 100%;
+}
+
+.theme-light .shimmer-animation {
+  background: linear-gradient(
+    90deg,
+    rgba(226, 232, 240, 0.5) 0%,
+    rgba(203, 213, 225, 0.5) 50%,
+    rgba(226, 232, 240, 0.5) 100%
+  );
+  background-size: 200% 100%;
+}

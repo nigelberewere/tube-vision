@@ -20,9 +20,13 @@ interface Message {
 
 interface AICoachProps {
   channelContext?: any;
+  userProfile?: {
+    name: string;
+    picture: string;
+  };
 }
 
-export default function AICoach({ channelContext }: AICoachProps) {
+export default function AICoach({ channelContext, userProfile }: AICoachProps) {
   const [messages, setMessages] = useState<Message[]>([
     { 
       role: 'model', 
@@ -135,12 +139,24 @@ export default function AICoach({ channelContext }: AICoachProps) {
                 msg.role === 'user' ? "ml-auto flex-row-reverse" : "mr-auto"
               )}
             >
-              <div className={cn(
-                "w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center",
-                msg.role === 'user' ? "bg-zinc-800 text-zinc-400" : "bg-indigo-500 text-white"
-              )}>
-                {msg.role === 'user' ? <UserIcon size={16} /> : <Bot size={16} />}
-              </div>
+              {msg.role === 'user' ? (
+                userProfile?.picture || channelContext?.thumbnails ? (
+                  <img
+                    src={userProfile?.picture || channelContext?.thumbnails?.default?.url}
+                    alt={userProfile?.name || channelContext?.title || 'User'}
+                    className="w-8 h-8 rounded-full flex-shrink-0 border border-zinc-700 object-cover"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <div className="w-8 h-8 rounded-full flex-shrink-0 bg-zinc-800 text-zinc-400 flex items-center justify-center">
+                    <UserIcon size={16} />
+                  </div>
+                )
+              ) : (
+                <div className="w-8 h-8 rounded-full flex-shrink-0 bg-indigo-500 text-white flex items-center justify-center">
+                  <Bot size={16} />
+                </div>
+              )}
               <div className={cn(
                 "rounded-2xl px-4 py-3 text-sm leading-relaxed",
                 msg.role === 'user' 

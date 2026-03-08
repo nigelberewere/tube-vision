@@ -1,13 +1,25 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { generateVidVisionInsight } from '../services/geminiService';
 import { Type } from '@google/genai';
 import { Loader2, Sparkles, Copy, Check } from 'lucide-react';
 
-export default function SEOOptimizer() {
-  const [topic, setTopic] = useState('');
+interface SEOOptimizerProps {
+  initialTopic?: string;
+  onTopicUsed?: () => void;
+}
+
+export default function SEOOptimizer({ initialTopic = '', onTopicUsed }: SEOOptimizerProps = {}) {
+  const [topic, setTopic] = useState(initialTopic);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (initialTopic) {
+      setTopic(initialTopic);
+      onTopicUsed?.();
+    }
+  }, [initialTopic, onTopicUsed]);
 
   const handleGenerate = async () => {
     if (!topic) return;

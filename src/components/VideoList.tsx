@@ -8,9 +8,15 @@ import {
   Loader2, 
   ExternalLink,
   Search,
-  Filter
+  Filter,
+  Sparkles
 } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { ShimmerVideoCard } from './Shimmer';
+
+interface VideoListProps {
+  onOptimizeSEO?: (videoTitle: string) => void;
+}
 
 interface Video {
   id: string;
@@ -33,7 +39,7 @@ interface Video {
   };
 }
 
-export default function VideoList() {
+export default function VideoList({ onOptimizeSEO }: VideoListProps = {}) {
   const [videos, setVideos] = useState<Video[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -82,9 +88,16 @@ export default function VideoList() {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center h-64 gap-4">
-        <Loader2 className="animate-spin text-indigo-500" size={32} />
-        <p className="text-zinc-400">Loading your content library...</p>
+      <div className="space-y-6">
+        <div className="h-8 w-48 bg-zinc-800/50 rounded animate-pulse" />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <ShimmerVideoCard />
+          <ShimmerVideoCard />
+          <ShimmerVideoCard />
+          <ShimmerVideoCard />
+          <ShimmerVideoCard />
+          <ShimmerVideoCard />
+        </div>
       </div>
     );
   }
@@ -198,7 +211,11 @@ export default function VideoList() {
                 </div>
 
                 <div className="flex gap-2">
-                  <button className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors">
+                  <button 
+                    onClick={() => onOptimizeSEO?.(video.snippet.title)}
+                    className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors flex items-center justify-center gap-1"
+                  >
+                    <Sparkles size={12} />
                     Optimize SEO
                   </button>
                   <a 

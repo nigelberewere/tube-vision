@@ -69,6 +69,8 @@ export default function VoiceOver() {
   const [flashEditor, setFlashEditor] = useState(false);
   const [previewingVoice, setPreviewingVoice] = useState<string | null>(null);
   const [playingPreview, setPlayingPreview] = useState<string | null>(null);
+  const [duration, setDuration] = useState(0);
+  const [currentTime, setCurrentTime] = useState(0);
   
   const audioRef = useRef<HTMLAudioElement>(null);
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
@@ -89,15 +91,21 @@ export default function VoiceOver() {
     const handleEnded = () => setIsPlaying(false);
     const handlePause = () => setIsPlaying(false);
     const handlePlay = () => setIsPlaying(true);
+    const handleLoadedMetadata = () => setDuration(audio.duration);
+    const handleTimeUpdate = () => setCurrentTime(audio.currentTime);
 
     audio.addEventListener('ended', handleEnded);
     audio.addEventListener('pause', handlePause);
     audio.addEventListener('play', handlePlay);
+    audio.addEventListener('loadedmetadata', handleLoadedMetadata);
+    audio.addEventListener('timeupdate', handleTimeUpdate);
 
     return () => {
       audio.removeEventListener('ended', handleEnded);
       audio.removeEventListener('pause', handlePause);
       audio.removeEventListener('play', handlePlay);
+      audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      audio.removeEventListener('timeupdate', handleTimeUpdate);
     };
   }, [audioUrl]);
 
@@ -204,6 +212,8 @@ export default function VoiceOver() {
     setError(null);
     setAudioUrl(null);
     setIsPlaying(false);
+    setCurrentTime(0);
+    setDuration(0);
 
     try {
       const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
@@ -261,6 +271,23 @@ export default function VoiceOver() {
       highlightRef.current.scrollTop = e.currentTarget.scrollTop;
       highlightRef.current.scrollLeft = e.currentTarget.scrollLeft;
     }
+  };
+
+  const formatTime = (seconds: number): string => {
+    if (!isFinite(seconds)) return '0:00';
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const handleProgressClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!audioRef.current || !duration) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const percentage = x / rect.width;
+    const newTime = percentage * duration;
+    audioRef.current.currentTime = newTime;
+    setCurrentTime(newTime);
   };
 
   const renderHighlightedText = (text: string) => {
@@ -382,40 +409,49 @@ export default function VoiceOver() {
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -20 }}
-                  className="flex-1 w-full flex items-center gap-3 bg-black/20 rounded-xl p-2 border border-white/5"
+                  className="flex-1 w-full flex flex-col gap-2 bg-black/20 rounded-xl p-3 border border-white/5"
                 >
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={togglePlay}
-                    className="w-10 h-10 rounded-lg bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors shrink-0"
-                  >
-                    {isPlaying ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current ml-0.5" />}
-                  </motion.button>
-                  
-                  <div className="flex-1 h-10 rounded-lg bg-black/20 flex items-center px-3 overflow-hidden">
-                    <div className="flex items-center gap-1 h-full w-full">
-                      {Array.from({ length: 40 }).map((_, i) => (
-                        <div 
-                          key={i} 
-                          className={`flex-1 rounded-full transition-colors duration-150 ${isPlaying ? 'bg-white/80' : 'bg-white/20'}`}
-                          style={{ 
-                            height: isPlaying ? `${Math.max(20, Math.random() * 100)}%` : '20%',
-                            animationDelay: `${i * 0.05}s`
-                          }}
+                  <div className="flex items-center gap-3">
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={togglePlay}
+                      className="w-10 h-10 rounded-lg bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors shrink-0"
+                    >
+                      {isPlaying ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current ml-0.5" />}
+                    </motion.button>
+                    
+                    <div className="flex-1 flex flex-col gap-1.5">
+                      <div 
+                        onClick={handleProgressClick}
+                        className="relative h-2 rounded-full bg-white/10 overflow-hidden cursor-pointer group"
+                      >
+                        <motion.div 
+                          className="absolute inset-y-0 left-0 bg-white rounded-full"
+                          style={{ width: `${duration ? (currentTime / duration) * 100 : 0}%` }}
+                          transition={{ duration: 0.1 }}
                         />
-                      ))}
+                        <div className="absolute inset-0 bg-white/0 group-hover:bg-white/5 transition-colors" />
+                      </div>
+                      <div className="flex justify-between items-center px-1">
+                        <span className="text-[10px] font-mono text-slate-400">
+                          {formatTime(currentTime)}
+                        </span>
+                        <span className="text-[10px] font-mono text-slate-500">
+                          {formatTime(duration)}
+                        </span>
+                      </div>
                     </div>
+                    
+                    <a 
+                      href={audioUrl} 
+                      download="tube-vision-voice.wav"
+                      className="w-10 h-10 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white flex items-center justify-center transition-colors shrink-0"
+                      title="Download Audio"
+                    >
+                      <Download className="w-4 h-4" />
+                    </a>
                   </div>
-                  
-                  <a 
-                    href={audioUrl} 
-                    download="tube-vision-voice.wav"
-                    className="w-10 h-10 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white flex items-center justify-center transition-colors shrink-0"
-                    title="Download Audio"
-                  >
-                    <Download className="w-4 h-4" />
-                  </a>
                 </motion.div>
               )}
             </AnimatePresence>
