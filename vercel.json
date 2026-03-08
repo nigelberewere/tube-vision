@@ -3,14 +3,18 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "functions": {
-    "api/[...route].ts": {
+    "api/route.ts": {
       "maxDuration": 60
     }
   },
   "rewrites": [
     {
+      "source": "/api/(.*)",
+      "destination": "/api/route?path=api/$1"
+    },
+    {
       "source": "/auth/(.*)",
-      "destination": "/api/auth/$1"
+      "destination": "/api/route?path=auth/$1"
     }
   ]
 }
