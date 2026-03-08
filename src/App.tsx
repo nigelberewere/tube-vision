@@ -138,6 +138,7 @@ export default function App() {
   const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
   const [onboardingStepIndex, setOnboardingStepIndex] = useState(0);
   const [seoVideoTopic, setSeoVideoTopic] = useState<string>('');
+  const [scriptTopic, setScriptTopic] = useState<string>('');
 
   const tabs: TabConfig[] = [
     {
@@ -173,7 +174,7 @@ export default function App() {
       label: 'Thumbnail Studio',
       icon: ImageIcon,
       section: 'studios',
-      summary: 'Audit poor thumbnails, auto-generate upgrade concepts, and authorize swaps.',
+      summary: 'Audit poor thumbnails, auto-generate upgrade concepts, and apply upgrades.',
     },
     {
       id: 'seo',
@@ -627,6 +628,7 @@ export default function App() {
             profileImage={user?.picture}
             activeAccountIndex={activeAccountIndex}
             totalAccounts={accounts.length}
+            onNavigateToIdeas={() => setActiveTab('ideas')}
           />
         );
       case 'seo':
@@ -636,7 +638,7 @@ export default function App() {
       case 'keywords':
         return <KeywordResearch />;
       case 'script':
-        return <ScriptArchitect />;
+        return <ScriptArchitect initialTopic={scriptTopic} onTopicUsed={() => setScriptTopic('')} />;
       case 'thumbnail':
         return <ThumbnailConcepting />;
       case 'voiceover':
@@ -659,7 +661,14 @@ export default function App() {
           userProfile={user ? { name: user.name, picture: user.picture } : undefined}
         />;
       case 'ideas':
-        return <VideoIdeaGenerator channelContext={user?.channel} />;
+        return <VideoIdeaGenerator 
+          channelContext={user?.channel} 
+          onNavigateToScript={(ideaTitle) => {
+            setScriptTopic(ideaTitle);
+            setActiveTab('script');
+            setIsSidebarOpen(false);
+          }}
+        />;
       case 'competitors':
         return <CompetitorAnalysis />;
       case 'insights':
@@ -674,6 +683,7 @@ export default function App() {
             profileImage={user?.picture}
             activeAccountIndex={activeAccountIndex}
             totalAccounts={accounts.length}
+            onNavigateToIdeas={() => setActiveTab('ideas')}
           />
         );
     }

@@ -1,14 +1,81 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { generateVidVisionInsight } from '../services/geminiService';
 import { Type } from '@google/genai';
 import { Loader2, PenTool, Copy, Check } from 'lucide-react';
 import { cn } from '../lib/utils';
 
-export default function ScriptArchitect() {
+interface ScriptArchitectProps {
+  initialTopic?: string;
+  onTopicUsed?: () => void;
+}
+
+const DEFAULT_TOPIC_PLACEHOLDER = 'e.g., The history of mechanical keyboards';
+const DAILY_PLACEHOLDER_CACHE_KEY = 'vid_vision_script_daily_placeholder';
+
+export default function ScriptArchitect({ initialTopic, onTopicUsed }: ScriptArchitectProps = {}) {
   const [topic, setTopic] = useState('');
+  const [topicPlaceholder, setTopicPlaceholder] = useState(DEFAULT_TOPIC_PLACEHOLDER);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [copied, setCopied] = useState(false);
+
+  // Auto-populate topic from initialTopic
+  useEffect(() => {
+    if (initialTopic) {
+      setTopic(initialTopic);
+      onTopicUsed?.();
+    }
+  }, [initialTopic, onTopicUsed]);
+
+  useEffect(() => {
+    let isCancelled = false;
+
+    const loadDailyPlaceholder = async () => {
+      const today = new Date().toISOString().slice(0, 10);
+
+      try {
+        const cached = localStorage.getItem(DAILY_PLACEHOLDER_CACHE_KEY);
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed?.dateKey === today && typeof parsed.placeholder === 'string' && parsed.placeholder.trim()) {
+            setTopicPlaceholder(parsed.placeholder.trim());
+          }
+        }
+      } catch {
+        // Ignore malformed cache and refresh from API.
+      }
+
+      try {
+        const response = await fetch('/api/script/daily-placeholder');
+        if (!response.ok) {
+          return;
+        }
+
+        const data = await response.json();
+        const nextPlaceholder = String(data?.placeholder || '').trim();
+        const dateKey = String(data?.dateKey || today);
+        const channelId = String(data?.channelId || '');
+
+        if (!nextPlaceholder || isCancelled) {
+          return;
+        }
+
+        setTopicPlaceholder(nextPlaceholder);
+        localStorage.setItem(
+          DAILY_PLACEHOLDER_CACHE_KEY,
+          JSON.stringify({ placeholder: nextPlaceholder, dateKey, channelId })
+        );
+      } catch (error) {
+        console.error('Failed to load daily script placeholder:', error);
+      }
+    };
+
+    loadDailyPlaceholder();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, []);
 
   const handleGenerate = async () => {
     if (!topic) return;
@@ -87,7 +154,7 @@ export default function ScriptArchitect() {
             type="text"
             value={topic}
             onChange={(e) => setTopic(e.target.value)}
-            placeholder="e.g., The history of mechanical keyboards"
+            placeholder={topicPlaceholder}
             className="flex-1 bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2.5 text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
             onKeyDown={(e) => e.key === 'Enter' && handleGenerate()}
           />

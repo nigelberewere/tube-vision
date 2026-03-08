@@ -569,6 +569,95 @@ For every video provided, evaluate segments based on:
     res.json(safeUser);
   });
 
+  app.get("/api/script/daily-placeholder", async (req, res) => {
+    const { accounts, activeIndex } = getSessionAccountsAndActiveIndex(req);
+    const user = accounts[activeIndex];
+
+    if (!user || !user.tokens) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
+    if (!user.channel) {
+      return res.status(400).json({ error: "No channel connected" });
+    }
+
+    const dateKey = new Date().toISOString().slice(0, 10);
+    const channelTitle = user.channel.title || "your niche";
+    const channelDescription = String(user.channel.description || "").slice(0, 700);
+    let recentTitles: string[] = [];
+
+    try {
+      const recentResponse = await fetch(
+        "https://www.googleapis.com/youtube/v3/search?part=snippet&forMine=true&type=video&maxResults=6&order=date",
+        {
+          headers: { Authorization: `Bearer ${user.tokens.access_token}` },
+        }
+      );
+      const recentData = await recentResponse.json();
+      recentTitles = (recentData.items || [])
+        .map((item: any) => item?.snippet?.title)
+        .filter((title: unknown) => typeof title === "string" && title.trim().length > 0)
+        .slice(0, 6);
+    } catch (fetchError) {
+      console.error("Fetch recent videos for placeholder error:", fetchError);
+    }
+
+    try {
+      if (!process.env.GEMINI_API_KEY) {
+        throw new Error("Missing GEMINI_API_KEY");
+      }
+
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const prompt = `You are helping a YouTube creator start a new script draft.
+Return exactly one concise topic placeholder (max 100 characters) tailored to this channel.
+It should feel fresh for date ${dateKey} and be specific enough to spark a script.
+Do not include quotes or numbering.
+
+Channel title: ${channelTitle}
+Channel description: ${channelDescription || "No description"}
+Recent videos: ${recentTitles.join(" | ") || "No recent titles"}`;
+
+      const response = await ai.models.generateContent({
+        model: "gemini-2.5-flash",
+        contents: prompt,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              placeholder: { type: Type.STRING },
+            },
+            required: ["placeholder"],
+          },
+        },
+      });
+
+      const parsed = JSON.parse(response.text || "{}");
+      const placeholder = String(parsed.placeholder || "").trim();
+
+      if (!placeholder) {
+        throw new Error("Placeholder was empty");
+      }
+
+      return res.json({
+        placeholder,
+        dateKey,
+        channelId: user.channel.id,
+        source: "ai",
+      });
+    } catch (error) {
+      console.error("Generate daily script placeholder error:", error);
+
+      const fallbackTopic = recentTitles[0] || channelTitle;
+      return res.json({
+        placeholder: `e.g., ${fallbackTopic}`,
+        dateKey,
+        channelId: user.channel.id,
+        source: "fallback",
+      });
+    }
+  });
+
   app.get("/api/user/videos", async (req, res) => {
     const { accounts, activeIndex } = getSessionAccountsAndActiveIndex(req);
     const user = accounts[activeIndex];
@@ -605,6 +694,82 @@ For every video provided, evaluate segments based on:
     }
   });
 
+  app.put("/api/user/videos/:videoId/title", async (req, res) => {
+    const { accounts, activeIndex } = getSessionAccountsAndActiveIndex(req);
+    const user = accounts[activeIndex];
+    if (!user || !user.tokens) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
+    const { videoId } = req.params;
+    const { title } = req.body;
+
+    if (!title || !title.trim()) {
+      return res.status(400).json({ error: "Title is required" });
+    }
+
+    try {
+      // First, get the current video details (we need categoryId and other metadata)
+      const getResponse = await fetch(
+        `https://www.googleapis.com/youtube/v3/videos?part=snippet&id=${videoId}`,
+        {
+          headers: { Authorization: `Bearer ${user.tokens.access_token}` },
+        }
+      );
+
+      if (!getResponse.ok) {
+        const errorData = await getResponse.json().catch(() => ({}));
+        console.error("YouTube get video error:", errorData);
+        return res.status(getResponse.status).json({ 
+          error: errorData.error?.message || "Failed to fetch video details" 
+        });
+      }
+
+      const getData = await getResponse.json();
+      if (!getData.items || getData.items.length === 0) {
+        return res.status(404).json({ error: "Video not found" });
+      }
+
+      const video = getData.items[0];
+      
+      // Update the video with new title
+      const updatePayload = {
+        id: videoId,
+        snippet: {
+          ...video.snippet,
+          title: title.trim(),
+          categoryId: video.snippet.categoryId,
+        }
+      };
+
+      const updateResponse = await fetch(
+        "https://www.googleapis.com/youtube/v3/videos?part=snippet",
+        {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${user.tokens.access_token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(updatePayload),
+        }
+      );
+
+      if (!updateResponse.ok) {
+        const errorData = await updateResponse.json().catch(() => ({}));
+        console.error("YouTube update video error:", errorData);
+        return res.status(updateResponse.status).json({ 
+          error: errorData.error?.message || "Failed to update video title" 
+        });
+      }
+
+      const updateData = await updateResponse.json();
+      res.json({ success: true, video: updateData });
+    } catch (error) {
+      console.error("Update video title error:", error);
+      res.status(500).json({ error: "Failed to update video title" });
+    }
+  });
+
   app.get("/api/thumbnails/authorizations", (req, res) => {
     const user = (req.session as any).user;
     if (!user || !user.tokens) {
@@ -632,6 +797,7 @@ For every video provided, evaluate segments based on:
       thumbnailImagePrompt,
       projectedCtrLiftPercent,
       swapPriority,
+      status,
     } = req.body || {};
 
     if (!videoId || !videoTitle) {
@@ -651,7 +817,7 @@ For every video provided, evaluate segments based on:
       thumbnailImagePrompt: thumbnailImagePrompt || "",
       projectedCtrLiftPercent: Number(projectedCtrLiftPercent || 0),
       swapPriority: Number(swapPriority || 50),
-      status: "authorized",
+      status: status === "applied" ? "applied" : "authorized",
       approvedAt: new Date().toISOString(),
     };
 
@@ -1445,8 +1611,36 @@ Return as JSON.`;
     // Vite middleware for development
     if (process.env.NODE_ENV !== "production") {
       const { createServer: createViteServer } = await import("vite");
+      let hmrConfig: { port: number; clientPort: number };
+
+      try {
+        const preferredHmrPort = 24678;
+        const hmrPort = await findAvailablePort(preferredHmrPort);
+        process.env.VITE_HMR_PORT = String(hmrPort);
+
+        if (hmrPort !== preferredHmrPort) {
+          console.warn(`[Startup] Vite HMR port ${preferredHmrPort} is in use. Using ${hmrPort} instead.`);
+        }
+
+        hmrConfig = {
+          port: hmrPort,
+          clientPort: hmrPort,
+        };
+      } catch {
+        const fallbackHmrPort = 24700;
+        process.env.VITE_HMR_PORT = String(fallbackHmrPort);
+        console.warn(`[Startup] Unable to probe Vite HMR port. Falling back to ${fallbackHmrPort}.`);
+        hmrConfig = {
+          port: fallbackHmrPort,
+          clientPort: fallbackHmrPort,
+        };
+      }
+
       const vite = await createViteServer({
-        server: { middlewareMode: true },
+        server: {
+          middlewareMode: true,
+          hmr: hmrConfig,
+        },
         appType: "spa",
       });
       app.use(vite.middlewares);

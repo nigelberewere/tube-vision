@@ -9,10 +9,24 @@ import {
   AlertCircle, 
   CheckCircle2, 
   ArrowRight,
-  RefreshCw
+  RefreshCw,
+  Check,
+  X
 } from 'lucide-react';
 import { ShimmerTable, ShimmerCard } from './Shimmer';
 import { cn } from '../lib/utils';
+
+interface VideoOptimization {
+  videoId: string;
+  currentTitle: string;
+  suggestedTitle: string;
+  score: number;
+  reason: string;
+  suggestedTags: string[];
+  applying?: boolean;
+  applied?: boolean;
+  error?: string;
+}
 
 export default function ChannelAnalysis() {
   const [videos, setVideos] = useState<any[]>([]);
@@ -44,6 +58,7 @@ export default function ChannelAnalysis() {
     setAnalyzing(true);
     try {
       const videoData = videos.map(v => ({
+        id: v.id,
         title: v.snippet.title,
         views: v.statistics.viewCount,
         likes: v.statistics.likeCount,
@@ -64,6 +79,7 @@ export default function ChannelAnalysis() {
             items: {
               type: Type.OBJECT,
               properties: {
+                videoId: { type: Type.STRING },
                 currentTitle: { type: Type.STRING },
                 suggestedTitle: { type: Type.STRING },
                 score: { type: Type.NUMBER },
@@ -81,17 +97,86 @@ export default function ChannelAnalysis() {
       
       1. Identify my niche and its current trends.
       2. Find patterns in high-performing vs low-performing videos.
-      3. Suggest specific title and tag optimizations for my recent videos to improve CTR and search ranking.
+      3. Suggest specific title and tag optimizations for my recent videos to improve CTR and search ranking. For each suggestion, include the videoId from the provided data.
       4. Provide a long-term growth strategy.`;
       
       const response = await generateVidVisionInsight(prompt, schema);
       if (response) {
-        setAnalysis(JSON.parse(response));
+        const parsedAnalysis = JSON.parse(response);
+        // Ensure each optimization has the videoId
+        if (parsedAnalysis.optimizations) {
+          parsedAnalysis.optimizations = parsedAnalysis.optimizations.map((opt: any) => ({
+            ...opt,
+            applying: false,
+            applied: false,
+            error: undefined
+          }));
+        }
+        setAnalysis(parsedAnalysis);
       }
     } catch (error) {
       console.error(error);
     } finally {
       setAnalyzing(false);
+    }
+  };
+
+  const handleApplyTitle = async (index: number) => {
+    if (!analysis?.optimizations || !analysis.optimizations[index]) return;
+
+    const optimization = analysis.optimizations[index];
+    
+    // Update state to show loading
+    setAnalysis((prev: any) => {
+      const newOptimizations = [...prev.optimizations];
+      newOptimizations[index] = {
+        ...newOptimizations[index],
+        applying: true,
+        error: undefined
+      };
+      return { ...prev, optimizations: newOptimizations };
+    });
+
+    try {
+      const response = await fetch(`/api/user/videos/${optimization.videoId}/title`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          title: optimization.suggestedTitle
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Failed to update title' }));
+        throw new Error(errorData.error || 'Failed to update video title');
+      }
+
+      // Success - update state
+      setAnalysis((prev: any) => {
+        const newOptimizations = [...prev.optimizations];
+        newOptimizations[index] = {
+          ...newOptimizations[index],
+          applying: false,
+          applied: true,
+          currentTitle: optimization.suggestedTitle // Update current title
+        };
+        return { ...prev, optimizations: newOptimizations };
+      });
+    } catch (error: any) {
+      console.error('Failed to apply title:', error);
+      
+      // Error - update state
+      setAnalysis((prev: any) => {
+        const newOptimizations = [...prev.optimizations];
+        newOptimizations[index] = {
+          ...newOptimizations[index],
+          applying: false,
+          error: error.message || 'Failed to update title'
+        };
+        return { ...prev, optimizations: newOptimizations };
+      });
     }
   };
 
@@ -224,7 +309,7 @@ export default function ChannelAnalysis() {
               <h2 className="text-lg font-bold text-zinc-100">Recommended Optimizations</h2>
             </div>
             <div className="divide-y divide-zinc-800">
-              {analysis.optimizations?.map((opt: any, i: number) => (
+              {analysis.optimizations?.map((opt: VideoOptimization, i: number) => (
                 <div key={i} className="p-6 hover:bg-zinc-800/30 transition-colors">
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                     <div className="space-y-4">
@@ -232,17 +317,55 @@ export default function ChannelAnalysis() {
                         <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Current Title</span>
                         <p className="text-sm text-zinc-400 line-clamp-1">{opt.currentTitle}</p>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <ArrowRight size={16} className="text-indigo-500" />
-                        <div className="flex-1">
+                      <div className="flex items-start gap-2">
+                        <ArrowRight size={16} className="text-indigo-500 flex-shrink-0 mt-1" />
+                        <div className="flex-1 min-w-0">
                           <span className="text-[10px] font-bold uppercase tracking-widest text-indigo-400">Suggested Title</span>
                           <p className="text-base font-bold text-zinc-100">{opt.suggestedTitle}</p>
                         </div>
-                        <div className="bg-indigo-500/10 text-indigo-400 px-3 py-1 rounded-full text-xs font-bold">
+                        <div className="bg-indigo-500/10 text-indigo-400 px-3 py-1 rounded-full text-xs font-bold flex-shrink-0">
                           Score: {opt.score}/100
                         </div>
                       </div>
                       <p className="text-sm text-zinc-400 italic">"{opt.reason}"</p>
+                      
+                      {/* Apply Title Button */}
+                      <div className="pt-2">
+                        {opt.applied ? (
+                          <div className="flex items-center gap-2 text-emerald-400 text-sm font-semibold">
+                            <Check size={18} className="flex-shrink-0" />
+                            <span>Title applied successfully!</span>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => handleApplyTitle(i)}
+                            disabled={opt.applying}
+                            className={cn(
+                              "bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 transition-all",
+                              opt.error && "bg-blue-600/50"
+                            )}
+                          >
+                            {opt.applying ? (
+                              <>
+                                <Loader2 size={16} className="animate-spin" />
+                                Applying...
+                              </>
+                            ) : (
+                              <>
+                                <CheckCircle2 size={16} />
+                                Apply Title
+                              </>
+                            )}
+                          </button>
+                        )}
+                        
+                        {opt.error && (
+                          <div className="flex items-center gap-2 text-rose-400 text-sm mt-2">
+                            <X size={16} className="flex-shrink-0" />
+                            <span>{opt.error}</span>
+                          </div>
+                        )}
+                      </div>
                     </div>
                     <div>
                       <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 block mb-2">Suggested Tags</span>

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Type } from '@google/genai';
 import {
   AlertCircle,
+  ArrowRight,
   CheckCircle2,
   Clock3,
   ExternalLink,
@@ -121,6 +122,47 @@ function compact(value: number): string {
   return Intl.NumberFormat(undefined, { notation: 'compact', maximumFractionDigits: 1 }).format(value);
 }
 
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
+
+function trimToWords(text: string, maxWords: number): string {
+  const words = String(text || '')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  return words.slice(0, maxWords).join(' ');
+}
+
+function formatRelativeTime(dateInput: string): string {
+  const timestamp = new Date(dateInput).getTime();
+  if (!Number.isFinite(timestamp)) return 'recently';
+
+  const diff = Date.now() - timestamp;
+  const minute = 60 * 1000;
+  const hour = 60 * minute;
+  const day = 24 * hour;
+
+  if (diff < hour) {
+    const value = Math.max(1, Math.floor(diff / minute));
+    return `${value}m ago`;
+  }
+
+  if (diff < day) {
+    const value = Math.max(1, Math.floor(diff / hour));
+    return `${value}h ago`;
+  }
+
+  const value = Math.max(1, Math.floor(diff / day));
+  return `${value}d ago`;
+}
+
+function predictThumbnailScore(insight: AutoInsight): number {
+  const baseline = toNumber(insight.thumbnailHealthScore);
+  const lift = toNumber(insight.projectedCtrLiftPercent);
+  return clamp(Math.round(baseline + lift), 1, 100);
+}
+
 function buildVideoMetrics(videos: VideoItem[]): VideoMetrics[] {
   const now = Date.now();
 
@@ -191,6 +233,7 @@ export default function ThumbnailConcepting() {
   const [channelActions, setChannelActions] = useState<string[]>([]);
 
   const [authorizingId, setAuthorizingId] = useState<string | null>(null);
+  const [regeneratingId, setRegeneratingId] = useState<string | null>(null);
   const [queueLoading, setQueueLoading] = useState(false);
   const [authorizationQueue, setAuthorizationQueue] = useState<AuthorizationItem[]>([]);
 
@@ -406,7 +449,7 @@ Rules:
 - thumbnailImagePrompt must be a ready-to-use prompt for an image generator.
 - projectedCtrLiftPercent should be realistic (2 to 35).
 - thumbnailHealthScore is 1-100 (higher is better current thumbnail quality).
-- swapPriority is 1-100 (higher means authorize this swap first).
+- swapPriority is 1-100 (higher means apply this swap first).
 - Focus on practical visual changes a creator can execute quickly.
 - Include 3 to 5 high-impact channel-level actions.`;
 
@@ -436,9 +479,113 @@ Rules:
     }
   };
 
-  const authorizeSwap = async (insight: AutoInsight) => {
+  const regenerateThumbnailConcept = async (insight: AutoInsight) => {
     if (!insight.video) return;
 
+    setAuditError(null);
+    setRegeneratingId(insight.video.id);
+    try {
+      const schema = {
+        type: Type.OBJECT,
+        properties: {
+          thumbnailHealthScore: { type: Type.NUMBER },
+          mainIssue: { type: Type.STRING },
+          proposedTextOverlay: { type: Type.STRING },
+          titleTreatment: { type: Type.STRING },
+          layoutDescription: { type: Type.STRING },
+          colorDirection: { type: Type.STRING },
+          visualHook: { type: Type.STRING },
+          thumbnailImagePrompt: { type: Type.STRING },
+          projectedCtrLiftPercent: { type: Type.NUMBER },
+          whyThisShouldImproveCtr: { type: Type.STRING },
+          swapPriority: { type: Type.NUMBER },
+        },
+        required: [
+          'thumbnailHealthScore',
+          'mainIssue',
+          'proposedTextOverlay',
+          'titleTreatment',
+          'layoutDescription',
+          'colorDirection',
+          'visualHook',
+          'thumbnailImagePrompt',
+          'projectedCtrLiftPercent',
+          'whyThisShouldImproveCtr',
+          'swapPriority',
+        ],
+      };
+
+      const topPerformerSummary = topPerformers.slice(0, 3).map((video) => ({
+        title: video.title,
+        viewsPerDay: Math.round(video.viewsPerDay),
+        engagementRate: Number(video.engagementRate.toFixed(2)),
+      }));
+
+      const prompt = `You are a YouTube thumbnail CRO expert.
+Regenerate ONE stronger thumbnail concept for this specific video while staying realistic.
+
+Video to improve:
+${JSON.stringify({
+  videoId: insight.video.id,
+  title: insight.video.title,
+  viewsPerDay: Math.round(insight.video.viewsPerDay),
+  engagementRate: Number(insight.video.engagementRate.toFixed(2)),
+  currentThumbnailHealthScore: Math.round(toNumber(insight.thumbnailHealthScore)),
+  currentMainIssue: insight.mainIssue,
+  currentOverlay: insight.proposedTextOverlay,
+})}
+
+Top performer pattern references:
+${JSON.stringify(topPerformerSummary)}
+
+Rules:
+- proposedTextOverlay: 4 words max.
+- projectedCtrLiftPercent: 2 to 35.
+- thumbnailHealthScore: 1 to 100.
+- swapPriority: 1 to 100.
+- thumbnailImagePrompt: ready for image generation.
+- Return JSON only.`;
+
+      const response = await generateVidVisionInsight(prompt, schema);
+      if (!response) {
+        throw new Error('No regenerated thumbnail concept returned.');
+      }
+
+      const regenerated = JSON.parse(response);
+
+      setInsights((previous) =>
+        previous
+          .map((item) => {
+            if (item.videoId !== insight.videoId) return item;
+
+            return {
+              ...item,
+              thumbnailHealthScore: clamp(toNumber(regenerated.thumbnailHealthScore || item.thumbnailHealthScore), 1, 100),
+              mainIssue: regenerated.mainIssue || item.mainIssue,
+              proposedTextOverlay: trimToWords(regenerated.proposedTextOverlay || item.proposedTextOverlay, 4),
+              titleTreatment: regenerated.titleTreatment || item.titleTreatment,
+              layoutDescription: regenerated.layoutDescription || item.layoutDescription,
+              colorDirection: regenerated.colorDirection || item.colorDirection,
+              visualHook: regenerated.visualHook || item.visualHook,
+              thumbnailImagePrompt: regenerated.thumbnailImagePrompt || item.thumbnailImagePrompt,
+              projectedCtrLiftPercent: clamp(toNumber(regenerated.projectedCtrLiftPercent || item.projectedCtrLiftPercent), 2, 35),
+              whyThisShouldImproveCtr: regenerated.whyThisShouldImproveCtr || item.whyThisShouldImproveCtr,
+              swapPriority: clamp(toNumber(regenerated.swapPriority || item.swapPriority), 1, 100),
+            };
+          })
+          .sort((a, b) => toNumber(b.swapPriority) - toNumber(a.swapPriority)),
+      );
+    } catch (error: any) {
+      setAuditError(error.message || 'Failed to regenerate thumbnail concept.');
+    } finally {
+      setRegeneratingId(null);
+    }
+  };
+
+  const applyThumbnail = async (insight: AutoInsight) => {
+    if (!insight.video) return;
+
+    setAuditError(null);
     setAuthorizingId(insight.video.id);
     try {
       const response = await fetch('/api/thumbnails/authorize', {
@@ -455,23 +602,24 @@ Rules:
           thumbnailImagePrompt: insight.thumbnailImagePrompt,
           projectedCtrLiftPercent: insight.projectedCtrLiftPercent,
           swapPriority: insight.swapPriority,
+          status: 'applied',
         }),
       });
 
       if (response.status === 401) {
         setNeedsConnection(true);
-        throw new Error('Reconnect your YouTube account to authorize thumbnail swaps.');
+        throw new Error('Reconnect your YouTube account to apply thumbnail swaps.');
       }
 
       if (!response.ok) {
         const payload = await response.json().catch(() => ({}));
-        throw new Error(payload.error || 'Failed to authorize swap.');
+        throw new Error(payload.error || 'Failed to apply thumbnail.');
       }
 
       const payload = await response.json();
       setAuthorizationQueue(payload.queue || []);
     } catch (error: any) {
-      setAuditError(error.message || 'Failed to authorize swap.');
+      setAuditError(error.message || 'Failed to apply thumbnail.');
     } finally {
       setAuthorizingId(null);
     }
@@ -495,7 +643,7 @@ Rules:
       <div>
         <h1 className="text-3xl font-bold tracking-tight text-zinc-100">Thumbnail Studio</h1>
         <p className="text-zinc-400 mt-2">
-          Detect weak thumbnails, auto-generate stronger concepts, and approve thumbnail swap recommendations.
+          Detect weak thumbnails, auto-generate stronger concepts, and apply thumbnail upgrade recommendations.
         </p>
       </div>
 
@@ -613,7 +761,7 @@ Rules:
                 <p className="text-2xl font-bold text-amber-300 mt-1">{poorCandidates.length}</p>
               </div>
               <div className="rounded-lg border border-zinc-800 bg-zinc-950 p-4">
-                <p className="text-xs uppercase tracking-wider text-zinc-500 font-bold">Authorized Swaps</p>
+                <p className="text-xs uppercase tracking-wider text-zinc-500 font-bold">Applied Queue</p>
                 <p className="text-2xl font-bold text-emerald-300 mt-1">{authorizationQueue.length}</p>
               </div>
             </div>
@@ -664,100 +812,135 @@ Rules:
                 if (!video) return null;
 
                 return (
-                  <div key={`${insight.videoId}-${index}`} className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
-                    <div className="grid grid-cols-1 lg:grid-cols-12">
-                      <div className="lg:col-span-4 border-b lg:border-b-0 lg:border-r border-zinc-800 p-5 space-y-3">
+                  <div key={`${insight.videoId}-${index}`} className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 space-y-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <p className="text-base font-bold text-zinc-100 truncate">Enhanced Thumbnail</p>
+                        <span className="text-zinc-600">•</span>
+                        <p className="text-xs text-zinc-500">{formatRelativeTime(video.publishedAt)}</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="px-2.5 py-1 rounded-full bg-rose-500/15 text-rose-300 text-xs font-bold">
+                          {Math.round(insight.thumbnailHealthScore)}
+                        </span>
+                        <span className="px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-300 text-xs font-bold">
+                          {predictThumbnailScore(insight)}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] items-center gap-3">
+                      <div className="rounded-lg border border-zinc-800 overflow-hidden bg-zinc-950 relative">
                         <img
                           src={video.thumbnailUrl}
-                          alt={video.title}
-                          className="w-full aspect-video object-cover rounded-lg border border-zinc-800"
+                          alt={`Current thumbnail for ${video.title}`}
+                          className="w-full aspect-video object-cover"
                           referrerPolicy="no-referrer"
                         />
-                        <h3 className="text-sm font-semibold text-zinc-100">{video.title}</h3>
-                        <div className="grid grid-cols-2 gap-2 text-xs text-zinc-400">
-                          <div className="bg-zinc-950 rounded-md p-2">Views: <span className="text-zinc-200">{compact(video.viewCount)}</span></div>
-                          <div className="bg-zinc-950 rounded-md p-2">/day: <span className="text-zinc-200">{compact(video.viewsPerDay)}</span></div>
-                          <div className="bg-zinc-950 rounded-md p-2">Engagement: <span className="text-zinc-200">{video.engagementRate.toFixed(2)}%</span></div>
-                          <div className="bg-zinc-950 rounded-md p-2">Duration: <span className="text-zinc-200">{video.durationLabel}</span></div>
+                        <span className="absolute top-2 left-2 text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded bg-black/70 text-zinc-200">
+                          Current
+                        </span>
+                        <span className="absolute bottom-2 right-2 text-xs font-bold px-2 py-1 rounded bg-black/70 text-rose-300">
+                          {Math.round(insight.thumbnailHealthScore)}
+                        </span>
+                      </div>
+
+                      <div className="hidden md:flex justify-center">
+                        <div className="w-8 h-8 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center">
+                          <ArrowRight size={14} className="text-zinc-400" />
                         </div>
                       </div>
 
-                      <div className="lg:col-span-8 p-5 space-y-4">
-                        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
-                          <div>
-                            <p className="text-[11px] font-bold uppercase tracking-wider text-zinc-500">Proposed Upgrade</p>
-                            <p className="text-sm text-zinc-300 mt-1">{insight.mainIssue}</p>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-500">Health</span>
-                            <span className="px-2.5 py-1 rounded-full bg-amber-500/15 text-amber-300 text-xs font-bold">
-                              {Math.round(insight.thumbnailHealthScore)}/100
-                            </span>
-                            <span className="px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-300 text-xs font-bold">
-                              Priority {Math.round(insight.swapPriority)}
-                            </span>
-                          </div>
-                        </div>
+                      <div className="rounded-lg border border-emerald-500/30 overflow-hidden bg-zinc-950 relative">
+                        <img
+                          src={video.thumbnailUrl}
+                          alt={`Generated thumbnail concept for ${video.title}`}
+                          className="w-full aspect-video object-cover brightness-[0.55] contrast-125 saturate-125"
+                          referrerPolicy="no-referrer"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-br from-black/25 via-transparent to-emerald-500/25" />
+                        <p className="absolute inset-0 flex items-center justify-center px-4 text-center text-white text-lg md:text-xl font-black uppercase tracking-tight drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]">
+                          {trimToWords(insight.proposedTextOverlay, 4)}
+                        </p>
+                        <span className="absolute top-2 left-2 text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded bg-black/70 text-emerald-200">
+                          Generated
+                        </span>
+                        <span className="absolute bottom-2 right-2 text-xs font-bold px-2 py-1 rounded bg-black/70 text-emerald-300">
+                          {predictThumbnailScore(insight)}
+                        </span>
+                      </div>
+                    </div>
 
-                        <div className="rounded-lg border border-zinc-800 bg-zinc-950 p-4 relative overflow-hidden min-h-[120px] flex items-center justify-center">
-                          <div className="absolute inset-0 opacity-25 bg-gradient-to-br from-indigo-500/30 via-zinc-950 to-rose-500/20"></div>
-                          <p className="relative z-10 text-3xl font-black text-white uppercase tracking-tight text-center">
-                            {insight.proposedTextOverlay}
-                          </p>
-                        </div>
+                    <div className="text-center">
+                      <p className="text-base font-semibold text-zinc-100">{video.title}</p>
+                      <p className="text-zinc-400 text-sm mt-1">
+                        {compact(video.viewCount)} views • {formatRelativeTime(video.publishedAt)}
+                      </p>
+                    </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-                          <div className="rounded-lg border border-zinc-800 bg-zinc-950 p-3">
-                            <p className="text-xs uppercase tracking-wider text-zinc-500 font-bold">Layout Plan</p>
-                            <p className="text-zinc-300 mt-1">{insight.layoutDescription}</p>
-                          </div>
-                          <div className="rounded-lg border border-zinc-800 bg-zinc-950 p-3">
-                            <p className="text-xs uppercase tracking-wider text-zinc-500 font-bold">Title Treatment</p>
-                            <p className="text-zinc-300 mt-1">{insight.titleTreatment}</p>
-                          </div>
-                          <div className="rounded-lg border border-zinc-800 bg-zinc-950 p-3">
-                            <p className="text-xs uppercase tracking-wider text-zinc-500 font-bold">Color Direction</p>
-                            <p className="text-zinc-300 mt-1">{insight.colorDirection}</p>
-                          </div>
-                          <div className="rounded-lg border border-zinc-800 bg-zinc-950 p-3">
-                            <p className="text-xs uppercase tracking-wider text-zinc-500 font-bold">Visual Hook</p>
-                            <p className="text-zinc-300 mt-1">{insight.visualHook}</p>
-                          </div>
-                          <div className="rounded-lg border border-zinc-800 bg-zinc-950 p-3">
-                            <p className="text-xs uppercase tracking-wider text-zinc-500 font-bold">Expected CTR Benefit</p>
-                            <p className="text-zinc-300 mt-1">{insight.whyThisShouldImproveCtr}</p>
-                            <p className="text-emerald-300 text-xs mt-2">Projected lift: +{Math.round(insight.projectedCtrLiftPercent)}%</p>
-                          </div>
-                          <div className="rounded-lg border border-zinc-800 bg-zinc-950 p-3 md:col-span-2">
-                            <p className="text-xs uppercase tracking-wider text-zinc-500 font-bold">Image Prompt</p>
-                            <p className="text-zinc-300 mt-1 text-xs leading-relaxed">{insight.thumbnailImagePrompt}</p>
-                          </div>
-                        </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        onClick={() => regenerateThumbnailConcept(insight)}
+                        disabled={regeneratingId === video.id || authorizingId === video.id}
+                        className="px-4 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 disabled:opacity-60 text-zinc-200 text-sm font-semibold transition-colors inline-flex items-center gap-2"
+                      >
+                        {regeneratingId === video.id ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
+                        Regenerate
+                      </button>
+                      <button
+                        onClick={() => applyThumbnail(insight)}
+                        disabled={authorizingId === video.id || authorizedIdSet.has(video.id)}
+                        className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-500 disabled:bg-zinc-700 disabled:text-zinc-400 text-sm font-semibold transition-colors inline-flex items-center gap-2"
+                      >
+                        {authorizingId === video.id ? <Loader2 size={16} className="animate-spin" /> : <ShieldCheck size={16} />}
+                        {authorizedIdSet.has(video.id) ? 'Applied' : 'Apply Thumbnail'}
+                      </button>
+                      <a
+                        href={video.youtubeUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-3 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-sm font-semibold transition-colors inline-flex items-center gap-2"
+                      >
+                        <ExternalLink size={14} />
+                        Open Video
+                      </a>
+                    </div>
 
-                        <div className="flex flex-wrap items-center gap-2 pt-1">
-                          <a
-                            href={video.youtubeUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="px-3 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-semibold transition-colors inline-flex items-center gap-2"
-                          >
-                            <ExternalLink size={14} />
-                            Open Video
-                          </a>
-                          <button
-                            onClick={() => authorizeSwap(insight)}
-                            disabled={authorizingId === video.id || authorizedIdSet.has(video.id)}
-                            className="px-3 py-2 rounded-lg bg-white text-black hover:bg-zinc-200 disabled:bg-zinc-700 disabled:text-zinc-400 text-xs font-semibold transition-colors inline-flex items-center gap-2"
-                          >
-                            {authorizingId === video.id ? <Loader2 size={14} className="animate-spin" /> : <ShieldCheck size={14} />}
-                            {authorizedIdSet.has(video.id) ? 'Authorized' : 'Authorize Swap'}
-                          </button>
-                          {authorizedIdSet.has(video.id) && (
-                            <span className="text-xs text-emerald-300 inline-flex items-center gap-1">
-                              <CheckCircle2 size={14} /> In approval queue
-                            </span>
-                          )}
-                        </div>
+                    {authorizedIdSet.has(video.id) && (
+                      <p className="text-xs text-emerald-300 inline-flex items-center gap-1">
+                        <CheckCircle2 size={14} /> Added to apply queue
+                      </p>
+                    )}
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                      <div className="rounded-lg border border-zinc-800 bg-zinc-950 p-3">
+                        <p className="text-xs uppercase tracking-wider text-zinc-500 font-bold">Main Issue</p>
+                        <p className="text-zinc-300 mt-1">{insight.mainIssue}</p>
+                      </div>
+                      <div className="rounded-lg border border-zinc-800 bg-zinc-950 p-3">
+                        <p className="text-xs uppercase tracking-wider text-zinc-500 font-bold">Expected CTR Benefit</p>
+                        <p className="text-zinc-300 mt-1">{insight.whyThisShouldImproveCtr}</p>
+                        <p className="text-emerald-300 text-xs mt-2">Projected lift: +{Math.round(insight.projectedCtrLiftPercent)}%</p>
+                      </div>
+                      <div className="rounded-lg border border-zinc-800 bg-zinc-950 p-3">
+                        <p className="text-xs uppercase tracking-wider text-zinc-500 font-bold">Layout Plan</p>
+                        <p className="text-zinc-300 mt-1">{insight.layoutDescription}</p>
+                      </div>
+                      <div className="rounded-lg border border-zinc-800 bg-zinc-950 p-3">
+                        <p className="text-xs uppercase tracking-wider text-zinc-500 font-bold">Title Treatment</p>
+                        <p className="text-zinc-300 mt-1">{insight.titleTreatment}</p>
+                      </div>
+                      <div className="rounded-lg border border-zinc-800 bg-zinc-950 p-3">
+                        <p className="text-xs uppercase tracking-wider text-zinc-500 font-bold">Color Direction</p>
+                        <p className="text-zinc-300 mt-1">{insight.colorDirection}</p>
+                      </div>
+                      <div className="rounded-lg border border-zinc-800 bg-zinc-950 p-3">
+                        <p className="text-xs uppercase tracking-wider text-zinc-500 font-bold">Visual Hook</p>
+                        <p className="text-zinc-300 mt-1">{insight.visualHook}</p>
+                      </div>
+                      <div className="rounded-lg border border-zinc-800 bg-zinc-950 p-3 md:col-span-2">
+                        <p className="text-xs uppercase tracking-wider text-zinc-500 font-bold">Image Prompt</p>
+                        <p className="text-zinc-300 mt-1 text-xs leading-relaxed">{insight.thumbnailImagePrompt}</p>
                       </div>
                     </div>
                   </div>
@@ -769,9 +952,9 @@ Rules:
           <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <h3 className="text-lg font-semibold text-zinc-100">Thumbnail Swap Authorization Queue</h3>
+                <h3 className="text-lg font-semibold text-zinc-100">Thumbnail Apply Queue</h3>
                 <p className="text-sm text-zinc-400 mt-1">
-                  Approved swaps are queued for creator review and execution.
+                  Thumbnails you applied are queued for creator review and execution.
                 </p>
               </div>
               <button
@@ -821,7 +1004,7 @@ Rules:
           <div className="rounded-xl border border-indigo-500/20 bg-indigo-500/5 p-4 text-sm text-zinc-300 flex items-start gap-3">
             <Clock3 size={16} className="text-indigo-300 mt-0.5 shrink-0" />
             <p>
-              Authorization marks a thumbnail swap as approved by the creator. Execution is queued for your thumbnail production workflow.
+              Apply Thumbnail marks a swap as creator-approved. Execution is queued for your thumbnail production workflow.
             </p>
           </div>
         </>

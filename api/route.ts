@@ -421,6 +421,99 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   }
 
+  // Daily AI script placeholder
+  if (path === 'api/script/daily-placeholder') {
+    const { accounts, activeIndex } = readAccountsFromCookies(req);
+    if (accounts.length === 0) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    try {
+      const userData = accounts[activeIndex];
+      if (!userData || !userData.channel) {
+        return res.status(400).json({ error: 'No channel connected' });
+      }
+
+      const authHeader = await getAuthHeaderForAccount(userData);
+      const dateKey = new Date().toISOString().slice(0, 10);
+      const channelTitle = userData.channel.title || 'your niche';
+      const channelDescription = String(userData.channel.description || '').slice(0, 700);
+
+      let recentTitles: string[] = [];
+      try {
+        const recentResponse = await fetch(
+          'https://www.googleapis.com/youtube/v3/search?part=snippet&forMine=true&type=video&maxResults=6&order=date',
+          { headers: authHeader }
+        );
+        const recentData = await recentResponse.json();
+        recentTitles = (recentData.items || [])
+          .map((item: any) => item?.snippet?.title)
+          .filter((title: unknown) => typeof title === 'string' && title.trim().length > 0)
+          .slice(0, 6);
+      } catch (fetchError) {
+        console.error('Fetch recent videos for placeholder error:', fetchError);
+      }
+
+      try {
+        if (!process.env.GEMINI_API_KEY) {
+          throw new Error('Missing GEMINI_API_KEY');
+        }
+
+        const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+        const prompt = `You are helping a YouTube creator start a new script draft.
+Return exactly one concise topic placeholder (max 100 characters) tailored to this channel.
+It should feel fresh for date ${dateKey} and be specific enough to spark a script.
+Do not include quotes or numbering.
+
+Channel title: ${channelTitle}
+Channel description: ${channelDescription || 'No description'}
+Recent videos: ${recentTitles.join(' | ') || 'No recent titles'}`;
+
+        const response = await ai.models.generateContent({
+          model: 'gemini-2.5-flash',
+          contents: prompt,
+          config: {
+            responseMimeType: 'application/json',
+            responseSchema: {
+              type: Type.OBJECT,
+              properties: {
+                placeholder: { type: Type.STRING },
+              },
+              required: ['placeholder'],
+            },
+          },
+        });
+
+        const parsed = JSON.parse(response.text || '{}');
+        const placeholder = String(parsed.placeholder || '').trim();
+
+        if (!placeholder) {
+          throw new Error('Placeholder was empty');
+        }
+
+        return res.json({
+          placeholder,
+          dateKey,
+          channelId: userData.channel.id,
+          source: 'ai',
+        });
+      } catch (error) {
+        console.error('Generate daily script placeholder error:', error);
+
+        const fallbackTopic = recentTitles[0] || channelTitle;
+        return res.json({
+          placeholder: `e.g., ${fallbackTopic}`,
+          dateKey,
+          channelId: userData.channel.id,
+          source: 'fallback',
+        });
+      }
+    } catch (error) {
+      console.error('Daily script placeholder route error:', error);
+      return res.status(500).json({ error: 'Failed to generate daily script placeholder' });
+    }
+  }
+
   // Get all accounts
   if (path === 'api/user/accounts') {
     const { accounts, activeIndex } = readAccountsFromCookies(req);
@@ -560,6 +653,89 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     } catch (error) {
       console.error('Fetch videos error:', error);
       return res.status(500).json({ error: 'Failed to fetch videos' });
+    }
+  }
+
+  // Update video title
+  if (path.match(/^api\/user\/videos\/[^/]+\/title$/) && req.method === 'PUT') {
+    const { accounts, activeIndex } = readAccountsFromCookies(req);
+    if (accounts.length === 0) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const videoId = path.split('/')[3];
+    const body = readJsonBody(req);
+    const { title } = body;
+
+    if (!title || !title.trim()) {
+      return res.status(400).json({ error: 'Title is required' });
+    }
+
+    try {
+      const userData = accounts[activeIndex];
+      
+      if (!userData) {
+        return res.status(401).json({ error: 'No active account' });
+      }
+
+      const authHeader = await getAuthHeaderForAccount(userData);
+
+      // First, get the current video details
+      const getResponse = await fetch(
+        `https://www.googleapis.com/youtube/v3/videos?part=snippet&id=${videoId}`,
+        { headers: authHeader }
+      );
+
+      if (!getResponse.ok) {
+        const errorData = await getResponse.json().catch(() => ({}));
+        console.error('YouTube get video error:', errorData);
+        return res.status(getResponse.status).json({ 
+          error: errorData.error?.message || 'Failed to fetch video details' 
+        });
+      }
+
+      const getData = await getResponse.json();
+      if (!getData.items || getData.items.length === 0) {
+        return res.status(404).json({ error: 'Video not found' });
+      }
+
+      const video = getData.items[0];
+      
+      // Update the video with new title
+      const updatePayload = {
+        id: videoId,
+        snippet: {
+          ...video.snippet,
+          title: title.trim(),
+          categoryId: video.snippet.categoryId,
+        }
+      };
+
+      const updateResponse = await fetch(
+        'https://www.googleapis.com/youtube/v3/videos?part=snippet',
+        {
+          method: 'PUT',
+          headers: {
+            ...authHeader,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(updatePayload),
+        }
+      );
+
+      if (!updateResponse.ok) {
+        const errorData = await updateResponse.json().catch(() => ({}));
+        console.error('YouTube update video error:', errorData);
+        return res.status(updateResponse.status).json({ 
+          error: errorData.error?.message || 'Failed to update video title' 
+        });
+      }
+
+      const updateData = await updateResponse.json();
+      return res.json({ success: true, video: updateData });
+    } catch (error) {
+      console.error('Update video title error:', error);
+      return res.status(500).json({ error: 'Failed to update video title' });
     }
   }
 
@@ -832,6 +1008,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       thumbnailImagePrompt,
       projectedCtrLiftPercent,
       swapPriority,
+      status,
     } = readJsonBody(req) || {};
 
     if (!videoId || !videoTitle) {
@@ -856,7 +1033,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       thumbnailImagePrompt: thumbnailImagePrompt || '',
       projectedCtrLiftPercent: toNumber(projectedCtrLiftPercent),
       swapPriority: toNumber(swapPriority || 50),
-      status: 'authorized',
+      status: status === 'applied' ? 'applied' : 'authorized',
       approvedAt: new Date().toISOString(),
     };
 
@@ -1175,6 +1352,260 @@ Return concise, practical recommendations.`;
     } catch (error) {
       console.error('Remix plan generation error:', error);
       return res.status(500).json({ error: 'Failed to generate remix plan' });
+    }
+  }
+
+  // Discover competitors
+  if (path === 'api/competitors/discover') {
+    const { accounts, activeIndex } = readAccountsFromCookies(req);
+    if (accounts.length === 0) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    try {
+      const userData = accounts[activeIndex];
+      if (!userData?.channel) {
+        return res.status(400).json({ error: 'No channel connected' });
+      }
+
+      const authHeader = await getAuthHeaderForAccount(userData);
+
+      const myVideosResponse = await fetch(
+        'https://www.googleapis.com/youtube/v3/search?part=snippet&forMine=true&type=video&maxResults=10&order=date',
+        { headers: authHeader }
+      );
+      const myVideosData = await myVideosResponse.json();
+      const myVideoIds = myVideosData.items?.map((item: any) => item.id.videoId).join(',');
+
+      if (!myVideoIds) {
+        return res.json({
+          message: 'Not enough video data to discover competitors',
+          suggestions: [],
+        });
+      }
+
+      const myStatsResponse = await fetch(
+        `https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics&id=${myVideoIds}`,
+        { headers: authHeader }
+      );
+      const myStatsData = await myStatsResponse.json();
+      const myVideos = myStatsData.items || [];
+
+      if (myVideos.length === 0) {
+        return res.json({
+          message: 'Not enough video data to discover competitors',
+          suggestions: [],
+        });
+      }
+
+      let searchQueries: string[] = [];
+      let nicheDescription = '';
+
+      const videoTitles = myVideos.map((v: any) => v.snippet.title);
+      const videoTags = myVideos.flatMap((v: any) => v.snippet.tags || []);
+      const channelDescription = userData.channel.description || '';
+
+      if (process.env.GEMINI_API_KEY) {
+        try {
+          const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+
+          const prompt = `Analyze this YouTube channel and identify its niche and optimal competitor search queries.
+
+Channel: ${userData.channel.title}
+Description: ${channelDescription}
+Recent Video Titles: ${videoTitles.join(', ')}
+Common Tags: ${videoTags.slice(0, 20).join(', ')}
+
+Generate:
+1. A concise niche description (2-3 words)
+2. 3-5 search queries to find similar successful channels in this niche
+3. Make queries specific enough to find real competitors, not just related topics
+
+Return as JSON.`;
+
+          const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: prompt,
+            config: {
+              responseMimeType: 'application/json',
+              responseSchema: {
+                type: Type.OBJECT,
+                properties: {
+                  niche: { type: Type.STRING },
+                  searchQueries: {
+                    type: Type.ARRAY,
+                    items: { type: Type.STRING },
+                  },
+                },
+                required: ['niche', 'searchQueries'],
+              },
+            },
+          });
+
+          const aiResult = JSON.parse(response.text || '{}');
+          nicheDescription = aiResult.niche || 'Your Niche';
+          searchQueries = aiResult.searchQueries || [];
+        } catch (aiError) {
+          console.error('AI niche analysis error:', aiError);
+          const topTags = videoTags.slice(0, 5);
+          searchQueries = topTags.length > 0 ? topTags : [userData.channel.title];
+        }
+      } else {
+        const topTags = videoTags.slice(0, 3);
+        searchQueries = topTags.length > 0 ? topTags : [userData.channel.title];
+      }
+
+      const competitorChannels = new Map();
+      const myChannelId = userData.channel.id;
+
+      for (const query of searchQueries.slice(0, 3)) {
+        try {
+          const searchResponse = await fetch(
+            `https://www.googleapis.com/youtube/v3/search?part=snippet&type=channel&q=${encodeURIComponent(query)}&maxResults=10&order=relevance`,
+            { headers: authHeader }
+          );
+          const searchData = await searchResponse.json();
+
+          if (searchData.items) {
+            for (const item of searchData.items) {
+              const channelId = item.id.channelId;
+              if (channelId === myChannelId) continue;
+              if (!competitorChannels.has(channelId)) {
+                competitorChannels.set(channelId, item);
+              }
+            }
+          }
+        } catch (searchError) {
+          console.error(`Search error for query "${query}":`, searchError);
+        }
+      }
+
+      const channelIds = Array.from(competitorChannels.keys()).slice(0, 12);
+      if (channelIds.length === 0) {
+        return res.json({
+          niche: nicheDescription,
+          message: 'No competing channels found',
+          suggestions: [],
+        });
+      }
+
+      const channelsStatsResponse = await fetch(
+        `https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics&id=${channelIds.join(',')}`,
+        { headers: authHeader }
+      );
+      const channelsStatsData = await channelsStatsResponse.json();
+
+      const rankedChannels = (channelsStatsData.items || [])
+        .filter((channel: any) => {
+          const subs = parseInt(channel.statistics.subscriberCount || '0');
+          const mySubs = parseInt(userData.channel.statistics?.subscriberCount || '0');
+          return subs >= mySubs * 0.5 && subs <= mySubs * 5;
+        })
+        .sort((a: any, b: any) => parseInt(b.statistics.subscriberCount) - parseInt(a.statistics.subscriberCount))
+        .slice(0, 8)
+        .map((channel: any) => ({
+          id: channel.id,
+          title: channel.snippet.title,
+          description: channel.snippet.description,
+          thumbnails: channel.snippet.thumbnails,
+          statistics: channel.statistics,
+          matchScore: 'high',
+        }));
+
+      return res.json({
+        niche: nicheDescription || 'Your Niche',
+        suggestions: rankedChannels,
+        message:
+          rankedChannels.length > 0
+            ? `Found ${rankedChannels.length} competing channels in your niche`
+            : 'No direct competitors found in your size range',
+      });
+    } catch (error) {
+      console.error('Discover competitors error:', error);
+      return res.status(500).json({ error: 'Failed to discover competitors' });
+    }
+  }
+
+  // Search competitors
+  if (path === 'api/competitors/search') {
+    const { accounts, activeIndex } = readAccountsFromCookies(req);
+    if (accounts.length === 0) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    try {
+      const userData = accounts[activeIndex];
+      const authHeader = await getAuthHeaderForAccount(userData);
+      const { q } = req.query;
+
+      const response = await fetch(
+        `https://www.googleapis.com/youtube/v3/search?part=snippet&type=channel&q=${q}&maxResults=5`,
+        { headers: authHeader }
+      );
+      const data = await response.json();
+      return res.json(data.items || []);
+    } catch (error) {
+      console.error('Search competitors error:', error);
+      return res.status(500).json({ error: 'Failed to search competitors' });
+    }
+  }
+
+  // Get competitor videos
+  if (path === 'api/competitors/videos') {
+    const { accounts, activeIndex } = readAccountsFromCookies(req);
+    if (accounts.length === 0) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    try {
+      const userData = accounts[activeIndex];
+      const authHeader = await getAuthHeaderForAccount(userData);
+      const { channelId } = req.query;
+
+      const channelResponse = await fetch(
+        `https://www.googleapis.com/youtube/v3/channels?part=contentDetails,statistics,snippet&id=${channelId}`,
+        { headers: authHeader }
+      );
+      const channelData = await channelResponse.json();
+      const channel = channelData.items?.[0];
+      const uploadsPlaylistId = channel?.contentDetails?.relatedPlaylists?.uploads;
+
+      if (!uploadsPlaylistId) {
+        return res.status(404).json({ error: 'Uploads playlist not found' });
+      }
+
+      const playlistResponse = await fetch(
+        `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet,contentDetails&playlistId=${uploadsPlaylistId}&maxResults=20`,
+        { headers: authHeader }
+      );
+      const playlistData = await playlistResponse.json();
+      const videoIds = playlistData.items?.map((item: any) => item.contentDetails.videoId).join(',');
+
+      if (videoIds) {
+        const statsResponse = await fetch(
+          `https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics&id=${videoIds}`,
+          { headers: authHeader }
+        );
+        const statsData = await statsResponse.json();
+        const sortedVideos = (statsData.items || []).sort(
+          (a: any, b: any) => parseInt(b.statistics.viewCount) - parseInt(a.statistics.viewCount)
+        );
+
+        return res.json({
+          channel: {
+            title: channel.snippet.title,
+            description: channel.snippet.description,
+            thumbnails: channel.snippet.thumbnails,
+            statistics: channel.statistics,
+          },
+          videos: sortedVideos,
+        });
+      }
+
+      return res.json({ channel: channel.snippet, videos: [] });
+    } catch (error) {
+      console.error('Fetch competitor videos error:', error);
+      return res.status(500).json({ error: 'Failed to fetch competitor videos' });
     }
   }
 

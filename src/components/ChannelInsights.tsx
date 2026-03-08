@@ -138,12 +138,17 @@ export default function ChannelInsights() {
     data.hourly.columnHeaders.forEach((header, index) => {
       obj[header.name] = row[index];
     });
-    obj.displayHour = `${obj.hourOfDay}:00`;
+    // Note: YouTube Analytics API uses "hour" not "hourOfDay"
+    const hourValue = obj.hour !== undefined ? obj.hour : obj.hourOfDay;
+    obj.hour = hourValue;
+    obj.displayHour = hourValue !== undefined ? `${hourValue}:00` : 'N/A';
     return obj;
   });
 
-  // Calculate "Best Time to Post"
-  const bestHour = [...hourlyChartData].sort((a, b) => b.views - a.views)[0];
+  // Calculate "Best Time to Post" - check if we have valid hourly data
+  const bestHour = hourlyChartData.length > 0 && hourlyChartData[0].hour !== undefined
+    ? [...hourlyChartData].sort((a, b) => (b.views || 0) - (a.views || 0))[0]
+    : null;
 
   // Calculate totals and growth
   const totalViews = dailyChartData.reduce((acc, curr) => acc + curr.views, 0);
@@ -203,7 +208,9 @@ export default function ChannelInsights() {
           </div>
           <p className="text-zinc-400 text-sm font-medium">Best Time to Post</p>
           <div className="flex items-baseline gap-2 mt-1">
-            <h3 className="text-2xl font-bold text-zinc-100">{bestHour ? `${bestHour.hourOfDay}:00` : '--:--'}</h3>
+            <h3 className="text-2xl font-bold text-zinc-100">
+              {bestHour && bestHour.hour !== undefined ? `${bestHour.hour}:00` : '--:--'}
+            </h3>
             <span className="text-indigo-400 text-xs font-bold">Peak Views</span>
           </div>
         </div>
@@ -324,7 +331,7 @@ export default function ChannelInsights() {
             <BarChart data={hourlyChartData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
               <XAxis 
-                dataKey="hourOfDay" 
+                dataKey="hour" 
                 stroke="#71717a" 
                 fontSize={10} 
                 tickLine={false} 
@@ -348,7 +355,7 @@ export default function ChannelInsights() {
                 {hourlyChartData.map((entry, index) => (
                   <Cell 
                     key={`cell-${index}`} 
-                    fill={entry.hourOfDay === bestHour?.hourOfDay ? '#6366f1' : '#3f3f46'} 
+                    fill={entry.hour === bestHour?.hour ? '#6366f1' : '#3f3f46'} 
                   />
                 ))}
               </Bar>

@@ -11,8 +11,14 @@ import {
   Users,
   Calendar,
   Lightbulb,
+  Zap,
+  ArrowRight,
+  RefreshCw,
 } from 'lucide-react';
 import { ShimmerCard, ShimmerStat, ShimmerChart } from './Shimmer';
+import { generateVidVisionInsight } from '../services/geminiService';
+import { Type } from '@google/genai';
+import { cn } from '../lib/utils';
 
 interface ChannelInfo {
   id: string;
@@ -34,6 +40,7 @@ interface HomeDashboardProps {
   profileImage?: string;
   activeAccountIndex?: number;
   totalAccounts?: number;
+  onNavigateToIdeas?: () => void;
 }
 
 interface AnalyticsReport {
@@ -83,6 +90,19 @@ interface BestPostingTime {
   }>;
 }
 
+interface DailyVideoIdea {
+  title: string;
+  hook: string;
+  difficulty: 'Easy' | 'Medium' | 'Hard';
+  potentialReach: string;
+}
+
+const DAILY_IDEAS_STORAGE_KEY = 'vid_vision_daily_ideas';
+
+function getTodayDateKey(): string {
+  return new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+}
+
 function toNumber(value: unknown): number {
   const parsed = Number(value ?? 0);
   return Number.isFinite(parsed) ? parsed : 0;
@@ -127,12 +147,15 @@ export default function HomeDashboard({
   profileImage,
   activeAccountIndex = 0,
   totalAccounts = 0,
+  onNavigateToIdeas,
 }: HomeDashboardProps) {
   const [analytics, setAnalytics] = useState<AnalyticsPayload | null>(null);
   const [videos, setVideos] = useState<VideoItem[]>([]);
   const [bestPostingTime, setBestPostingTime] = useState<BestPostingTime | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [dailyIdeas, setDailyIdeas] = useState<DailyVideoIdea[]>([]);
+  const [loadingIdeas, setLoadingIdeas] = useState(false);
 
   const fetchDashboard = async () => {
     if (!isConnected) {
@@ -195,8 +218,69 @@ export default function HomeDashboard({
     }
   };
 
+  const generateDailyIdeas = async (force = false) => {
+    setLoadingIdeas(true);
+    try {
+      // Check localStorage for cached ideas from today
+      const todayKey = getTodayDateKey();
+      const cached = localStorage.getItem(DAILY_IDEAS_STORAGE_KEY);
+      
+      if (!force && cached) {
+        const parsed = JSON.parse(cached);
+        if (parsed.date === todayKey && Array.isArray(parsed.ideas)) {
+          setDailyIdeas(parsed.ideas);
+          setLoadingIdeas(false);
+          return;
+        }
+      }
+
+      // Generate new ideas
+      const schema = {
+        type: Type.ARRAY,
+        items: {
+          type: Type.OBJECT,
+          properties: {
+            title: { type: Type.STRING },
+            hook: { type: Type.STRING },
+            difficulty: { type: Type.STRING, enum: ['Easy', 'Medium', 'Hard'] },
+            potentialReach: { type: Type.STRING }
+          },
+          required: ['title', 'hook', 'difficulty', 'potentialReach']
+        }
+      };
+
+      const prompt = `Generate 3 daily video ideas for a YouTube creator.
+      ${channel ? `Channel Name: ${channel.title}. Description: ${channel.description}. Subscribers: ${channel.statistics.subscriberCount}.` : "The user hasn't connected their channel yet, so generate general high-potential ideas for content creators."}
+      
+      Each idea should include:
+      1. A compelling, high-CTR title.
+      2. A 1-sentence hook to start the video.
+      3. Difficulty level (Easy/Medium/Hard).
+      4. Potential reach (e.g., "Viral", "High", "Niche").
+      
+      Make these ideas fresh, actionable, and different from yesterday. Focus on trending topics and proven formats.`;
+
+      const response = await generateVidVisionInsight(prompt, schema);
+      if (response) {
+        const ideas = JSON.parse(response);
+        setDailyIdeas(ideas);
+        
+        // Cache in localStorage
+        localStorage.setItem(DAILY_IDEAS_STORAGE_KEY, JSON.stringify({
+          date: todayKey,
+          ideas: ideas
+        }));
+      }
+    } catch (error) {
+      console.error('Failed to generate daily ideas:', error);
+    } finally {
+      setLoadingIdeas(false);
+    }
+  };
+
   useEffect(() => {
     fetchDashboard();
+    generateDailyIdeas(); // Auto-load daily ideas
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isConnected]);
 
@@ -465,6 +549,99 @@ export default function HomeDashboard({
         <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
           <p className="text-xs uppercase tracking-wider text-zinc-500 font-bold">Best Posting Hour</p>
           <p className="text-2xl font-bold text-zinc-100 mt-1">{metrics.bestHour}</p>
+        </div>
+      </div>
+
+      {/* Daily Video Ideas Section */}
+      <div className="rounded-2xl border border-emerald-400/30 bg-gradient-to-br from-emerald-500/10 via-teal-500/10 to-cyan-500/10 p-6">
+        <div className="flex items-start gap-4">
+          <div className="w-12 h-12 rounded-xl bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
+            <Lightbulb size={24} className="text-emerald-300" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+              <div>
+                <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                  <Calendar size={18} className="text-emerald-300" />
+                  Daily Video Ideas
+                </h3>
+                <p className="text-zinc-300 text-sm mt-1">
+                  Fresh, AI-generated ideas personalized for your channel
+                </p>
+              </div>
+              <button
+                onClick={() => generateDailyIdeas(true)}
+                disabled={loadingIdeas}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 transition-all whitespace-nowrap"
+              >
+                {loadingIdeas ? (
+                  <Loader2 size={16} className="animate-spin" />
+                ) : (
+                  <RefreshCw size={16} />
+                )}
+                Refresh Ideas
+              </button>
+            </div>
+
+            {loadingIdeas ? (
+              <div className="space-y-3">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="bg-white/5 border border-white/10 rounded-xl p-4 animate-pulse">
+                    <div className="h-4 bg-white/10 rounded w-3/4 mb-2"></div>
+                    <div className="h-3 bg-white/10 rounded w-1/2"></div>
+                  </div>
+                ))}
+              </div>
+            ) : dailyIdeas.length > 0 ? (
+              <div className="space-y-3">
+                {dailyIdeas.map((idea, index) => (
+                  <div 
+                    key={index} 
+                    className="bg-white/5 hover:bg-white/10 border border-white/10 hover:border-emerald-400/30 rounded-xl p-4 transition-all group"
+                  >
+                    <div className="flex items-start justify-between gap-3 mb-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <span className={cn(
+                            "text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded",
+                            idea.difficulty === 'Easy' ? "bg-emerald-500/20 text-emerald-300" :
+                            idea.difficulty === 'Medium' ? "bg-yellow-500/20 text-yellow-300" :
+                            "bg-rose-500/20 text-rose-300"
+                          )}>
+                            {idea.difficulty}
+                          </span>
+                          <span className="text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300">
+                            {idea.potentialReach}
+                          </span>
+                        </div>
+                        <h4 className="text-base font-bold text-white group-hover:text-emerald-300 transition-colors">
+                          {idea.title}
+                        </h4>
+                      </div>
+                      <Sparkles size={18} className="text-emerald-400 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+                    </div>
+                    <div className="flex items-start gap-2 text-sm text-zinc-300">
+                      <Zap size={14} className="text-yellow-400 flex-shrink-0 mt-0.5" />
+                      <p className="italic">"{idea.hook}"</p>
+                    </div>
+                  </div>
+                ))}
+                <div className="pt-2">
+                  <button 
+                    onClick={onNavigateToIdeas}
+                    className="text-sm text-emerald-300 hover:text-emerald-200 font-semibold flex items-center gap-1 transition-colors"
+                  >
+                    View full idea generator
+                    <ArrowRight size={16} />
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-white/5 border border-white/10 rounded-xl p-6 text-center">
+                <p className="text-zinc-400 text-sm">Click "Refresh Ideas" to get your daily video ideas</p>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
