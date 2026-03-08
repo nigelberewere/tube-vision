@@ -201,36 +201,46 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           : null,
       };
 
-      console.log('[OAuth Callback] Existing accounts:', accounts.length);
-      console.log('[OAuth Callback] New channel ID:', newUserData.channel?.id);
-      console.log('[OAuth Callback] Existing channel IDs:', accounts.map((a: any) => a.channel?.id));
+      console.log('[OAuth Callback] Existing accounts count:', accounts.length);
+      console.log('[OAuth Callback] New channel ID:', newUserData.channel?.id || 'NO_CHANNEL');
+      const existingIds = accounts.map((a: any) => a.channel?.id || 'NO_CHANNEL').join(', ');
+      console.log('[OAuth Callback] Existing channel IDs:', existingIds);
 
       // Deduplicate by channel ID when available so one Google login can keep multiple channels.
       const updatedAccounts = accounts.filter((acc: any) => {
         if (newUserData.channel && acc.channel) {
           const isDuplicate = acc.channel.id === newUserData.channel.id;
-          console.log(`[OAuth Callback] Comparing ${acc.channel.id} === ${newUserData.channel.id}: ${isDuplicate}`);
+          console.log('[OAuth Callback] Comparing channels - old=' + acc.channel.id + ' new=' + newUserData.channel.id + ' duplicate=' + isDuplicate);
           return !isDuplicate;
         }
         if (!newUserData.channel && !acc.channel) {
-          return acc.id !== newUserData.id;
+          const isDuplicate = acc.id === newUserData.id;
+          console.log('[OAuth Callback] Comparing user IDs - duplicate=' + isDuplicate);
+          return !isDuplicate;
         }
+        console.log('[OAuth Callback] Mixed channel/no-channel - keeping both');
         return true;
       });
       updatedAccounts.unshift(newUserData);
       
-      console.log('[OAuth Callback] Accounts after dedup:', updatedAccounts.length);
+      console.log('[OAuth Callback] Final account count after dedup:', updatedAccounts.length);
+      console.log('[OAuth Callback] Final channel IDs:', updatedAccounts.map((a: any) => a.channel?.id || 'NO_CHANNEL').join(', '));
 
       // Keep account list bounded to prevent cookie bloat.
       const boundedAccounts = updatedAccounts.slice(0, 5);
 
+      console.log('[OAuth Callback] Bounded account count:', boundedAccounts.length);
+      
       // Store all accounts and set the active account index
       const cookieValue = encodeURIComponent(JSON.stringify(boundedAccounts));
+      console.log('[OAuth Callback] Cookie value length:', cookieValue.length);
       
       res.setHeader('Set-Cookie', [
         `tube_vision_accounts=${cookieValue}; ${COOKIE_BASE_OPTIONS}`,
         `tube_vision_active=0; ${COOKIE_BASE_OPTIONS}`
       ]);
+      
+      console.log('[OAuth Callback] Cookies set successfully');
 
       return res.send(`
         <!DOCTYPE html>
