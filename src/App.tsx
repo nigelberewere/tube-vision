@@ -815,19 +815,35 @@ export default function App() {
                   />
                   
                   {/* Menu */}
-                  <div className="absolute bottom-full left-0 right-0 mb-2 z-50 bg-[#1a1a1a] border border-white/20 rounded-xl shadow-2xl overflow-hidden max-h-[70vh] overflow-y-auto">
+                  <div
+                    className={cn(
+                      'absolute bottom-full left-0 right-0 mb-2 z-50 rounded-xl shadow-2xl overflow-hidden max-h-[70vh] overflow-y-auto border',
+                      theme === 'light'
+                        ? 'bg-white border-slate-300 shadow-slate-900/15'
+                        : 'bg-[#1a1a1a] border-white/20'
+                    )}
+                  >
                     {/* Current Active Account Header */}
-                    <div className="p-3 border-b border-white/10 bg-white/5">
-                      <p className="text-[10px] uppercase tracking-wider text-slate-500 mb-1.5">Active Account</p>
-                      <p className="text-xs font-semibold text-white truncate">{user.channel?.title || user.name}</p>
-                      <p className="text-[10px] text-slate-400 truncate mt-0.5">
+                    <div
+                      className={cn(
+                        'p-3 border-b',
+                        theme === 'light' ? 'border-slate-200 bg-slate-50' : 'border-white/10 bg-white/5'
+                      )}
+                    >
+                      <p className={cn('text-[10px] uppercase tracking-wider mb-1.5', theme === 'light' ? 'text-slate-500' : 'text-slate-500')}>
+                        Active Account
+                      </p>
+                      <p className={cn('text-xs font-semibold truncate', theme === 'light' ? 'text-slate-900' : 'text-white')}>
+                        {user.channel?.title || user.name}
+                      </p>
+                      <p className={cn('text-[10px] truncate mt-0.5', theme === 'light' ? 'text-slate-600' : 'text-slate-400')}>
                         {user.channel ? `${Number(user.channel.statistics.subscriberCount).toLocaleString()} subscribers` : 'No channel'}
                       </p>
                     </div>
                     
                     {/* All Accounts - for switching */}
                     {accounts.length > 1 && (
-                      <div className="border-b border-white/10">
+                      <div className={cn('border-b', theme === 'light' ? 'border-slate-200' : 'border-white/10')}>
                         <p className="px-4 pt-3 pb-1.5 text-[10px] uppercase tracking-wider text-slate-500">Switch Account</p>
                         <div className="py-1">
                           {accounts.map((account, index) => (
@@ -842,26 +858,33 @@ export default function App() {
                                 className={cn(
                                   'w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors',
                                   index === activeAccountIndex
-                                    ? 'bg-blue-500/10 text-blue-400 cursor-default'
-                                    : 'text-slate-300 hover:bg-white/10 hover:text-white'
+                                    ? theme === 'light'
+                                      ? 'bg-blue-50 text-blue-700 cursor-default'
+                                      : 'bg-blue-500/10 text-blue-400 cursor-default'
+                                    : theme === 'light'
+                                      ? 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'
+                                      : 'text-slate-300 hover:bg-white/10 hover:text-white'
                                 )}
                               >
                                 <img
                                   src={account.channel?.thumbnails?.default?.url || account.picture}
                                   alt={account.name}
-                                  className="w-8 h-8 rounded-full border border-white/20"
+                                  className={cn(
+                                    'w-8 h-8 rounded-full border',
+                                    theme === 'light' ? 'border-slate-300' : 'border-white/20'
+                                  )}
                                   referrerPolicy="no-referrer"
                                 />
                                 <div className="flex-1 min-w-0 text-left">
                                   <p className="text-xs font-medium truncate">
                                     {account.channel?.title || account.name}
                                   </p>
-                                  <p className="text-[10px] text-slate-400 truncate">
+                                  <p className={cn('text-[10px] truncate', theme === 'light' ? 'text-slate-600' : 'text-slate-400')}>
                                     {account.channel ? `${Number(account.channel.statistics.subscriberCount).toLocaleString()} subs` : 'No channel'}
                                   </p>
                                 </div>
                                 {index === activeAccountIndex && (
-                                  <ShieldCheck size={14} className="text-blue-400" />
+                                  <ShieldCheck size={14} className={theme === 'light' ? 'text-blue-700' : 'text-blue-400'} />
                                 )}
                               </button>
                               {index !== activeAccountIndex && (
@@ -870,10 +893,13 @@ export default function App() {
                                     e.stopPropagation();
                                     handleRemoveAccount(index);
                                   }}
-                                  className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-red-500/20 transition-opacity"
+                                  className={cn(
+                                    'absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 p-1 rounded transition-opacity',
+                                    theme === 'light' ? 'hover:bg-red-100' : 'hover:bg-red-500/20'
+                                  )}
                                   title="Remove account"
                                 >
-                                  <X size={14} className="text-red-400" />
+                                  <X size={14} className={theme === 'light' ? 'text-red-600' : 'text-red-400'} />
                                 </button>
                               )}
                             </div>
@@ -891,7 +917,12 @@ export default function App() {
                           setActiveTab('settings');
                           setIsSidebarOpen(false);
                         }}
-                        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-300 hover:bg-white/10 hover:text-white transition-colors"
+                        className={cn(
+                          'w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors',
+                          theme === 'light'
+                            ? 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'
+                            : 'text-slate-300 hover:bg-white/10 hover:text-white'
+                        )}
                       >
                         <Settings2 size={16} />
                         <span>Settings</span>
@@ -902,7 +933,12 @@ export default function App() {
                           setIsProfileMenuOpen(false);
                           handleConnect();
                         }}
-                        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-300 hover:bg-white/10 hover:text-white transition-colors"
+                        className={cn(
+                          'w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors',
+                          theme === 'light'
+                            ? 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'
+                            : 'text-slate-300 hover:bg-white/10 hover:text-white'
+                        )}
                       >
                         <Users size={16} />
                         <span>Add Another Account</span>
@@ -913,7 +949,12 @@ export default function App() {
                           setIsProfileMenuOpen(false);
                           handleLogout();
                         }}
-                        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-colors"
+                        className={cn(
+                          'w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors',
+                          theme === 'light'
+                            ? 'text-red-600 hover:bg-red-50 hover:text-red-700'
+                            : 'text-red-400 hover:bg-red-500/10 hover:text-red-300'
+                        )}
                       >
                         <LogOut size={16} />
                         <span>Disconnect</span>
