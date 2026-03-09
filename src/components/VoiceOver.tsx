@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { GoogleGenAI, Modality } from '@google/genai';
-import { Play, Square, Download, Loader2, Volume2, Sparkles, Pause, Tags, Plus, Wand2, Sliders, Trash2 } from 'lucide-react';
+import { Play, Square, Download, Loader2, Volume2, Sparkles, Pause, Tags, Plus, Wand2, Sliders, Trash2, Globe, Languages, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 const VOICES = ['Algenib', 'Kore', 'Puck', 'Charon', 'Fenrir', 'Zephyr', 'Aoede', 'Orus'];
@@ -11,6 +11,32 @@ const TAGS = [
   '[Fast]', '[Slow]', '[Loud]', '[Soft]', '[Shouting]',
   '[Pause]', '[Pause 1s]', '[Pause 2s]'
 ];
+
+const LANGUAGES = [
+  { code: 'en', name: 'English', flag: '🇺🇸', voice: 'Aoede' },
+  { code: 'es', name: 'Spanish', flag: '🇪🇸', voice: 'Kore' },
+  { code: 'fr', name: 'French', flag: '🇫🇷', voice: 'Puck' },
+  { code: 'de', name: 'German', flag: '🇩🇪', voice: 'Charon' },
+  { code: 'it', name: 'Italian', flag: '🇮🇹', voice: 'Algenib' },
+  { code: 'pt', name: 'Portuguese', flag: '🇧🇷', voice: 'Fenrir' },
+  { code: 'ja', name: 'Japanese', flag: '🇯🇵', voice: 'Zephyr' },
+  { code: 'ko', name: 'Korean', flag: '🇰🇷', voice: 'Orus' },
+  { code: 'zh', name: 'Chinese', flag: '🇨🇳', voice: 'Kore' },
+  { code: 'hi', name: 'Hindi', flag: '🇮🇳', voice: 'Aoede' },
+  { code: 'ar', name: 'Arabic', flag: '🇸🇦', voice: 'Algenib' },
+  { code: 'ru', name: 'Russian', flag: '🇷🇺', voice: 'Charon' },
+];
+
+interface Translation {
+  language: string;
+  languageCode: string;
+  translatedText: string;
+  audioUrl: string | null;
+  isGenerating: boolean;
+  isPlaying: boolean;
+  currentTime: number;
+  duration: number;
+}
 
 function writeString(view: DataView, offset: number, string: string) {
   for (let i = 0; i < string.length; i++) {
@@ -72,10 +98,17 @@ export default function VoiceOver() {
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
   
+  // Multi-language dubbing state
+  const [sourceLanguage, setSourceLanguage] = useState('en');
+  const [translations, setTranslations] = useState<Translation[]>([]);
+  const [isTranslating, setIsTranslating] = useState(false);
+  const [selectedLanguages, setSelectedLanguages] = useState<string[]>([]);
+  
   const audioRef = useRef<HTMLAudioElement>(null);
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
   const highlightRef = useRef<HTMLDivElement>(null);
   const previewAudioRef = useRef<HTMLAudioElement | null>(null);
+  const translationAudioRefs = useRef<{ [key: string]: HTMLAudioElement | null }>({});
 
   useEffect(() => {
     if (textAreaRef.current) {
@@ -203,6 +236,157 @@ export default function VoiceOver() {
     } finally {
       setIsSmartTagging(false);
     }
+  };
+
+  const handleTranslateScript = async (targetLanguageCode: string) => {
+    if (!script.trim()) return;
+    setIsTranslating(true);
+    setError(null);
+    
+    try {
+      const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
+      const targetLang = LANGUAGES.find(l => l.code === targetLanguageCode);
+      
+      const response = await ai.models.generateContent({
+        model: "gemini-2.5-flash",
+        contents: script,
+        config: {
+          systemInstruction: `Translate this script from ${LANGUAGES.find(l => l.code === sourceLanguage)?.name} to ${targetLang?.name}. 
+          Preserve ALL emotional tags (text in square brackets like [Whispering], [Excited], [Pause 1s]) exactly as they are - do NOT translate the tags themselves.
+          Only translate the actual dialogue text between tags.
+          Return ONLY the translated script with preserved tags, no additional commentary.`
+        }
+      });
+      
+      if (response.text) {
+        const translatedText = response.text.trim();
+        
+        // Add or update translation
+        setTranslations(prev => {
+          const existing = prev.find(t => t.languageCode === targetLanguageCode);
+          if (existing) {
+            return prev.map(t => 
+              t.languageCode === targetLanguageCode 
+                ? { ...t, translatedText }
+                : t
+            );
+          } else {
+            return [...prev, {
+              language: targetLang?.name || '',
+              languageCode: targetLanguageCode,
+              translatedText,
+              audioUrl: null,
+              isGenerating: false,
+              isPlaying: false,
+              currentTime: 0,
+              duration: 0
+            }];
+          }
+        });
+      }
+    } catch (err: any) {
+      console.error("Translation Error:", err);
+      setError(err.message || "Failed to translate script.");
+    } finally {
+      setIsTranslating(false);
+    }
+  };
+
+  const handleGenerateDub = async (languageCode: string) => {
+    const translation = translations.find(t => t.languageCode === languageCode);
+    if (!translation || !translation.translatedText.trim()) return;
+    
+    setTranslations(prev => prev.map(t => 
+      t.languageCode === languageCode 
+        ? { ...t, isGenerating: true }
+        : t
+    ));
+    setError(null);
+    
+    try {
+      const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
+      const targetLang = LANGUAGES.find(l => l.code === languageCode);
+      const recommendedVoice = targetLang?.voice || voice;
+      
+      let prompt = `Say expressively in ${targetLang?.name}. `;
+      if (pitch !== 0) prompt += `Pitch: ${pitch > 0 ? '+' : ''}${pitch}. `;
+      if (speed !== 1.0) prompt += `Speed: ${speed}x. `;
+      if (volume !== 1.0) prompt += `Volume: ${Math.round(volume * 100)}%. `;
+      
+      prompt += `Listen for bracketed tags that apply only to the immediately following sentence. Examples:
+      - [Whispering] speak very softly
+      - [Excited] speak with great energy and enthusiasm
+      - [Sad] speak with melancholy and sadness
+      - [Angry] speak with anger and frustration
+      - [Pause] or [Pause 1s] or [Pause 2s] insert a brief pause
+      - [Fast] speed up delivery
+      - [Slow] slow down delivery
+      - [Loud] increase volume
+      - [Soft] decrease volume
+      
+      Text: ${translation.translatedText}`;
+      
+      const response = await ai.models.generateContent({
+        model: "gemini-2.5-flash-preview-tts",
+        contents: [{ parts: [{ text: prompt }] }],
+        config: {
+          responseModalities: [Modality.AUDIO],
+          speechConfig: {
+            voiceConfig: {
+              prebuiltVoiceConfig: {
+                voiceName: recommendedVoice
+              }
+            }
+          }
+        }
+      });
+      
+      const audioData = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+      
+      if (audioData) {
+        const blob = createWavFile(audioData, 24000);
+        const url = URL.createObjectURL(blob);
+        
+        setTranslations(prev => prev.map(t => 
+          t.languageCode === languageCode 
+            ? { ...t, audioUrl: url, isGenerating: false }
+            : t
+        ));
+      }
+    } catch (err: any) {
+      console.error("Dub Generation Error:", err);
+      setError(err.message || "Failed to generate dubbed audio.");
+      setTranslations(prev => prev.map(t => 
+        t.languageCode === languageCode 
+          ? { ...t, isGenerating: false }
+          : t
+      ));
+    }
+  };
+
+  const toggleLanguageSelection = (langCode: string) => {
+    setSelectedLanguages(prev => 
+      prev.includes(langCode) 
+        ? prev.filter(l => l !== langCode)
+        : [...prev, langCode]
+    );
+  };
+
+  const handleBatchTranslate = async () => {
+    for (const langCode of selectedLanguages) {
+      await handleTranslateScript(langCode);
+    }
+  };
+
+  const handleBatchGenerate = async () => {
+    for (const langCode of selectedLanguages) {
+      await handleGenerateDub(langCode);
+    }
+  };
+
+  const handleDeleteTranslation = (languageCode: string) => {
+    setTranslations(prev => prev.filter(t => t.languageCode !== languageCode));
+    setSelectedLanguages(prev => prev.filter(l => l !== languageCode));
   };
 
   const handleGenerate = async () => {
@@ -457,6 +641,216 @@ export default function VoiceOver() {
             </AnimatePresence>
           </div>
         </div>
+      </motion.div>
+
+      {/* Multi-Language Dubbing Section */}
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.15 }}
+        className="glass-card rounded-3xl p-8 backdrop-blur-xl bg-gradient-to-br from-purple-500/10 via-pink-500/10 to-blue-500/10 border border-white/10"
+      >
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500">
+              <Globe className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-white">Multi-Language Dubbing</h2>
+              <p className="text-sm text-slate-400 mt-0.5">Translate your script and generate AI-dubbed audio for global audiences</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Language Selection Grid */}
+        <div className="mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-medium text-slate-300 flex items-center gap-2">
+              <Languages className="w-4 h-4" />
+              Select Target Languages
+            </h3>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-slate-400">{selectedLanguages.length} selected</span>
+              {selectedLanguages.length > 0 && (
+                <button
+                  onClick={() => setSelectedLanguages([])}
+                  className="text-xs text-slate-400 hover:text-white px-2 py-1 rounded-lg bg-white/5 hover:bg-white/10 transition-colors"
+                >
+                  Clear All
+                </button>
+              )}
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+            {LANGUAGES.filter(l => l.code !== sourceLanguage).map((lang) => {
+              const isSelected = selectedLanguages.includes(lang.code);
+              return (
+                <motion.button
+                  key={lang.code}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => toggleLanguageSelection(lang.code)}
+                  className={`relative p-3 rounded-xl transition-all border ${
+                    isSelected 
+                      ? 'bg-gradient-to-br from-purple-500/20 to-pink-500/20 border-purple-500/50' 
+                      : 'bg-white/5 border-white/10 hover:bg-white/10'
+                  }`}
+                >
+                  {isSelected && (
+                    <div className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
+                      <Check className="w-3 h-3 text-white" />
+                    </div>
+                  )}
+                  <div className="text-2xl mb-1">{lang.flag}</div>
+                  <div className="text-xs font-medium text-white">{lang.name}</div>
+                  <div className="text-[10px] text-slate-400 mt-0.5">{lang.voice}</div>
+                </motion.button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Batch Actions */}
+        {selectedLanguages.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="flex flex-wrap gap-3 mb-6 pb-6 border-b border-white/10"
+          >
+            <button
+              onClick={handleBatchTranslate}
+              disabled={isTranslating || !script.trim()}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-medium text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isTranslating ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Translating...</span>
+                </>
+              ) : (
+                <>
+                  <Languages className="w-4 h-4" />
+                  <span>Translate All ({selectedLanguages.length})</span>
+                </>
+              )}
+            </button>
+
+            <button
+              onClick={handleBatchGenerate}
+              disabled={translations.filter(t => selectedLanguages.includes(t.languageCode)).length === 0}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white font-medium text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Sparkles className="w-4 h-4" />
+              <span>Generate All Dubs</span>
+            </button>
+          </motion.div>
+        )}
+
+        {/* Translation Results */}
+        {translations.length > 0 && (
+          <div className="space-y-4">
+            <h3 className="text-sm font-medium text-slate-300 mb-4">Generated Translations & Dubs</h3>
+            {translations.map((translation) => {
+              const lang = LANGUAGES.find(l => l.code === translation.languageCode);
+              
+              return (
+                <motion.div
+                  key={translation.languageCode}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="p-4 rounded-xl bg-white/5 border border-white/10"
+                >
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl">{lang?.flag}</span>
+                      <div>
+                        <h4 className="text-sm font-medium text-white">{translation.language}</h4>
+                        <p className="text-xs text-slate-400">Voice: {lang?.voice}</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => handleDeleteTranslation(translation.languageCode)}
+                      className="p-2 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  {/* Translated Script */}
+                  <div className="mb-3 p-3 rounded-lg bg-black/20 border border-white/5">
+                    <p className="text-sm text-slate-300 font-mono leading-relaxed whitespace-pre-wrap">
+                      {translation.translatedText}
+                    </p>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex items-center gap-2">
+                    {!translation.audioUrl ? (
+                      <button
+                        onClick={() => handleGenerateDub(translation.languageCode)}
+                        disabled={translation.isGenerating}
+                        className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white text-sm font-medium transition-all disabled:opacity-50"
+                      >
+                        {translation.isGenerating ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            <span>Generating Dub...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles className="w-4 h-4" />
+                            <span>Generate Dub</span>
+                          </>
+                        )}
+                      </button>
+                    ) : (
+                      <div className="flex items-center gap-2 flex-1">
+                        <audio 
+                          ref={(el) => { translationAudioRefs.current[translation.languageCode] = el; }}
+                          src={translation.audioUrl} 
+                        />
+                        <button
+                          onClick={() => {
+                            const audio = translationAudioRefs.current[translation.languageCode];
+                            if (audio) {
+                              if (translation.isPlaying) {
+                                audio.pause();
+                              } else {
+                                audio.play();
+                              }
+                              setTranslations(prev => prev.map(t =>
+                                t.languageCode === translation.languageCode
+                                  ? { ...t, isPlaying: !t.isPlaying }
+                                  : t
+                              ));
+                            }
+                          }}
+                          className="p-2.5 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white transition-all"
+                        >
+                          {translation.isPlaying ? (
+                            <Pause className="w-4 h-4" />
+                          ) : (
+                            <Play className="w-4 h-4" />
+                          )}
+                        </button>
+                        <a
+                          href={translation.audioUrl}
+                          download={`script-${translation.languageCode}.wav`}
+                          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-white text-sm font-medium transition-all"
+                        >
+                          <Download className="w-4 h-4" />
+                          <span>Download</span>
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              );
+            })}
+          </div>
+        )}
       </motion.div>
 
       {/* Grid below for Tag Library, Voice Selection, Settings */}
