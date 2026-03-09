@@ -301,7 +301,7 @@ export default function App() {
   ];
 
   const activeTabConfig = tabs.find((tab) => tab.id === activeTab) || tabs[0];
-  const overviewTabs = tabs.filter((tab) => tab.section === 'overview' && tab.id !== 'settings');
+  const overviewTabs = tabs.filter((tab) => tab.section === 'overview');
   const studioTabs = tabs.filter((tab) => tab.section === 'studios');
   const growthTabs = tabs.filter((tab) => tab.section === 'growth');
   const requiresChannelConnection = CHANNEL_REQUIRED_TABS.includes(activeTab);
@@ -1125,14 +1125,26 @@ export default function App() {
               </button>
             </div>
           ) : (
-            <button
-              data-tour-id="tour-account-entry"
-              onClick={handleConnect}
-              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-white text-black hover:bg-slate-200 rounded-lg text-sm font-semibold transition-colors"
-            >
-              <YouTubeLogoIcon size={18} />
-              Connect YouTube
-            </button>
+            <div className="space-y-2">
+              <button
+                data-tour-id="tour-account-entry"
+                onClick={handleConnect}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-white text-black hover:bg-slate-200 rounded-lg text-sm font-semibold transition-colors"
+              >
+                <YouTubeLogoIcon size={18} />
+                Connect YouTube
+              </button>
+              <button
+                onClick={() => {
+                  setActiveTab('settings');
+                  setIsSidebarOpen(false);
+                }}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-white/5 hover:bg-white/10 text-slate-200 rounded-lg text-sm font-medium border border-white/15 transition-colors"
+              >
+                <Settings2 size={16} />
+                Open Settings
+              </button>
+            </div>
           )}
         </div>
       </aside>
@@ -1151,7 +1163,7 @@ export default function App() {
 
           {renderSectionHelper()}
 
-          {!user && !loadingUser && !requiresChannelConnection && activeTab !== 'home' && (
+          {!user && !loadingUser && !requiresChannelConnection && activeTab !== 'home' && activeTab !== 'settings' && (
             <div className="mb-6 sm:mb-8 bg-white/[0.04] border border-white/15 rounded-2xl p-4 sm:p-6 flex flex-col md:flex-row items-start sm:items-center gap-4 sm:gap-6">
               <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white/10 flex items-center justify-center text-slate-200 flex-shrink-0">
                 <ShieldCheck size={20} className="sm:hidden" />
