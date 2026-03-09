@@ -456,11 +456,24 @@ export default function App() {
         return;
       }
 
+      // Check if this is iOS Safari - these don't support popups reliably
+      const isIosSafari = /iPad|iPhone|iPod/.test(navigator.userAgent) && 
+                          !navigator.userAgent.includes('Chrome') &&
+                          !navigator.userAgent.includes('Firefox');
+
+      if (isIosSafari) {
+        // On iOS Safari, use full page redirect instead of popup
+        console.log('[Connect] Detected iOS Safari, using full page redirect');
+        window.location.href = data.url;
+        return;
+      }
+
+      // For other browsers, use popup with polling
       const popup = window.open(data.url, 'oauth_popup', 'width=600,height=700,scrollbars=yes');
       
       if (!popup) {
         console.error('[Connect Error] Popup blocked or could not open');
-        alert('Popup was blocked. Please allow popups and try again.');
+        alert('Popup was blocked. Please allow popups and try again, or try on a desktop browser.');
         return;
       }
 
