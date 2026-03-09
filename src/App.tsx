@@ -766,15 +766,19 @@ export default function App() {
 
       <aside
         className={cn(
-          'fixed inset-y-0 left-0 z-40 w-64 sm:w-72 border-r transform transition-transform duration-200 ease-in-out lg:translate-x-0 lg:static lg:block flex flex-col',
+          'fixed inset-y-0 left-0 z-40 w-64 sm:w-72 border-r transform transition-transform duration-200 ease-in-out lg:translate-x-0 lg:static lg:block flex flex-col overflow-hidden',
           theme === 'light' ? 'bg-slate-50 border-slate-200' : 'bg-[#0a0a0a] border-white/10',
           isSidebarOpen ? 'translate-x-0' : '-translate-x-full',
         )}
       >
-        <div className="flex items-center gap-2 px-4 sm:px-6 py-4 sm:py-6 border-b border-white/10">
+        <div
+          className={cn(
+            'shrink-0 flex items-center gap-2 px-4 sm:px-6 py-4 sm:py-6 border-b',
+            theme === 'light' ? 'border-slate-200' : 'border-white/10'
+          )}
+        >
           <div className="w-8 h-8 rounded-lg bg-white/10 border border-white/20 flex items-center justify-center flex-shrink-0">
-            <Youtube size={18} className="sm:block hidden" />
-            <Youtube size={16} className="sm:hidden" />
+            <img src="/favicon.svg" alt="Tube Vision logo" className="w-5 h-5 sm:w-[18px] sm:h-[18px]" />
           </div>
           <div className="min-w-0">
             <p className="text-sm sm:text-base font-bold tracking-tight text-white">Tube Vision</p>
