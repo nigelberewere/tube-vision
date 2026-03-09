@@ -1177,6 +1177,189 @@ Return JSON with:
     }
   }
 
+  // Bulk update video descriptions
+  if (path === 'api/user/videos/bulk/description' && req.method === 'PUT') {
+    const { accounts, activeIndex } = readAccountsFromCookies(req);
+    if (accounts.length === 0) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const body = readJsonBody(req);
+    const { videoIds, description, findReplace } = body;
+
+    if (!videoIds || !Array.isArray(videoIds) || videoIds.length === 0) {
+      return res.status(400).json({ error: 'Video IDs array is required' });
+    }
+
+    if (!description && !findReplace) {
+      return res.status(400).json({ error: 'Either description or findReplace is required' });
+    }
+
+    const userData = accounts[activeIndex];
+    if (!userData) {
+      return res.status(401).json({ error: 'No active account' });
+    }
+
+    const authHeader = await getAuthHeaderForAccount(userData);
+    const results = { success: [], failed: [] };
+
+    for (const videoId of videoIds) {
+      try {
+        const getResponse = await fetch(
+          `https://www.googleapis.com/youtube/v3/videos?part=snippet&id=${videoId}`,
+          { headers: authHeader }
+        );
+
+        if (!getResponse.ok) {
+          results.failed.push({ videoId, error: 'Failed to fetch video' });
+          continue;
+        }
+
+        const getData = await getResponse.json();
+        if (!getData.items || getData.items.length === 0) {
+          results.failed.push({ videoId, error: 'Video not found' });
+          continue;
+        }
+
+        const video = getData.items[0];
+        let newDescription = description;
+
+        // Apply find/replace if specified
+        if (findReplace && findReplace.find && video.snippet.description) {
+          newDescription = video.snippet.description.replace(
+            new RegExp(findReplace.find, 'g'),
+            findReplace.replace
+          );
+        }
+
+        const updatePayload = {
+          id: videoId,
+          snippet: {
+            ...video.snippet,
+            description: newDescription || video.snippet.description,
+            categoryId: video.snippet.categoryId,
+          }
+        };
+
+        const updateResponse = await fetch(
+          'https://www.googleapis.com/youtube/v3/videos?part=snippet',
+          {
+            method: 'PUT',
+            headers: {
+              ...authHeader,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(updatePayload),
+          }
+        );
+
+        if (updateResponse.ok) {
+          results.success.push(videoId);
+        } else {
+          const errorData = await updateResponse.json().catch(() => ({}));
+          results.failed.push({ videoId, error: errorData.error?.message || 'Update failed' });
+        }
+      } catch (error: any) {
+        results.failed.push({ videoId, error: error.message });
+      }
+    }
+
+    return res.json(results);
+  }
+
+  // Bulk update video tags
+  if (path === 'api/user/videos/bulk/tags' && req.method === 'PUT') {
+    const { accounts, activeIndex } = readAccountsFromCookies(req);
+    if (accounts.length === 0) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const body = readJsonBody(req);
+    const { videoIds, tags, mode } = body;
+
+    if (!videoIds || !Array.isArray(videoIds) || videoIds.length === 0) {
+      return res.status(400).json({ error: 'Video IDs array is required' });
+    }
+
+    if (!tags || !Array.isArray(tags) || tags.length === 0) {
+      return res.status(400).json({ error: 'Tags array is required' });
+    }
+
+    const updateMode = mode || 'replace'; // 'replace', 'append', 'prepend'
+    const userData = accounts[activeIndex];
+    if (!userData) {
+      return res.status(401).json({ error: 'No active account' });
+    }
+
+    const authHeader = await getAuthHeaderForAccount(userData);
+    const results = { success: [], failed: [] };
+
+    for (const videoId of videoIds) {
+      try {
+        const getResponse = await fetch(
+          `https://www.googleapis.com/youtube/v3/videos?part=snippet&id=${videoId}`,
+          { headers: authHeader }
+        );
+
+        if (!getResponse.ok) {
+          results.failed.push({ videoId, error: 'Failed to fetch video' });
+          continue;
+        }
+
+        const getData = await getResponse.json();
+        if (!getData.items || getData.items.length === 0) {
+          results.failed.push({ videoId, error: 'Video not found' });
+          continue;
+        }
+
+        const video = getData.items[0];
+        let newTags = tags;
+
+        if (updateMode === 'append') {
+          newTags = [...(video.snippet.tags || []), ...tags];
+        } else if (updateMode === 'prepend') {
+          newTags = [...tags, ...(video.snippet.tags || [])];
+        }
+        // 'replace' mode uses tags as-is
+
+        // Remove duplicates and limit to 500 tags (YouTube limit)
+        newTags = [...new Set(newTags)].slice(0, 500);
+
+        const updatePayload = {
+          id: videoId,
+          snippet: {
+            ...video.snippet,
+            tags: newTags,
+            categoryId: video.snippet.categoryId,
+          }
+        };
+
+        const updateResponse = await fetch(
+          'https://www.googleapis.com/youtube/v3/videos?part=snippet',
+          {
+            method: 'PUT',
+            headers: {
+              ...authHeader,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(updatePayload),
+          }
+        );
+
+        if (updateResponse.ok) {
+          results.success.push(videoId);
+        } else {
+          const errorData = await updateResponse.json().catch(() => ({}));
+          results.failed.push({ videoId, error: errorData.error?.message || 'Update failed' });
+        }
+      } catch (error: any) {
+        results.failed.push({ videoId, error: error.message });
+      }
+    }
+
+    return res.json(results);
+  }
+
   // Get user analytics
   if (path === 'api/user/analytics') {
     const { accounts, activeIndex } = readAccountsFromCookies(req);
