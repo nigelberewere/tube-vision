@@ -1,6 +1,7 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { loadGeminiKey, recordAPIRequest, recordAPIError, redactKey } from "../lib/geminiKeyStorage";
 import { classifyGeminiError } from "../lib/geminiErrorClassifier";
+import { emitGeminiUserError, messageRequiresApiKey } from "../lib/geminiErrorEvents";
 
 async function getAIClient() {
   const apiKey = await loadGeminiKey();
@@ -90,6 +91,11 @@ For every video provided, evaluate segments based on:
   } catch (error) {
     // Classify error for user-friendly messaging
     const classified = classifyGeminiError(error);
+
+    emitGeminiUserError({
+      message: classified.userMessage,
+      requiresApiKey: messageRequiresApiKey(classified.userMessage),
+    });
     
     // Record specific error types for status display
     if (classified.type === 'invalid_key' || classified.type === 'rate_limited' || classified.type === 'quota_exhausted') {

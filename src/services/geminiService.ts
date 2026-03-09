@@ -2,6 +2,7 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { loadGeminiKey, recordAPIRequest, recordAPIError, redactKey } from "../lib/geminiKeyStorage";
 import { classifyGeminiError } from "../lib/geminiErrorClassifier";
 import { getModel, type Functionality } from "../lib/modelStorage";
+import { emitGeminiUserError, messageRequiresApiKey } from "../lib/geminiErrorEvents";
 
 async function getAIClient() {
   const apiKey = await loadGeminiKey();
@@ -83,6 +84,11 @@ export async function generateVidVisionInsight(prompt: string, responseSchema?: 
   } catch (error) {
     // Classify error for user-friendly messaging
     const classified = classifyGeminiError(error);
+
+    emitGeminiUserError({
+      message: classified.userMessage,
+      requiresApiKey: messageRequiresApiKey(classified.userMessage),
+    });
     
     // Record specific error types for status display
     if (classified.type === 'invalid_key' || classified.type === 'rate_limited' || classified.type === 'quota_exhausted') {

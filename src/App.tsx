@@ -1,5 +1,6 @@
 import { useState, useEffect, type ComponentType } from 'react';
 import {
+  AlertTriangle,
   LayoutDashboard,
   Search,
   FileText,
@@ -46,6 +47,7 @@ import SettingsPanel from './components/SettingsPanel';
 import YouTubeShortsIcon from './components/icons/YouTubeShortsIcon';
 import YouTubeLogoIcon from './components/icons/YouTubeLogoIcon';
 import YouTubeMyVideosIcon from './components/icons/YouTubeMyVideosIcon';
+import { GEMINI_USER_ERROR_EVENT, type GeminiUserErrorDetail } from './lib/geminiErrorEvents';
 
 type Tab =
   | 'home'
@@ -153,6 +155,7 @@ export default function App() {
   const [onboardingStepIndex, setOnboardingStepIndex] = useState(0);
   const [seoVideoTopic, setSeoVideoTopic] = useState<string>('');
   const [scriptTopic, setScriptTopic] = useState<string>('');
+  const [geminiErrorToast, setGeminiErrorToast] = useState<GeminiUserErrorDetail | null>(null);
 
   const tabs: TabConfig[] = [
     {
@@ -402,6 +405,31 @@ export default function App() {
       window.localStorage.setItem('tube_vision_theme', theme);
     }
   }, [theme]);
+
+  useEffect(() => {
+    let hideTimer: number | null = null;
+
+    const onGeminiError = (event: Event) => {
+      const detail = (event as CustomEvent<GeminiUserErrorDetail>).detail;
+      if (!detail?.message) {
+        return;
+      }
+
+      setGeminiErrorToast(detail);
+      if (hideTimer) {
+        window.clearTimeout(hideTimer);
+      }
+      hideTimer = window.setTimeout(() => setGeminiErrorToast(null), 8000);
+    };
+
+    window.addEventListener(GEMINI_USER_ERROR_EVENT, onGeminiError as EventListener);
+    return () => {
+      if (hideTimer) {
+        window.clearTimeout(hideTimer);
+      }
+      window.removeEventListener(GEMINI_USER_ERROR_EVENT, onGeminiError as EventListener);
+    };
+  }, []);
 
   const finishOnboarding = () => {
     setIsOnboardingOpen(false);
@@ -1158,6 +1186,39 @@ export default function App() {
         onSkip={handleOnboardingSkip}
         theme={theme}
       />
+
+      {geminiErrorToast && (
+        <div className="fixed bottom-4 right-4 z-[70] max-w-md w-[calc(100%-2rem)] sm:w-full">
+          <div className="rounded-xl border border-amber-400/40 bg-zinc-950/95 backdrop-blur px-4 py-3 shadow-2xl">
+            <div className="flex items-start gap-3">
+              <AlertTriangle size={18} className="text-amber-300 mt-0.5 flex-shrink-0" />
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-amber-200">Action needed</p>
+                <p className="text-xs text-zinc-200 mt-1">{geminiErrorToast.message}</p>
+                {geminiErrorToast.requiresApiKey && (
+                  <button
+                    onClick={() => {
+                      setActiveTab('settings');
+                      setIsSidebarOpen(false);
+                      setGeminiErrorToast(null);
+                    }}
+                    className="mt-2 inline-flex items-center rounded-md border border-amber-300/40 px-2 py-1 text-[11px] font-medium text-amber-200 hover:bg-amber-400/10"
+                  >
+                    Open Settings
+                  </button>
+                )}
+              </div>
+              <button
+                onClick={() => setGeminiErrorToast(null)}
+                className="text-zinc-400 hover:text-zinc-200"
+                aria-label="Dismiss notification"
+              >
+                <X size={14} />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

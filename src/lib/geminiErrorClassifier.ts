@@ -24,6 +24,21 @@ export interface ClassifiedError {
 export function classifyGeminiError(error: unknown): ClassifiedError {
   const errorStr = String(error).toLowerCase();
   const errorMessage = error instanceof Error ? error.message : String(error);
+
+  // Missing API key configured in app
+  if (
+    errorStr.includes('gemini api key required') ||
+    errorStr.includes('api key required') ||
+    errorStr.includes('please add your key in settings') ||
+    errorStr.includes('settings') && errorStr.includes('api key')
+  ) {
+    return {
+      type: 'invalid_key',
+      message: errorMessage,
+      userMessage: 'Gemini API key missing. Add your key in Settings > API Keys.',
+      retryable: false,
+    };
+  }
   
   // Invalid API key
   if (
