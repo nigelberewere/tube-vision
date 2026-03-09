@@ -18,6 +18,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import JSZip from 'jszip';
 import { Clip } from '../services/viralClipService';
+import { fetchWithAI } from '../lib/apiFetch';
 import { cutVideo } from '../services/ffmpegService';
 import YouTubeShortsIcon from './icons/YouTubeShortsIcon';
 
@@ -166,19 +167,28 @@ export default function ViralClipExtractor() {
         setLoadingStep('Uploading and analyzing video with Gemini... This may take a few minutes.');
       }
 
-      const formData = new FormData();
-      if (inputType === 'upload' && file) {
-        formData.append('video', file);
-      } else if (inputType === 'youtube') {
-        formData.append('youtubeUrl', youtubeUrl.trim());
-      } else if (inputType === 'my-channel') {
-        formData.append('videoId', selectedChannelVideoId);
-      }
+      let response: Response;
 
-      const response = await fetch('/api/analyze', {
-        method: 'POST',
-        body: formData,
-      });
+      if (inputType === 'upload' && file) {
+        const formData = new FormData();
+        formData.append('video', file);
+        response = await fetchWithAI('/api/analyze', {
+          method: 'POST',
+          body: formData,
+        });
+      } else if (inputType === 'youtube') {
+        response = await fetchWithAI('/api/analyze', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ youtubeUrl: youtubeUrl.trim() }),
+        });
+      } else {
+        response = await fetchWithAI('/api/analyze', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ videoId: selectedChannelVideoId }),
+        });
+      }
 
       if (!response.ok) {
         const errData = await response.json().catch(() => ({}));
@@ -296,7 +306,7 @@ export default function ViralClipExtractor() {
     setRemixPlan(null);
 
     try {
-      const response = await fetch('/api/shorts/remix-plan', {
+      const response = await fetchWithAI('/api/shorts/remix-plan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

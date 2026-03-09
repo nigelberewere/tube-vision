@@ -341,28 +341,14 @@ export default function VoiceOver() {
       const targetLang = LANGUAGES.find(l => l.code === languageCode);
       const recommendedVoice = targetLang?.voice || voice;
       
-      let prompt = `Say expressively in ${targetLang?.name}. `;
-      if (pitch !== 0) prompt += `Pitch: ${pitch > 0 ? '+' : ''}${pitch}. `;
-      if (speed !== 1.0) prompt += `Speed: ${speed}x. `;
-      if (volume !== 1.0) prompt += `Volume: ${Math.round(volume * 100)}%. `;
-      
-      prompt += `Listen for bracketed tags that apply only to the immediately following sentence. Examples:
-      - [Whispering] speak very softly
-      - [Excited] speak with great energy and enthusiasm
-      - [Sad] speak with melancholy and sadness
-      - [Angry] speak with anger and frustration
-      - [Pause] or [Pause 1s] or [Pause 2s] insert a brief pause
-      - [Fast] speed up delivery
-      - [Slow] slow down delivery
-      - [Loud] increase volume
-      - [Soft] decrease volume
-      
-      Text: ${translation.translatedText}`;
-      
+      // Keep TTS requests as plain transcript text to avoid modality mismatches
+      // with audio-only models (for example, gemini-2.5-flash-preview-tts).
+      const ttsText = translation.translatedText.trim();
+
       const model = await getVoiceOverModel(true);
       const response = await ai.models.generateContent({
         model,
-        contents: [{ parts: [{ text: prompt }] }],
+        contents: [{ parts: [{ text: ttsText }] }],
         config: {
           responseModalities: [Modality.AUDIO],
           speechConfig: {

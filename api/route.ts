@@ -1,6 +1,9 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import fs from 'node:fs';
+import * as pathModule from 'node:path';
 import { OAuth2Client } from 'google-auth-library';
 import { GoogleGenAI, Type } from '@google/genai';
+import youtubedl from 'youtube-dl-exec';
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
@@ -1788,6 +1791,157 @@ Return JSON with:
     } catch (error) {
       console.error('Fetch long-form videos error:', error);
       return res.status(500).json({ error: 'Failed to fetch long-form videos' });
+    }
+  }
+
+  // Viral Clip Analyzer Endpoint (parity with local server)
+  if (path === 'api/analyze' && req.method === 'POST') {
+    if (!req.headers['x-gemini-key']) {
+      return res.status(500).json({
+        error: 'Gemini API key required. Please add your key in Settings → API Keys.',
+      });
+    }
+
+    const body = readJsonBody(req) || {};
+    const requestedVideoId = String(body.videoId || '').trim();
+    const requestedYoutubeUrl = String(body.youtubeUrl || '').trim();
+
+    let sourceUrl = '';
+    if (requestedVideoId) {
+      sourceUrl = `https://www.youtube.com/watch?v=${requestedVideoId}`;
+    } else if (requestedYoutubeUrl) {
+      sourceUrl = requestedYoutubeUrl;
+    } else {
+      return res.status(400).json({
+        error: 'No video source provided. Use a YouTube URL or connected channel video.',
+      });
+    }
+
+    const tempFilename = `analyze-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.mp4`;
+    const tempVideoPath = pathModule.join('/tmp', tempFilename);
+
+    try {
+      if (requestedVideoId) {
+        const { accounts, activeIndex } = readAccountsFromCookies(req);
+        if (accounts.length === 0) {
+          return res.status(401).json({ error: 'Not authenticated' });
+        }
+
+        const userData = accounts[activeIndex];
+        if (!userData) {
+          return res.status(401).json({ error: 'No active account' });
+        }
+      }
+
+      await youtubedl(sourceUrl, {
+        output: tempVideoPath,
+        format: 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
+        noCheckCertificates: true,
+        noWarnings: true,
+        preferFreeFormats: true,
+        addHeader: [
+          'referer:https://www.google.com/',
+          'user-agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        ],
+      } as any);
+
+      const ai = new GoogleGenAI({ apiKey: getGeminiKeyFromRequest(req) });
+      const uploadResult = await ai.files.upload({
+        file: tempVideoPath,
+        config: { mimeType: 'video/mp4' },
+      });
+
+      let uploadedFile = await ai.files.get({ name: uploadResult.name });
+      while (uploadedFile.state === 'PROCESSING') {
+        await new Promise((resolve) => setTimeout(resolve, 5000));
+        uploadedFile = await ai.files.get({ name: uploadResult.name });
+      }
+
+      if (uploadedFile.state === 'FAILED') {
+        throw new Error('Video processing failed in Gemini');
+      }
+
+      const systemInstruction = `
+You are an expert Video Content Strategist and Viral Editor. Your goal is to analyze long-form videos to identify the most high-impact, standalone segments for social media (TikTok, Reels, YouTube Shorts).
+
+### Analysis Framework
+For every video provided, evaluate segments based on:
+1. **The Hook (0-3s):** Does it start with a high-stakes statement, a surprising fact, or an emotional peak?
+2. **Retentiveness:** Is the point made clearly and concisely without needing the full context of the video?
+3. **Emotional Resonance:** Does it provoke curiosity, anger, inspiration, or laughter?
+4. **Intrinsic Value:** Does the viewer learn something or feel something by the end of the 60-second clip?
+
+### Tasks
+1. **Segment Extraction:** Identify exactly 5 distinct clips.
+2. **Timestamps:** Provide precise [MM:SS] to [MM:SS] markers.
+3. **Virality Scoring:** Rate each clip 1-100 and explain why.
+4. **Social Copy:** Write a "scroll-stopping" headline and 3 relevant hashtags for each clip.
+5. **Editing Suggestions:** Suggest where to add B-roll, zoom-ins for emphasis, or specific text overlays.
+`;
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: [
+          { fileData: { fileUri: uploadResult.uri, mimeType: uploadResult.mimeType } },
+          { text: 'Analyze this video and find 5 viral clips.' },
+        ],
+        config: {
+          systemInstruction,
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                clipNumber: { type: Type.INTEGER },
+                title: { type: Type.STRING },
+                startTime: { type: Type.STRING, description: 'MM:SS' },
+                endTime: { type: Type.STRING, description: 'MM:SS' },
+                duration: { type: Type.INTEGER, description: 'Duration in seconds' },
+                score: { type: Type.INTEGER, description: 'Score out of 100' },
+                rationale: { type: Type.STRING },
+                hookText: { type: Type.STRING },
+                visualEditNotes: { type: Type.STRING },
+                headline: { type: Type.STRING },
+                hashtags: {
+                  type: Type.ARRAY,
+                  items: { type: Type.STRING },
+                },
+              },
+              required: [
+                'clipNumber',
+                'title',
+                'startTime',
+                'endTime',
+                'duration',
+                'score',
+                'rationale',
+                'hookText',
+                'visualEditNotes',
+                'headline',
+                'hashtags',
+              ],
+            },
+          },
+        },
+      });
+
+      const clips = JSON.parse(response.text || '[]');
+      return res.json({
+        clips,
+        videoUrl: null,
+      });
+    } catch (error: any) {
+      console.error('Analyze route error:', error);
+      return res.status(500).json({ error: error?.message || 'Failed to analyze video' });
+    } finally {
+      if (fs.existsSync(tempVideoPath)) {
+        try {
+          fs.unlinkSync(tempVideoPath);
+        } catch {
+          // Ignore temp cleanup failures in serverless runtime.
+        }
+      }
     }
   }
 

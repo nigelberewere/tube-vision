@@ -218,13 +218,13 @@ export default function ChannelInsights() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Views Over Time */}
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 min-w-0">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-lg font-bold text-zinc-100">Views Over Time</h3>
             <BarChart3 size={18} className="text-zinc-500" />
           </div>
-          <div className="h-[300px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
+          <div className="h-[300px] w-full min-w-0">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0}>
               <AreaChart data={dailyChartData}>
                 <defs>
                   <linearGradient id="colorViews" x1="0" y1="0" x2="0" y2="1">
@@ -267,13 +267,13 @@ export default function ChannelInsights() {
         </div>
 
         {/* Subscriber Behavior */}
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 min-w-0">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-lg font-bold text-zinc-100">Subscriber Behavior</h3>
             <Users size={18} className="text-zinc-500" />
           </div>
-          <div className="h-[300px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
+          <div className="h-[300px] w-full min-w-0">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0}>
               <LineChart data={dailyChartData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
                 <XAxis 
@@ -318,7 +318,7 @@ export default function ChannelInsights() {
       </div>
 
       {/* Views by Hour of Day */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 min-w-0">
         <div className="flex items-center justify-between mb-6">
           <div>
             <h3 className="text-lg font-bold text-zinc-100">Hourly View Patterns</h3>
@@ -326,8 +326,8 @@ export default function ChannelInsights() {
           </div>
           <Clock size={18} className="text-zinc-500" />
         </div>
-        <div className="h-[300px] w-full">
-          <ResponsiveContainer width="100%" height="100%">
+        <div className="h-[300px] w-full min-w-0">
+          <ResponsiveContainer width="100%" height="100%" minWidth={0}>
             <BarChart data={hourlyChartData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
               <XAxis 
