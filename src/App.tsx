@@ -37,6 +37,7 @@ import VoiceOver from './components/VoiceOver';
 import ViralClipExtractor from './components/ViralClipExtractor.tsx';
 import ContentRepurposer from './components/ContentRepurposer';
 import CommentStrategist from './components/CommentStrategist';
+import CollaborationEngine from './components/CollaborationEngine';
 import OnboardingTour, { type OnboardingStep } from './components/OnboardingTour';
 import SettingsPanel from './components/SettingsPanel';
 import YouTubeShortsIcon from './components/icons/YouTubeShortsIcon';
@@ -60,6 +61,7 @@ type Tab =
   | 'clips'
   | 'repurpose'
   | 'comments'
+  | 'collaborators'
   | 'settings';
 
 type Theme = 'dark' | 'light';
@@ -258,6 +260,13 @@ export default function App() {
       icon: MessageSquare,
       section: 'growth',
       summary: 'Analyze viewer comments to find requests, pain points, and content ideas.',
+    },
+    {
+      id: 'collaborators',
+      label: 'Collaboration Engine',
+      icon: Users,
+      section: 'growth',
+      summary: 'Find creators in your niche and draft personalized outreach emails.',
     },
     {
       id: 'insights',
@@ -701,6 +710,8 @@ export default function App() {
         return <CompetitorAnalysis />;
       case 'comments':
         return <CommentStrategist />;
+      case 'collaborators':
+        return <CollaborationEngine />;
       case 'insights':
         return <ChannelInsights />;
       default:
