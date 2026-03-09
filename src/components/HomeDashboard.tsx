@@ -4,6 +4,8 @@ import {
   AlertCircle,
   BarChart3,
   Clock3,
+  Copy,
+  Check,
   Eye,
   Loader2,
   Sparkles,
@@ -98,7 +100,21 @@ interface DailyVideoIdea {
   potentialReach: string;
 }
 
+interface RepurposeInsight {
+  videoId: string;
+  videoTitle: string;
+  publishedAt: string;
+  generatedAt: string;
+  xPost: string;
+  linkedinPost: string;
+  blogTitle: string;
+  blogAngle: string;
+  recommendedNextStep: string;
+}
+
 const DAILY_IDEAS_STORAGE_KEY = 'vid_vision_daily_ideas';
+const REPURPOSE_INSIGHT_STORAGE_KEY = 'vid_vision_repurpose_insight';
+const NEW_UPLOAD_WINDOW_HOURS = 72;
 
 function getTodayDateKey(): string {
   return new Date().toISOString().split('T')[0]; // YYYY-MM-DD
@@ -140,6 +156,32 @@ function hourMap(report?: AnalyticsReport): Record<number, number> {
   return mapped;
 }
 
+function getLatestVideo(videos: VideoItem[]): VideoItem | null {
+  if (!videos.length) {
+    return null;
+  }
+
+  return [...videos].sort((a, b) => {
+    const aTime = new Date(a.snippet?.publishedAt || 0).getTime();
+    const bTime = new Date(b.snippet?.publishedAt || 0).getTime();
+    return bTime - aTime;
+  })[0];
+}
+
+function isFreshUpload(publishedAt?: string): boolean {
+  if (!publishedAt) {
+    return false;
+  }
+
+  const publishedTime = new Date(publishedAt).getTime();
+  if (!Number.isFinite(publishedTime)) {
+    return false;
+  }
+
+  const ageMs = Date.now() - publishedTime;
+  return ageMs >= 0 && ageMs <= NEW_UPLOAD_WINDOW_HOURS * 60 * 60 * 1000;
+}
+
 export default function HomeDashboard({
   channel,
   isConnected,
@@ -157,6 +199,10 @@ export default function HomeDashboard({
   const [error, setError] = useState<string | null>(null);
   const [dailyIdeas, setDailyIdeas] = useState<DailyVideoIdea[]>([]);
   const [loadingIdeas, setLoadingIdeas] = useState(false);
+  const [repurposeInsight, setRepurposeInsight] = useState<RepurposeInsight | null>(null);
+  const [repurposeLoading, setRepurposeLoading] = useState(false);
+  const [repurposeError, setRepurposeError] = useState<string | null>(null);
+  const [copiedRepurposeItem, setCopiedRepurposeItem] = useState<'x' | 'linkedin' | 'blog' | null>(null);
 
   const fetchDashboard = async () => {
     if (!isConnected) {
@@ -279,11 +325,155 @@ export default function HomeDashboard({
     }
   };
 
+  const generateRepurposeInsight = async (video: VideoItem) => {
+    if (!channel?.id || !video?.id || !video?.snippet?.title) {
+      return;
+    }
+
+    setRepurposeLoading(true);
+    setRepurposeError(null);
+
+    try {
+      const cachedRaw = localStorage.getItem(REPURPOSE_INSIGHT_STORAGE_KEY);
+      if (cachedRaw) {
+        const cached = JSON.parse(cachedRaw) as {
+          channelId?: string;
+          videoId?: string;
+          insight?: RepurposeInsight;
+        };
+
+        if (cached?.channelId === channel.id && cached?.videoId === video.id && cached?.insight) {
+          setRepurposeInsight(cached.insight);
+          setRepurposeLoading(false);
+          return;
+        }
+      }
+
+      const schema = {
+        type: Type.OBJECT,
+        properties: {
+          xPost: { type: Type.STRING },
+          linkedinPost: { type: Type.STRING },
+          blogTitle: { type: Type.STRING },
+          blogAngle: { type: Type.STRING },
+          recommendedNextStep: { type: Type.STRING },
+        },
+        required: ['xPost', 'linkedinPost', 'blogTitle', 'blogAngle', 'recommendedNextStep'],
+      };
+
+      const prompt = `You are an expert content repurposing strategist for YouTube creators.
+
+A creator just uploaded a new video. Generate ready-to-use cross-platform content suggestions.
+
+Output requirements:
+- xPost: a single X/Twitter post (max 280 chars)
+- linkedinPost: a concise LinkedIn post (2 short paragraphs max)
+- blogTitle: SEO-friendly blog title
+- blogAngle: 2-3 sentence blog intro angle
+- recommendedNextStep: one concrete publishing action for today
+
+Channel: ${channel.title}
+Channel description: ${channel.description || 'N/A'}
+New upload title: ${video.snippet.title}
+Published at: ${video.snippet.publishedAt}
+Current views: ${toNumber(video.statistics?.viewCount)}
+
+Return valid JSON only.`;
+
+      const response = await generateVidVisionInsight(prompt, schema, {
+        systemInstruction:
+          'You create concise, conversion-focused repurposed social content for creators. Keep writing natural, practical, and publish-ready. Return JSON only.',
+      });
+
+      if (!response) {
+        throw new Error('No response while generating repurposing insight.');
+      }
+
+      const parsed = JSON.parse(response);
+      const nextInsight: RepurposeInsight = {
+        videoId: video.id,
+        videoTitle: video.snippet.title,
+        publishedAt: video.snippet.publishedAt,
+        generatedAt: new Date().toISOString(),
+        xPost: String(parsed.xPost || '').trim(),
+        linkedinPost: String(parsed.linkedinPost || '').trim(),
+        blogTitle: String(parsed.blogTitle || '').trim(),
+        blogAngle: String(parsed.blogAngle || '').trim(),
+        recommendedNextStep: String(parsed.recommendedNextStep || '').trim(),
+      };
+
+      setRepurposeInsight(nextInsight);
+      localStorage.setItem(
+        REPURPOSE_INSIGHT_STORAGE_KEY,
+        JSON.stringify({
+          channelId: channel.id,
+          videoId: video.id,
+          insight: nextInsight,
+        }),
+      );
+    } catch (insightError: any) {
+      setRepurposeError(insightError?.message || 'Failed to generate repurposing insight.');
+    } finally {
+      setRepurposeLoading(false);
+    }
+  };
+
+  const copyRepurposeText = async (target: 'x' | 'linkedin' | 'blog') => {
+    if (!repurposeInsight) {
+      return;
+    }
+
+    let text = '';
+    if (target === 'x') {
+      text = repurposeInsight.xPost;
+    } else if (target === 'linkedin') {
+      text = repurposeInsight.linkedinPost;
+    } else {
+      text = `${repurposeInsight.blogTitle}\n\n${repurposeInsight.blogAngle}`;
+    }
+
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedRepurposeItem(target);
+      window.setTimeout(() => setCopiedRepurposeItem(null), 1800);
+    } catch {
+      setRepurposeError('Could not copy to clipboard.');
+    }
+  };
+
   useEffect(() => {
     fetchDashboard();
     generateDailyIdeas(); // Auto-load daily ideas
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isConnected]);
+
+  useEffect(() => {
+    if (!isConnected) {
+      return;
+    }
+
+    const pollId = window.setInterval(() => {
+      fetchDashboard();
+    }, 5 * 60 * 1000);
+
+    return () => window.clearInterval(pollId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isConnected]);
+
+  const latestVideo = useMemo(() => getLatestVideo(videos), [videos]);
+  const hasFreshUpload = useMemo(
+    () => isFreshUpload(latestVideo?.snippet?.publishedAt),
+    [latestVideo?.snippet?.publishedAt],
+  );
+
+  useEffect(() => {
+    if (!isConnected || !channel?.id || !latestVideo || !hasFreshUpload) {
+      return;
+    }
+
+    generateRepurposeInsight(latestVideo);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isConnected, channel?.id, latestVideo?.id, hasFreshUpload]);
 
   const dailyObjects = useMemo(() => rowsToObjects(analytics?.daily), [analytics]);
   const hourlyObjects = useMemo(() => rowsToObjects(analytics?.hourly), [analytics]);
@@ -558,6 +748,138 @@ export default function HomeDashboard({
         isConnected={isConnected}
         className="rounded-2xl border border-white/10 bg-gradient-to-br from-purple-500/10 via-pink-500/10 to-blue-500/10 p-6"
       />
+
+      {/* Smart Content Repurposing Insight */}
+      <div className="rounded-2xl border border-sky-400/30 bg-gradient-to-br from-sky-500/10 via-indigo-500/10 to-violet-500/10 p-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+          <div>
+            <h3 className="text-lg font-bold text-white flex items-center gap-2">
+              <Sparkles size={18} className="text-sky-300" />
+              Smart Repurposing Insight
+            </h3>
+            <p className="text-zinc-300 text-sm mt-1">
+              Home watches for new uploads and prepares cross-platform post drafts automatically.
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            {hasFreshUpload && latestVideo && (
+              <button
+                onClick={() => generateRepurposeInsight(latestVideo)}
+                disabled={repurposeLoading}
+                className="inline-flex items-center gap-1 rounded-lg bg-sky-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-sky-500 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {repurposeLoading ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+                Refresh Drafts
+              </button>
+            )}
+            <span
+              className={cn(
+                'inline-flex items-center rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em]',
+                hasFreshUpload ? 'bg-emerald-500/20 text-emerald-300' : 'bg-slate-500/20 text-slate-300',
+              )}
+            >
+              {hasFreshUpload ? 'New Upload Detected' : 'Listening For Next Upload'}
+            </span>
+          </div>
+        </div>
+
+        {repurposeError && (
+          <div className="mb-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-200">
+            {repurposeError}
+          </div>
+        )}
+
+        {!latestVideo && (
+          <div className="rounded-xl border border-white/10 bg-white/5 p-4 text-sm text-zinc-300">
+            We are waiting for your first upload. Once a new video lands, this card will suggest an X post,
+            LinkedIn post, and blog angle.
+          </div>
+        )}
+
+        {latestVideo && !hasFreshUpload && (
+          <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+            <p className="text-sm text-zinc-200">
+              Latest upload tracked: <span className="font-semibold text-white">{latestVideo.snippet.title}</span>
+            </p>
+            <p className="text-xs text-zinc-400 mt-1">
+              Published {new Date(latestVideo.snippet.publishedAt).toLocaleString()}. A new insight tile appears when
+              your next upload is detected.
+            </p>
+          </div>
+        )}
+
+        {latestVideo && hasFreshUpload && repurposeLoading && (
+          <div className="space-y-3">
+            <div className="rounded-xl border border-white/10 bg-white/5 p-4 animate-pulse">
+              <div className="h-4 bg-white/10 rounded w-3/4 mb-2" />
+              <div className="h-3 bg-white/10 rounded w-full" />
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+              <div className="h-28 rounded-xl border border-white/10 bg-white/5 animate-pulse" />
+              <div className="h-28 rounded-xl border border-white/10 bg-white/5 animate-pulse" />
+              <div className="h-28 rounded-xl border border-white/10 bg-white/5 animate-pulse" />
+            </div>
+          </div>
+        )}
+
+        {latestVideo && hasFreshUpload && !repurposeLoading && repurposeInsight && (
+          <div className="space-y-3">
+            <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-sky-300">Source Upload</p>
+              <p className="text-base font-semibold text-white mt-1">{repurposeInsight.videoTitle}</p>
+              <p className="text-xs text-zinc-400 mt-1">
+                Generated {new Date(repurposeInsight.generatedAt).toLocaleString()} for cross-platform publishing.
+              </p>
+              <p className="text-sm text-zinc-300 mt-3">{repurposeInsight.recommendedNextStep}</p>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+              <div className="rounded-xl border border-white/10 bg-black/20 p-4">
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-sky-300">X Post</p>
+                  <button
+                    onClick={() => copyRepurposeText('x')}
+                    className="inline-flex items-center gap-1 rounded-md border border-white/15 px-2 py-1 text-[11px] text-zinc-200 hover:bg-white/10"
+                  >
+                    {copiedRepurposeItem === 'x' ? <Check size={12} /> : <Copy size={12} />}
+                    {copiedRepurposeItem === 'x' ? 'Copied' : 'Copy'}
+                  </button>
+                </div>
+                <p className="text-sm text-zinc-200 leading-relaxed">{repurposeInsight.xPost}</p>
+              </div>
+
+              <div className="rounded-xl border border-white/10 bg-black/20 p-4">
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-indigo-300">LinkedIn</p>
+                  <button
+                    onClick={() => copyRepurposeText('linkedin')}
+                    className="inline-flex items-center gap-1 rounded-md border border-white/15 px-2 py-1 text-[11px] text-zinc-200 hover:bg-white/10"
+                  >
+                    {copiedRepurposeItem === 'linkedin' ? <Check size={12} /> : <Copy size={12} />}
+                    {copiedRepurposeItem === 'linkedin' ? 'Copied' : 'Copy'}
+                  </button>
+                </div>
+                <p className="text-sm text-zinc-200 leading-relaxed">{repurposeInsight.linkedinPost}</p>
+              </div>
+
+              <div className="rounded-xl border border-white/10 bg-black/20 p-4">
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-violet-300">Blog Angle</p>
+                  <button
+                    onClick={() => copyRepurposeText('blog')}
+                    className="inline-flex items-center gap-1 rounded-md border border-white/15 px-2 py-1 text-[11px] text-zinc-200 hover:bg-white/10"
+                  >
+                    {copiedRepurposeItem === 'blog' ? <Check size={12} /> : <Copy size={12} />}
+                    {copiedRepurposeItem === 'blog' ? 'Copied' : 'Copy'}
+                  </button>
+                </div>
+                <p className="text-sm font-semibold text-white leading-relaxed">{repurposeInsight.blogTitle}</p>
+                <p className="text-sm text-zinc-300 leading-relaxed mt-2">{repurposeInsight.blogAngle}</p>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Daily Video Ideas Section */}
       <div className="rounded-2xl border border-emerald-400/30 bg-gradient-to-br from-emerald-500/10 via-teal-500/10 to-cyan-500/10 p-6">

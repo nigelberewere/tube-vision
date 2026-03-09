@@ -18,7 +18,6 @@ import {
   Play,
   Mic,
   Settings2,
-  Share2,
   MessageSquare,
   Eye,
 } from 'lucide-react';
@@ -36,7 +35,6 @@ import CompetitionNetwork from './components/CompetitionNetwork';
 import VideoList from './components/VideoList';
 import VoiceOver from './components/VoiceOver';
 import ViralClipExtractor from './components/ViralClipExtractor.tsx';
-import ContentRepurposer from './components/ContentRepurposer';
 import CommentStrategist from './components/CommentStrategist';
 import OnboardingTour, { type OnboardingStep } from './components/OnboardingTour';
 import SettingsPanel from './components/SettingsPanel';
@@ -59,7 +57,6 @@ type Tab =
   | 'videos'
   | 'voiceover'
   | 'clips'
-  | 'repurpose'
   | 'comments'
   | 'settings';
 
@@ -170,13 +167,6 @@ export default function App() {
       icon: YouTubeShortsIcon,
       section: 'studios',
       summary: 'Create Shorts from your long-form videos and remix top niche performers.',
-    },
-    {
-      id: 'repurpose',
-      label: 'Content Repurposer',
-      icon: Share2,
-      section: 'studios',
-      summary: 'Transform scripts into Twitter threads, LinkedIn posts, and blog articles.',
     },
     {
       id: 'thumbnail',
@@ -709,8 +699,6 @@ export default function App() {
         return <VoiceOver />;
       case 'clips':
         return <ViralClipExtractor />;
-      case 'repurpose':
-        return <ContentRepurposer />;
       case 'settings':
         return <SettingsPanel theme={theme} onThemeChange={setTheme} />;
       case 'videos':
