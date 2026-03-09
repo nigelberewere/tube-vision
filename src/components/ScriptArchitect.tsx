@@ -48,7 +48,7 @@ interface RetentionAnalysis {
 
 const DEFAULT_TOPIC_PLACEHOLDER = 'e.g., The history of mechanical keyboards';
 const DAILY_PLACEHOLDER_CACHE_KEY = 'vid_vision_script_daily_placeholder';
-const SCRIPT_ARCHITECT_SYSTEM_INSTRUCTION = `You are VidVision's Script Architect.
+const SCRIPT_ARCHITECT_SYSTEM_INSTRUCTION = `You are Janso Studio's Script Architect.
 
 You only generate spoken YouTube scripts, not SEO metadata.
 
@@ -72,9 +72,9 @@ function sanitizeText(value: unknown): string {
 
 function sanitizeChannelMentions(value: string, channelName?: string): string {
   const normalizedChannelName = (channelName || '').trim();
-  const isVidVisionChannel = /vid\s*vision/i.test(normalizedChannelName);
+  const isJansoStudioChannel = /janso\s*studio/i.test(normalizedChannelName);
 
-  if (isVidVisionChannel) {
+  if (isJansoStudioChannel) {
     return value;
   }
 
@@ -84,6 +84,7 @@ function sanitizeChannelMentions(value: string, channelName?: string): string {
     .replace(/\bvid\s*visionaries\b/gi, 'everyone')
     .replace(/\bvid\s*vision\b/gi, replacementName)
     .replace(/\btube\s*vision\b/gi, replacementName)
+    .replace(/\bjanso\s*studio\b/gi, replacementName)
     .replace(/\s{2,}/g, ' ')
     .trim();
 }
@@ -274,10 +275,10 @@ export default function ScriptArchitect({ initialTopic, onTopicUsed, channelCont
       - Include a strong hook, clear transitions, visual cues for the editor, and a compelling call to action.
       - Ensure the final spoken script fits the required final length.
       - Do not include hashtags, tag lists, SEO metadata, or keyword dumps.
-      - App name is "VidVision" and must never be treated as the creator's channel identity.
+      - App name is "Janso Studio" and must never be treated as the creator's channel identity.
       - Connected creator channel name: ${connectedChannelName || 'Not connected'}
       - If a greeting is used, address the audience neutrally ("everyone", "friends") or based on the connected channel identity only.
-      - Never say "VidVisionaries" unless the connected channel name itself is actually VidVision.
+      - Never use "Janso Studio" as an audience nickname unless the connected channel name itself is exactly Janso Studio.
       - Return only JSON matching the schema.`;
       
       const response = await generateVidVisionInsight(prompt, schema, {

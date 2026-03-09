@@ -1083,9 +1083,9 @@ Recent videos: ${recentTitles.join(" | ") || "No recent titles"}`;
           const prompt = `You are generating a proactive YouTube coaching alert.
 
 Important identity rule:
-- VidVision is the app name, not the creator name.
+- Janso Studio is the app name, not the creator name.
 - Creator channel name is "${channelTitle}".
-- Never call the creator or audience "VidVision" or "VidVisionaries" unless channel name exactly matches VidVision.
+- Never call the creator or audience "Janso Studio" unless the channel name exactly matches Janso Studio.
 
 Trend data:
 - Topic with strongest positive momentum: ${topicInsight.topicLabel}

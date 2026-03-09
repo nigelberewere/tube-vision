@@ -11,7 +11,7 @@ type CTASectionProps = {
 const steps = [
   {
     title: "Connect your YouTube channel",
-    description: "Authorize Tube Vision with secure OAuth and import your channels in minutes.",
+    description: "Authorize Janso Studio with secure OAuth and import your channels in minutes.",
     icon: Link2,
     color: "text-red-500"
   },
@@ -80,7 +80,7 @@ export function CTASection({ isDark, onConnect }: CTASectionProps) {
               : "border-indigo-200 bg-gradient-to-br from-indigo-100 via-blue-100 to-green-100"
           )}
         >
-          <p className={cn("text-sm font-medium", isDark ? "text-indigo-200" : "text-indigo-700")}>Tube Vision</p>
+          <p className={cn("text-sm font-medium", isDark ? "text-indigo-200" : "text-indigo-700")}>Janso Studio</p>
           <h3 className="mt-2 text-3xl font-semibold tracking-tight md:text-4xl">Ready to grow your channel?</h3>
           <p className={cn("mx-auto mt-3 max-w-xl text-sm md:text-base", isDark ? "text-slate-200" : "text-slate-700")}>
             Plug into your existing workflow, automate high-impact tasks, and focus on creating videos that convert.

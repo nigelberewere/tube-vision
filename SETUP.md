@@ -1,4 +1,4 @@
-# Tube Vision - Setup Guide
+# Janso Studio - Setup Guide
 
 ## Installation Complete! ✅
 

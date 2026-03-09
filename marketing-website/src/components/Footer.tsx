@@ -16,7 +16,7 @@ export function Footer({ isDark }: FooterProps) {
     >
       <div className="mx-auto grid w-full max-w-6xl gap-8 md:grid-cols-[1.2fr_1fr_auto] md:items-start">
         <div>
-          <p className="text-lg font-semibold">Tube Vision</p>
+          <p className="text-lg font-semibold">Janso Studio</p>
           <p className={cn("mt-2 max-w-md text-sm", isDark ? "text-slate-400" : "text-slate-600")}>
             AI-powered operating system for YouTube creators building the next generation of channels.
           </p>
@@ -95,7 +95,7 @@ export function Footer({ isDark }: FooterProps) {
       </div>
 
       <div className={cn("mx-auto mt-8 w-full max-w-6xl text-xs", isDark ? "text-slate-500" : "text-slate-600")}>
-        © 2026 Tube Vision. All rights reserved.
+        © 2026 Janso Studio. All rights reserved.
       </div>
     </footer>
   );

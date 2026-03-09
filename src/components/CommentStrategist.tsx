@@ -169,7 +169,7 @@ export default function CommentStrategist({ videoId }: CommentStrategistProps) {
 
       const commentText = comments.map((c: any) => c.textDisplay).join('\n---\n');
 
-      const prompt = `You are VidVision's Comment Strategist. Analyze these YouTube comments to identify recurring themes, questions, and content opportunities.
+      const prompt = `You are Janso Studio's Comment Strategist. Analyze these YouTube comments to identify recurring themes, questions, and content opportunities.
 
 Total comments to analyze: ${comments.length}
 Video received: ${totalComments} total comments
@@ -196,7 +196,7 @@ Your task:
 Return ONLY valid JSON matching the schema. Be specific and actionable.`;
 
       const response = await generateVidVisionInsight(prompt, schema, {
-        systemInstruction: 'You are VidVision\'s Comment Strategist. Analyze YouTube comments to extract audience insights, recurring questions, and content opportunities. Return only valid JSON.',
+        systemInstruction: 'You are Janso Studio\'s Comment Strategist. Analyze YouTube comments to extract audience insights, recurring questions, and content opportunities. Return only valid JSON.',
       });
 
       if (response) {

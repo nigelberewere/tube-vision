@@ -41,6 +41,7 @@ import SettingsPanel from './components/SettingsPanel';
 import YouTubeShortsIcon from './components/icons/YouTubeShortsIcon';
 import YouTubeLogoIcon from './components/icons/YouTubeLogoIcon';
 import YouTubeMyVideosIcon from './components/icons/YouTubeMyVideosIcon';
+import YouTubeLogoBlackIcon from './components/icons/YouTubeLogoBlackIcon';
 import { GEMINI_USER_ERROR_EVENT, type GeminiUserErrorDetail } from './lib/geminiErrorEvents';
 
 type Tab =
@@ -643,10 +644,10 @@ export default function App() {
           <div
             className={cn(
               'w-20 h-20 rounded-full flex items-center justify-center',
-              showMyVideosConnectIcon ? 'bg-white text-black' : 'bg-white/10 text-slate-200',
+              'bg-white text-black'
             )}
           >
-            {showMyVideosConnectIcon ? <YouTubeMyVideosIcon size={42} /> : <Youtube size={40} />}
+            {showMyVideosConnectIcon ? <YouTubeMyVideosIcon size={42} /> : <YouTubeLogoBlackIcon size={40} />}
           </div>
           <div className="space-y-2">
             <h2 className="text-2xl font-bold text-white">Connect your channel</h2>
@@ -778,10 +779,10 @@ export default function App() {
           )}
         >
           <div className="w-8 h-8 rounded-lg bg-white/10 border border-white/20 flex items-center justify-center flex-shrink-0">
-            <img src="/favicon.svg" alt="Tube Vision logo" className="w-5 h-5 sm:w-[18px] sm:h-[18px]" />
+            <img src="/favicon.svg" alt="Janso Studio logo" className="w-5 h-5 sm:w-[18px] sm:h-[18px]" />
           </div>
           <div className="min-w-0">
-            <p className="text-sm sm:text-base font-bold tracking-tight text-white">Tube Vision</p>
+            <p className="text-sm sm:text-base font-bold tracking-tight text-white">Janso Studio</p>
             <p className="text-[9px] sm:text-[10px] uppercase tracking-[0.22em] text-slate-500">New Heights Everyday</p>
           </div>
         </div>
@@ -1120,7 +1121,7 @@ export default function App() {
               <div className="flex-1 text-left">
                 <h3 className="text-base sm:text-lg font-bold text-white">Connect your channel for better insights</h3>
                 <p className="text-xs sm:text-sm text-slate-400 mt-1">
-                  Tube Vision works best when it can analyze your real channel data. Connect your YouTube account to unlock personalized growth strategies.
+                  Janso Studio works best when it can analyze your real channel data. Connect your YouTube account to unlock personalized growth strategies.
                 </p>
               </div>
               <button

@@ -151,7 +151,7 @@ export default function APIKeySettings() {
         <p className="text-[10px] uppercase tracking-[0.2em] text-slate-500 font-bold">Settings</p>
         <h2 className="text-2xl font-bold text-white mt-2">API Keys</h2>
         <p className="text-slate-400 mt-2 max-w-2xl">
-          Add your own Gemini API key to use VidVision's AI features. Your key is encrypted and stored only in your browser's local storage.
+          Add your own Gemini API key to use Janso Studio's AI features. Your key is encrypted and stored only in your browser's local storage.
         </p>
       </div>
 
@@ -162,7 +162,7 @@ export default function APIKeySettings() {
           <div className="text-sm text-blue-200">
             <p className="font-semibold">Your key stays in your browser</p>
             <p className="text-blue-300/80 mt-1">
-              VidVision never sends your API key to our servers. It's encrypted and stored in your browser's site data, and will only be deleted when you clear your cookies.
+              Janso Studio never sends your API key to our servers. It's encrypted and stored in your browser's site data, and will only be deleted when you clear your cookies.
             </p>
           </div>
         </div>

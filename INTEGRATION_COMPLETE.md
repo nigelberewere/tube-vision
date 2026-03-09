@@ -1,4 +1,4 @@
-# Tube Vision Marketing Site ↔ Dashboard Integration - COMPLETE ✅
+# Janso Studio Marketing Site ↔ Dashboard Integration - COMPLETE ✅
 
 **Status**: Fully integrated and production-ready
 **Date**: March 9, 2026
@@ -8,7 +8,7 @@
 
 ## Executive Summary
 
-The Tube Vision marketing website has been seamlessly integrated with the main dashboard. Users can now:
+The Janso Studio marketing website has been seamlessly integrated with the main dashboard. Users can now:
 
 1. **Land on the marketing site** (`tubevision.com`)
 2. **Click "Get Started"** or **"Connect YouTube"**
@@ -370,7 +370,7 @@ For questions about this integration:
 
 ## Summary
 
-The Tube Vision marketing website and dashboard are now **fully integrated and production-ready**. The integration is:
+The Janso Studio marketing website and dashboard are now **fully integrated and production-ready**. The integration is:
 
 - ✅ **Functional**: All CTAs properly route to OAuth flow
 - ✅ **Tested**: Both projects build successfully  
@@ -378,6 +378,6 @@ The Tube Vision marketing website and dashboard are now **fully integrated and p
 - ✅ **Maintainable**: Clear code patterns and configuration
 - ✅ **Scalable**: Can be deployed to separate or same infrastructure
 
-Users can now seamlessly move from learning about Tube Vision on the marketing site to using all features in the dashboard.
+Users can now seamlessly move from learning about Janso Studio on the marketing site to using all features in the dashboard.
 
 **Next Step**: Deploy both projects to production and monitor the user journey from marketing site → dashboard authentication → feature usage.

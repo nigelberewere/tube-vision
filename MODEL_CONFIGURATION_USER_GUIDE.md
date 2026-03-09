@@ -2,7 +2,7 @@
 
 ## Overview
 
-VidVision now allows you to choose which AI model is used for each feature. This is useful if you have a paid Gemini API account and want to optimize for quality or minimize quota usage.
+Janso Studio now allows you to choose which AI model is used for each feature. This is useful if you have a paid Gemini API account and want to optimize for quality or minimize quota usage.
 
 ## Accessing Model Settings
 
@@ -42,7 +42,7 @@ VidVision now allows you to choose which AI model is used for each feature. This
 
 ## Quota Warnings
 
-When you select a model, VidVision shows you the quota implications:
+When you select a model, Janso Studio shows you the quota implications:
 
 <table>
   <tr>
@@ -173,6 +173,6 @@ A: Not directly, but if you export your browser data, your preferences are inclu
 
 1. **Use Flash for exploration, Pro for finalization** - Generate ideas quickly with Flash, refine with Pro
 2. **Monitor your usage** - Check [API key page](https://aistudio.google.com/app/apikey) weekly
-3. **Enable quota warnings** - Let VidVision remind you about quotas before requesting
+3. **Enable quota warnings** - Let Janso Studio remind you about quotas before requesting
 4. **Keep AI Coach on Flash** - Real-time coaching works fine with Flash quality
 5. **Use Pro for Script Architecture** - Your scripts are your output, worth the quality

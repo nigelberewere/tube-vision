@@ -1,5 +1,5 @@
 /**
- * Configuration and environment utilities for Tube Vision marketing site
+ * Configuration and environment utilities for Janso Studio marketing site
  * Handles dashboard URL resolution and integration settings
  */
 
@@ -39,7 +39,7 @@ export const config = {
   dashboardUrl: getDashboardUrl(),
   docsUrl: "https://docs.tubevision.ai",
   contactEmail: "hello@tubevision.ai",
-  companyName: "Tube Vision",
+  companyName: "Janso Studio",
   socialLinks: {
     youtube: "https://youtube.com/@tubevision",
     github: "https://github.com/tubevision",

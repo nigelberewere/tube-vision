@@ -1,4 +1,4 @@
-# Tube Vision - AI YouTube Creator Platform
+# Janso Studio - AI YouTube Creator Platform
 
 A unified platform for YouTube creators with AI-powered tools to grow your channel.
 

@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { ShimmerTable, ShimmerCard } from './Shimmer';
 import { cn } from '../lib/utils';
+import YouTubeLogoIcon from './icons/YouTubeLogoIcon';
 
 interface VideoOptimization {
   videoId: string;
@@ -317,7 +318,7 @@ export default function ChannelAnalysis() {
     return (
       <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-10 text-center">
         <div className="w-16 h-16 bg-zinc-800 rounded-full flex items-center justify-center mx-auto mb-6">
-          <AlertCircle size={32} className="text-zinc-500" />
+          <YouTubeLogoIcon size={32} />
         </div>
         <h2 className="text-xl font-bold text-zinc-100 mb-2">No videos found</h2>
         <p className="text-zinc-400 max-w-md mx-auto">

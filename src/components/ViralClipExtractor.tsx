@@ -544,7 +544,7 @@ export default function ViralClipExtractor() {
                 </div>
                 <h3 className="text-lg font-medium text-white mb-2">Ready to build Shorts from long-form</h3>
                 <p className="text-slate-400 max-w-sm text-sm">
-                  Pick one of your connected channel videos, upload a file, or paste a URL. Tube Vision will extract high-retention Shorts opportunities.
+                  Pick one of your connected channel videos, upload a file, or paste a URL. Janso Studio will extract high-retention Shorts opportunities.
                 </p>
               </motion.div>
             ) : loading ? (

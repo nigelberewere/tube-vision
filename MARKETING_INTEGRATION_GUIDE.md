@@ -1,12 +1,12 @@
-# Tube Vision Marketing Site ↔ Dashboard Integration Guide
+# Janso Studio Marketing Site ↔ Dashboard Integration Guide
 
-This document outlines how the marketing website seamlessly integrates with the Tube Vision dashboard.
+This document outlines how the marketing website seamlessly integrates with the Janso Studio dashboard.
 
 ## Architecture Overview
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                     Tube Vision Ecosystem                        │
+│                    Janso Studio Ecosystem                        │
 ├───────────────────────────┬─────────────────────────────────────┤
 │  Marketing Website        │        Main Dashboard               │
 │  (React + Vite)           │     (React + Express/Vercel)        │

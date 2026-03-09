@@ -49,7 +49,7 @@ export function Navigation({
             <Sparkles className="h-4 w-4 text-white" />
           </span>
           <div>
-            <p className="text-sm leading-none font-semibold md:text-base">Tube Vision</p>
+            <p className="text-sm leading-none font-semibold md:text-base">Janso Studio</p>
             <p className={cn("text-xs", isDark ? "text-slate-400" : "text-slate-600")}>AI Creator Platform</p>
           </div>
         </a>

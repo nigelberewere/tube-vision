@@ -542,7 +542,7 @@ Return valid JSON only.`;
       <div className="space-y-6 animate-in fade-in duration-500 pb-10">
         <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-8">
           <p className="text-[10px] uppercase tracking-[0.2em] text-slate-500 font-bold">Home</p>
-          <h2 className="text-3xl font-bold text-white mt-2">Welcome to Tube Vision</h2>
+          <h2 className="text-3xl font-bold text-white mt-2">Welcome to Janso Studio</h2>
           <p className="text-slate-400 mt-3 max-w-2xl">
             Connect your channel to unlock live creator metrics like subscribers, views in the last hour, last 24 hours,
             and performance trends across your content ecosystem.

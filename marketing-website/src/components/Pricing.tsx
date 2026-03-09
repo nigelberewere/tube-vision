@@ -37,7 +37,7 @@ export function Pricing({ isDark, onConnect }: PricingProps) {
           >
             <p className={cn("text-sm", isDark ? "text-indigo-300" : "text-indigo-600")}>Creator</p>
             <h3 className="mt-1 text-2xl font-semibold">$0 Platform Fee</h3>
-            <p className={cn("mt-2 text-sm", isDark ? "text-slate-300" : "text-slate-700")}>Use Tube Vision for free with BYOK model access.</p>
+            <p className={cn("mt-2 text-sm", isDark ? "text-slate-300" : "text-slate-700")}>Use Janso Studio for free with BYOK model access.</p>
             <ul className="mt-5 space-y-2 text-sm">
               {creatorItems.map((item) => (
                 <li key={item} className="flex items-center gap-2">
