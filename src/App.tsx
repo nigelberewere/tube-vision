@@ -27,21 +27,17 @@ import SEOOptimizer from './components/SEOOptimizer';
 import ContentStrategy from './components/ContentStrategy';
 import KeywordResearch from './components/KeywordResearch';
 import ScriptArchitect from './components/ScriptArchitect';
-import ThumbnailConcepting from './components/ThumbnailConcepting.tsx';
+import ThumbnailStudio from './components/ThumbnailStudio';
 import HomeDashboard from './components/HomeDashboard';
-import ChannelAnalysis from './components/ChannelAnalysis';
+import ChannelAnalytics from './components/ChannelAnalytics';
 import AICoach from './components/AICoach';
 import VideoIdeaGenerator from './components/VideoIdeaGenerator';
-import CompetitorAnalysis from './components/CompetitorAnalysis';
-import ChannelInsights from './components/ChannelInsights';
+import CompetitionNetwork from './components/CompetitionNetwork';
 import VideoList from './components/VideoList';
 import VoiceOver from './components/VoiceOver';
 import ViralClipExtractor from './components/ViralClipExtractor.tsx';
 import ContentRepurposer from './components/ContentRepurposer';
 import CommentStrategist from './components/CommentStrategist';
-import CollaborationEngine from './components/CollaborationEngine';
-import ThumbnailHeatmapSimulator from './components/ThumbnailHeatmapSimulator';
-import ThumbnailABTester from './components/ThumbnailABTester';
 import OnboardingTour, { type OnboardingStep } from './components/OnboardingTour';
 import SettingsPanel from './components/SettingsPanel';
 import YouTubeShortsIcon from './components/icons/YouTubeShortsIcon';
@@ -56,19 +52,15 @@ type Tab =
   | 'keywords'
   | 'script'
   | 'thumbnail'
-  | 'heatmap'
-  | 'abtest'
   | 'channel'
   | 'coach'
   | 'ideas'
   | 'competitors'
-  | 'insights'
   | 'videos'
   | 'voiceover'
   | 'clips'
   | 'repurpose'
   | 'comments'
-  | 'collaborators'
   | 'settings';
 
 type Theme = 'dark' | 'light';
@@ -104,7 +96,7 @@ interface TabConfig {
   summary: string;
 }
 
-const CHANNEL_REQUIRED_TABS: Tab[] = ['channel', 'competitors', 'insights', 'videos'];
+const CHANNEL_REQUIRED_TABS: Tab[] = ['channel', 'competitors', 'videos'];
 const ONBOARDING_STORAGE_KEY = 'tube_vision_onboarding_completed_v2';
 const ONBOARDING_STEPS: TourStep[] = [
   {
@@ -198,21 +190,7 @@ export default function App() {
       label: 'Thumbnail Studio',
       icon: ImageIcon,
       section: 'studios',
-      summary: 'Audit poor thumbnails, auto-generate upgrade concepts, and apply upgrades.',
-    },
-    {
-      id: 'heatmap',
-      label: 'Heatmap Simulator',
-      icon: Eye,
-      section: 'studios',
-      summary: 'Analyze where viewers eyes land and optimize thumbnail layout for CTR.',
-    },
-    {
-      id: 'abtest',
-      label: 'A/B Testing',
-      icon: ShieldCheck,
-      section: 'studios',
-      summary: 'Upload two thumbnails and predict which one will drive more clicks.',
+      summary: 'Concept, heatmap simulation, A/B testing, and thumbnail optimization.',
     },
     {
       id: 'seo',
@@ -251,10 +229,10 @@ export default function App() {
     },
     {
       id: 'channel',
-      label: 'Channel Analysis',
+      label: 'Channel Analytics',
       icon: BarChart4,
       section: 'growth',
-      summary: 'Inspect growth trends with channel-level intelligence.',
+      summary: 'Channel insights, growth trends, and performance analysis.',
     },
     {
       id: 'coach',
@@ -272,10 +250,10 @@ export default function App() {
     },
     {
       id: 'competitors',
-      label: 'Competitor Analysis',
+      label: 'Competition & Network',
       icon: Users,
       section: 'growth',
-      summary: 'Reverse-engineer competitor wins and content patterns.',
+      summary: 'Analyze competitors, find collaborators, and draft outreach emails.',
     },
     {
       id: 'comments',
@@ -283,20 +261,6 @@ export default function App() {
       icon: MessageSquare,
       section: 'growth',
       summary: 'Analyze viewer comments to find requests, pain points, and content ideas.',
-    },
-    {
-      id: 'collaborators',
-      label: 'Collaboration Engine',
-      icon: Users,
-      section: 'growth',
-      summary: 'Find creators in your niche and draft personalized outreach emails.',
-    },
-    {
-      id: 'insights',
-      label: 'Channel Insights',
-      icon: LineChartIcon,
-      section: 'growth',
-      summary: 'Surface trends and opportunities from your performance data.',
     },
   ];
 
@@ -747,11 +711,7 @@ export default function App() {
           />
         );
       case 'thumbnail':
-        return <ThumbnailConcepting />;
-      case 'heatmap':
-        return <ThumbnailHeatmapSimulator />;
-      case 'abtest':
-        return <ThumbnailABTester />;
+        return <ThumbnailStudio />;
       case 'voiceover':
         return <VoiceOver />;
       case 'clips':
@@ -767,7 +727,7 @@ export default function App() {
           setIsSidebarOpen(false);
         }} />;
       case 'channel':
-        return <ChannelAnalysis />;
+        return <ChannelAnalytics />;
       case 'coach':
         return <AICoach 
           channelContext={user?.channel} 
@@ -783,13 +743,9 @@ export default function App() {
           }}
         />;
       case 'competitors':
-        return <CompetitorAnalysis />;
+        return <CompetitionNetwork />;
       case 'comments':
         return <CommentStrategist />;
-      case 'collaborators':
-        return <CollaborationEngine />;
-      case 'insights':
-        return <ChannelInsights />;
       default:
         return (
           <HomeDashboard
