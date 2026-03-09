@@ -10,6 +10,7 @@ import {
   getKeyFingerprint,
 } from '../lib/geminiKeyStorage';
 import { classifyGeminiError, getStatusMessage } from '../lib/geminiErrorClassifier';
+import { getModel } from '../lib/modelStorage';
 import { GoogleGenAI } from '@google/genai';
 
 type KeyStatus = 'none' | 'connected' | 'invalid_key' | 'rate_limited' | 'quota_exhausted' | 'testing';
@@ -88,10 +89,11 @@ export default function APIKeySettings() {
         throw new Error('No API key found');
       }
 
-      // Make a lightweight test request
+      // Make a lightweight test request using the general model
+      const modelId = getModel('general');
       const ai = new GoogleGenAI({ apiKey: key });
       await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: modelId,
         contents: 'Say "test successful" in exactly 2 words.',
         config: {
           maxOutputTokens: 10,
@@ -279,7 +281,7 @@ export default function APIKeySettings() {
             How to get a Gemini API key
           </a>
           <a
-            href="https://ai.google.dev/gemini-api/docs/quota-rate-limits"
+            href="https://ai.google.dev/pricing"
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-2 text-sm text-zinc-400 hover:text-indigo-400 transition-colors"
@@ -288,7 +290,7 @@ export default function APIKeySettings() {
             Understanding quotas and rate limits
           </a>
           <a
-            href="https://console.cloud.google.com/apis/api/generativelanguage.googleapis.com/quotas"
+            href="https://aistudio.google.com/app/billing/overview"
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-2 text-sm text-zinc-400 hover:text-indigo-400 transition-colors"

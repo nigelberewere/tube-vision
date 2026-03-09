@@ -91,6 +91,17 @@ async function getAIClient() {
   return new GoogleGenAI({ apiKey });
 }
 
+// Helper function to get model for voiceover functionality
+async function getVoiceOverModel(isTTS: boolean = false): Promise<string> {
+  const { getModel } = await import('../lib/modelStorage');
+  const modelId = getModel('voiceover');
+  // If TTS is required and the current model doesn't support it, fall back to TTS variant
+  if (isTTS && !modelId.includes('tts')) {
+    return 'gemini-2.5-flash-preview-tts';
+  }
+  return modelId;
+}
+
 export default function VoiceOver() {
   const [script, setScript] = useState('In a world where silence was the only currency, [Pause] one voice dared to speak... [Whispering] and it changed everything.');
   const [voice, setVoice] = useState(VOICES[0]);
@@ -165,8 +176,9 @@ export default function VoiceOver() {
     setPreviewingVoice(voiceName);
     try {
       const ai = await getAIClient();
+      const model = await getVoiceOverModel(true);
       const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash-preview-tts",
+        model,
         contents: [{ parts: [{ text: `Say cheerfully: Hi, I am ${voiceName}.` }] }],
         config: {
           responseModalities: [Modality.AUDIO],
@@ -229,8 +241,9 @@ export default function VoiceOver() {
     
     try {
       const ai = await getAIClient();
+      const model = await getVoiceOverModel(false);
       const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
+        model,
         contents: script,
         config: {
           systemInstruction: "Analyze this script and identify the most dramatic, emotional, tense, or expressive moments. Automatically wrap the text in appropriate expressive tags like [Whispering], [Serious], [Excited], [Sad], [Angry], [Happy], [Breath], or [Pause 1s] to enhance the vocal delivery. Return only the tagged script without any additional commentary."
@@ -256,9 +269,10 @@ export default function VoiceOver() {
     try {
       const ai = await getAIClient();
       const targetLang = LANGUAGES.find(l => l.code === targetLanguageCode);
+      const model = await getVoiceOverModel(false);
       
       const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
+        model,
         contents: script,
         config: {
           systemInstruction: `Translate this script from ${LANGUAGES.find(l => l.code === sourceLanguage)?.name} to ${targetLang?.name}. 
@@ -336,8 +350,9 @@ export default function VoiceOver() {
       
       Text: ${translation.translatedText}`;
       
+      const model = await getVoiceOverModel(true);
       const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash-preview-tts",
+        model,
         contents: [{ parts: [{ text: prompt }] }],
         config: {
           responseModalities: [Modality.AUDIO],
@@ -420,8 +435,9 @@ export default function VoiceOver() {
       const tagInstruction = " IMPORTANT: Bracketed tags like [Whisper], [Laugh], or [Sad] apply ONLY to the sentence or paragraph immediately following them. Return to normal speaking for subsequent sentences unless another tag is present.";
       const prompt = `Say expressively${instructions}.${tagInstruction} Text: ${script}`;
       
+      const model = await getVoiceOverModel(true);
       const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash-preview-tts",
+        model,
         contents: [{ parts: [{ text: prompt }] }],
         config: {
           responseModalities: [Modality.AUDIO],

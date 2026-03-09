@@ -103,12 +103,12 @@ interface TabConfig {
 }
 
 const CHANNEL_REQUIRED_TABS: Tab[] = ['channel', 'competitors', 'insights', 'videos'];
-const ONBOARDING_STORAGE_KEY = 'tube_vision_onboarding_completed_v1';
+const ONBOARDING_STORAGE_KEY = 'tube_vision_onboarding_completed_v2';
 const ONBOARDING_STEPS: TourStep[] = [
   {
     targetId: 'tour-home-tab',
     title: 'Home Starts Here',
-    description: 'This is your dashboard command center where your daily channel metrics and momentum are tracked.',
+    description: 'This is your command center for daily channel pulse, recent performance, and momentum.',
     focusTab: 'home',
   },
   {
@@ -124,12 +124,13 @@ const ONBOARDING_STEPS: TourStep[] = [
   {
     targetId: 'tour-account-entry',
     title: 'Your Channel Identity',
-    description: 'Connect, switch, or manage channel accounts from here so data and actions stay personalized.',
+    description: 'Connect or switch YouTube channels here so analysis and automation run on the right account.',
   },
   {
-    targetId: 'tour-settings-entry',
-    title: 'Settings & Theme',
-    description: 'Click your account in the bottom-left corner, then open Settings to switch dark/light mode.',
+    targetId: 'tour-settings-tab',
+    title: 'Settings, Brand, and API Keys',
+    description: 'Use Settings to manage appearance, brand kit assets, and API Keys for BYOK AI features.',
+    focusTab: 'settings',
   },
 ];
 
@@ -388,11 +389,7 @@ export default function App() {
       setActiveTab(step.focusTab);
     }
 
-    if (step?.targetId === 'tour-settings-entry' && user) {
-      setIsProfileMenuOpen(true);
-    } else {
-      setIsProfileMenuOpen(false);
-    }
+    setIsProfileMenuOpen(false);
 
     if (window.innerWidth < 1024) {
       setIsSidebarOpen(true);
@@ -799,7 +796,13 @@ export default function App() {
               return (
                 <button
                   key={tab.id}
-                  data-tour-id={tab.id === 'home' ? 'tour-home-tab' : undefined}
+                  data-tour-id={
+                    tab.id === 'home'
+                      ? 'tour-home-tab'
+                      : tab.id === 'settings'
+                        ? 'tour-settings-tab'
+                        : undefined
+                  }
                   onClick={() => {
                     setActiveTab(tab.id);
                     setIsSidebarOpen(false);
@@ -1119,6 +1122,7 @@ export default function App() {
         steps={ONBOARDING_STEPS}
         onNext={handleOnboardingNext}
         onSkip={handleOnboardingSkip}
+        theme={theme}
       />
     </div>
   );

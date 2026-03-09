@@ -1,6 +1,7 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { loadGeminiKey, recordAPIRequest, recordAPIError, redactKey } from "../lib/geminiKeyStorage";
 import { classifyGeminiError } from "../lib/geminiErrorClassifier";
+import { getModel, type Functionality } from "../lib/modelStorage";
 
 async function getAIClient() {
   const apiKey = await loadGeminiKey();
@@ -29,6 +30,7 @@ If a user provides a transcript or a link, prioritize the unique "hook" of their
 interface GenerateInsightOptions {
   systemInstruction?: string;
   model?: string;
+  functionality?: Functionality;
   imageBase64?: string;
   imageMediaType?: string;
 }
@@ -36,6 +38,10 @@ interface GenerateInsightOptions {
 export async function generateVidVisionInsight(prompt: string, responseSchema?: any, options?: GenerateInsightOptions) {
   try {
     const ai = await getAIClient();
+
+    // Use provided model, or get from preferences based on functionality, or default
+    const model = options?.model || 
+      (options?.functionality ? getModel(options.functionality) : "gemini-2.5-flash");
 
     const config: any = {
       systemInstruction: options?.systemInstruction || SYSTEM_INSTRUCTION,
@@ -68,7 +74,7 @@ export async function generateVidVisionInsight(prompt: string, responseSchema?: 
     recordAPIRequest();
 
     const response = await ai.models.generateContent({
-      model: options?.model || "gemini-2.5-flash",
+      model,
       contents,
       config,
     });

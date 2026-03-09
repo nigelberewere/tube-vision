@@ -440,6 +440,7 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
     // Import BYOK utilities dynamically to avoid circular dependencies
     const { loadGeminiKey, recordAPIRequest, recordAPIError } = await import('../lib/geminiKeyStorage');
     const { classifyGeminiError } = await import('../lib/geminiErrorClassifier');
+    const { getModel } = await import('../lib/modelStorage');
 
     try {
       
@@ -449,6 +450,7 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
       }
 
       const ai = new GoogleGenAI({ apiKey });
+      const modelId = getModel('aicoach');
       
       if (!chatRef.current) {
         const systemInstruction = `You are a world-class YouTube Growth Coach. Your goal is to help creators grow their channels through data-driven strategies, high-retention storytelling, and SEO optimization.
@@ -467,7 +469,7 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
         Keep your tone encouraging, professional, and actionable. Use Markdown for formatting.`;
 
         chatRef.current = ai.chats.create({
-          model: "gemini-2.5-flash",
+          model: modelId,
           config: {
             systemInstruction,
           },
