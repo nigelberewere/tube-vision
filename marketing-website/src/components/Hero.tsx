@@ -29,7 +29,7 @@ export function Hero({ isDark, onConnect }: HeroProps) {
             )}
           >
             <Sparkles className="h-3.5 w-3.5 text-indigo-500" />
-            AI-first workflow for YouTube growth
+            new heights everyday
           </span>
 
           <div className="space-y-4">
