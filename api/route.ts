@@ -405,6 +405,63 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.json({ url });
   }
 
+  // OAuth entry point for marketing site and direct YouTube auth flow
+  if (path === 'auth/youtube') {
+    console.log(`[YouTube Auth Entry] Initiating OAuth flow`);
+    
+    if (OAUTH_MISSING_VARS.length > 0) {
+      console.error(`[Auth Error] Missing OAuth vars: ${OAUTH_MISSING_VARS.join(', ')}`);
+      return res.status(500).send(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>Configuration Error</title>
+            <style>
+              body {
+                font-family: system-ui, sans-serif;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                min-height: 100vh;
+                margin: 0;
+                background: #f5f5f5;
+              }
+              .container {
+                background: white;
+                padding: 32px;
+                border-radius: 8px;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+                max-width: 500px;
+                text-align: center;
+              }
+              h1 { color: #d32f2f; margin: 0 0 16px 0; }
+              p { color: #666; margin: 0; }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <h1>Configuration Error</h1>
+              <p>Google OAuth credentials are not configured. Please set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET.</p>
+            </div>
+          </body>
+        </html>
+      `);
+    }
+
+    const url = oauth2Client.generateAuthUrl({
+      access_type: 'offline',
+      scope: [
+        'https://www.googleapis.com/auth/youtube.readonly',
+        'https://www.googleapis.com/auth/yt-analytics.readonly',
+        'https://www.googleapis.com/auth/userinfo.profile',
+      ],
+      prompt: 'consent',
+    });
+    
+    console.log(`[YouTube Auth Entry] Redirecting to Google OAuth`);
+    return res.redirect(307, url);
+  }
+
   // OAuth callback
   if (path === 'auth/google/callback' || path === 'api/auth/google/callback') {
     const { code } = req.query;

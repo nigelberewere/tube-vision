@@ -550,6 +550,63 @@ For every video provided, evaluate segments based on:
     res.json({ url });
   });
 
+  // OAuth entry point for marketing site and direct YouTube auth flow
+  app.get("/auth/youtube", (req, res) => {
+    console.log(`[YouTube Auth Entry] Initiating OAuth flow`);
+    
+    if (OAUTH_MISSING_VARS.length > 0) {
+      console.error(`[Auth Error] Missing OAuth vars: ${OAUTH_MISSING_VARS.join(", ")}`);
+      return res.status(500).send(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>Configuration Error</title>
+            <style>
+              body {
+                font-family: system-ui, sans-serif;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                min-height: 100vh;
+                margin: 0;
+                background: #f5f5f5;
+              }
+              .container {
+                background: white;
+                padding: 32px;
+                border-radius: 8px;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+                max-width: 500px;
+                text-align: center;
+              }
+              h1 { color: #d32f2f; margin: 0 0 16px 0; }
+              p { color: #666; margin: 0; }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <h1>Configuration Error</h1>
+              <p>Google OAuth credentials are not configured. Please set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET.</p>
+            </div>
+          </body>
+        </html>
+      `);
+    }
+
+    const url = oauth2Client.generateAuthUrl({
+      access_type: "offline",
+      scope: [
+        "https://www.googleapis.com/auth/youtube.readonly",
+        "https://www.googleapis.com/auth/yt-analytics.readonly",
+        "https://www.googleapis.com/auth/userinfo.profile",
+      ],
+      prompt: "consent",
+    });
+    
+    console.log(`[YouTube Auth Entry] Redirecting to Google OAuth`);
+    res.redirect(url);
+  });
+
   app.get(["/auth/google/callback", "/api/auth/google/callback"], async (req, res) => {
     const { code } = req.query;
 
