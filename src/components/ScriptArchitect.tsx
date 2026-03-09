@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { generateVidVisionInsight } from '../services/geminiService';
 import { Type } from '@google/genai';
-import { Loader2, PenTool, Copy, Check } from 'lucide-react';
+import { Loader2, PenTool, Copy, Check, AlertTriangle, Eye, Zap, TrendingDown } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 interface ScriptArchitectProps {
@@ -28,6 +28,22 @@ interface ScriptResult {
   bodyParagraphs: ScriptBodyParagraph[];
   cta: string;
   outro: string;
+}
+
+interface RetentionIssue {
+  section: string;
+  issueType: 'too_long' | 'no_hook' | 'monotonous' | 'lacks_visual_change' | 'complex_language';
+  severity: number; // 1-10
+  description: string;
+  suggestion: string;
+  insertAt?: string;
+}
+
+interface RetentionAnalysis {
+  overallScore: number;
+  issues: RetentionIssue[];
+  strengths: string[];
+  summary: string;
 }
 
 const DEFAULT_TOPIC_PLACEHOLDER = 'e.g., The history of mechanical keyboards';
@@ -135,6 +151,11 @@ export default function ScriptArchitect({ initialTopic, onTopicUsed, channelCont
   const [generationError, setGenerationError] = useState<string | null>(null);
   const [generatedConfig, setGeneratedConfig] = useState<{ videoFormat: VideoFormat; targetLength: string } | null>(null);
   const [copied, setCopied] = useState(false);
+
+  // Retention Doctor state
+  const [retentionAnalysis, setRetentionAnalysis] = useState<RetentionAnalysis | null>(null);
+  const [analyzingRetention, setAnalyzingRetention] = useState(false);
+  const [retentionError, setRetentionError] = useState<string | null>(null);
 
   const connectedChannelName = String(channelContext?.title || '').trim();
 

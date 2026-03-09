@@ -17,6 +17,8 @@ import {
   Play,
   Mic,
   Settings2,
+  Share2,
+  MessageSquare,
 } from 'lucide-react';
 import { cn } from './lib/utils';
 import SEOOptimizer from './components/SEOOptimizer';
@@ -33,6 +35,8 @@ import ChannelInsights from './components/ChannelInsights';
 import VideoList from './components/VideoList';
 import VoiceOver from './components/VoiceOver';
 import ViralClipExtractor from './components/ViralClipExtractor.tsx';
+import ContentRepurposer from './components/ContentRepurposer';
+import CommentStrategist from './components/CommentStrategist';
 import OnboardingTour, { type OnboardingStep } from './components/OnboardingTour';
 import SettingsPanel from './components/SettingsPanel';
 import YouTubeShortsIcon from './components/icons/YouTubeShortsIcon';
@@ -54,6 +58,8 @@ type Tab =
   | 'videos'
   | 'voiceover'
   | 'clips'
+  | 'repurpose'
+  | 'comments'
   | 'settings';
 
 type Theme = 'dark' | 'light';
@@ -170,6 +176,13 @@ export default function App() {
       summary: 'Create Shorts from your long-form videos and remix top niche performers.',
     },
     {
+      id: 'repurpose',
+      label: 'Content Repurposer',
+      icon: Share2,
+      section: 'studios',
+      summary: 'Transform scripts into Twitter threads, LinkedIn posts, and blog articles.',
+    },
+    {
       id: 'thumbnail',
       label: 'Thumbnail Studio',
       icon: ImageIcon,
@@ -238,6 +251,13 @@ export default function App() {
       icon: Users,
       section: 'growth',
       summary: 'Reverse-engineer competitor wins and content patterns.',
+    },
+    {
+      id: 'comments',
+      label: 'Comment Strategist',
+      icon: MessageSquare,
+      section: 'growth',
+      summary: 'Analyze viewer comments to find requests, pain points, and content ideas.',
     },
     {
       id: 'insights',
@@ -651,6 +671,8 @@ export default function App() {
         return <VoiceOver />;
       case 'clips':
         return <ViralClipExtractor />;
+      case 'repurpose':
+        return <ContentRepurposer />;
       case 'settings':
         return <SettingsPanel theme={theme} onThemeChange={setTheme} />;
       case 'videos':
@@ -677,6 +699,8 @@ export default function App() {
         />;
       case 'competitors':
         return <CompetitorAnalysis />;
+      case 'comments':
+        return <CommentStrategist />;
       case 'insights':
         return <ChannelInsights />;
       default:
