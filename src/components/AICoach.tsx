@@ -719,51 +719,55 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
 
       <div className="flex-1 bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden flex flex-col shadow-2xl">
         {/* Chat Header */}
-        <div className="px-6 py-4 border-b border-zinc-800 bg-zinc-900/50 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-indigo-500/20 flex items-center justify-center text-indigo-400">
-            <Bot size={24} />
+        <div className="px-4 md:px-6 py-3 md:py-4 border-b border-zinc-800 bg-zinc-900/50 flex items-center gap-2 md:gap-3">
+          <div className="w-8 md:w-10 h-8 md:h-10 rounded-full bg-indigo-500/20 flex items-center justify-center text-indigo-400 flex-shrink-0">
+            <Bot size={20} />
           </div>
-          <div>
-            <h2 className="text-sm font-bold text-zinc-100">{activeConversation?.title || 'Janso'}</h2>
+          <div className="min-w-0">
+            <h2 className="text-xs md:text-sm font-bold text-zinc-100 truncate">{activeConversation?.title || 'Janso'}</h2>
             <div className="flex items-center gap-1.5">
-              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
-              <span className="text-[10px] font-medium text-zinc-500 uppercase tracking-wider">Online & Ready</span>
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse flex-shrink-0"></div>
+              <span className="text-[9px] md:text-[10px] font-medium text-zinc-500 uppercase tracking-wider">Online</span>
             </div>
           </div>
-          <div className="ml-auto flex items-center gap-2">
+          <div className="ml-auto flex items-center gap-1 md:gap-2 flex-shrink-0">
             <button
               onClick={startNewConversation}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-zinc-300 bg-zinc-800 hover:bg-zinc-700 rounded-lg transition-colors"
+              title="New Chat"
+              className="inline-flex items-center gap-1 md:gap-1.5 px-2 md:px-3 py-1.5 text-[10px] md:text-xs font-medium text-zinc-300 bg-zinc-800 hover:bg-zinc-700 rounded-lg transition-colors"
             >
-              <Plus size={14} />
-              New Chat
+              <Plus size={12} className="md:hidden" />
+              <Plus size={14} className="hidden md:block" />
+              <span className="hidden sm:inline">New</span>
             </button>
             <button
               onClick={() => setHistoryOpen((prev) => !prev)}
+              title={historyOpen ? "Close history" : "Open history"}
               className={cn(
-                'inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors',
+                'inline-flex items-center gap-1 md:gap-1.5 px-2 md:px-3 py-1.5 text-[10px] md:text-xs font-medium rounded-lg transition-colors',
                 historyOpen
                   ? 'bg-indigo-600 text-white'
                   : 'text-zinc-300 bg-zinc-800 hover:bg-zinc-700',
               )}
             >
-              <History size={14} />
-              History ({conversations.length})
+              <History size={12} className="md:hidden" />
+              <History size={14} className="hidden md:block" />
+              <span className="hidden sm:inline">({conversations.length})</span>
             </button>
           </div>
         </div>
 
         {historyOpen && (
-          <div className="px-4 py-3 border-b border-zinc-800 bg-zinc-950/60 max-h-56 overflow-y-auto">
+          <div className="px-3 md:px-4 py-2 md:py-3 border-b border-zinc-800 bg-zinc-950/60 max-h-48 md:max-h-56 overflow-y-auto">
             {conversations.length === 0 ? (
               <p className="text-xs text-zinc-500">No saved conversations yet.</p>
             ) : (
-              <div className="space-y-2">
+              <div className="space-y-1 md:space-y-2">
                 {conversations.map((conversation) => (
                   <div
                     key={conversation.id}
                     className={cn(
-                      'flex items-start gap-2 rounded-lg border px-2 py-2',
+                      'flex items-start gap-2 rounded-lg border px-2 py-1.5 md:py-2',
                       conversation.id === activeConversationId
                         ? 'border-indigo-500/60 bg-indigo-500/10'
                         : 'border-zinc-800 bg-zinc-900/60',
@@ -773,17 +777,18 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
                       onClick={() => openConversation(conversation.id)}
                       className="flex-1 text-left min-w-0"
                     >
-                      <p className="text-xs font-medium text-zinc-200 truncate">{conversation.title}</p>
-                      <p className="text-[11px] text-zinc-500 mt-0.5">
-                        {formatRelativeTime(conversation.updatedAt)} • {Math.max(conversation.messages.length - 1, 0)} messages
+                      <p className="text-xs md:text-xs font-medium text-zinc-200 truncate">{conversation.title}</p>
+                      <p className="text-[10px] md:text-[11px] text-zinc-500 mt-0.5">
+                        {formatRelativeTime(conversation.updatedAt)} • {Math.max(conversation.messages.length - 1, 0)} msgs
                       </p>
                     </button>
                     <button
                       onClick={() => deleteConversation(conversation.id)}
-                      className="p-1.5 text-zinc-500 hover:text-rose-400 transition-colors"
+                      className="p-1 text-zinc-500 hover:text-rose-400 transition-colors flex-shrink-0"
                       aria-label="Delete conversation"
                     >
-                      <Trash2 size={14} />
+                      <Trash2 size={12} className="md:hidden" />
+                      <Trash2 size={14} className="hidden md:block" />
                     </button>
                   </div>
                 ))}
@@ -795,13 +800,13 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
         {/* Messages */}
         <div 
           ref={scrollRef}
-          className="flex-1 overflow-y-auto p-6 space-y-6 scroll-smooth"
+          className="flex-1 overflow-y-auto p-3 md:p-6 space-y-4 md:space-y-6 scroll-smooth"
         >
           {messages.map((msg, i) => (
             <div 
               key={i} 
               className={cn(
-                "flex gap-4 max-w-[85%]",
+                "flex gap-2 md:gap-4 max-w-full md:max-w-[85%]",
                 msg.role === 'user' ? "ml-auto flex-row-reverse" : "mr-auto"
               )}
             >
@@ -810,21 +815,23 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
                   <img
                     src={userProfile?.picture || channelContext?.thumbnails?.default?.url}
                     alt={userProfile?.name || channelContext?.title || 'User'}
-                    className="w-8 h-8 rounded-full flex-shrink-0 border border-zinc-700 object-cover"
+                    className="w-6 md:w-8 h-6 md:h-8 rounded-full flex-shrink-0 border border-zinc-700 object-cover"
                     referrerPolicy="no-referrer"
                   />
                 ) : (
-                  <div className="w-8 h-8 rounded-full flex-shrink-0 bg-zinc-800 text-zinc-400 flex items-center justify-center">
-                    <UserIcon size={16} />
+                  <div className="w-6 md:w-8 h-6 md:h-8 rounded-full flex-shrink-0 bg-zinc-800 text-zinc-400 flex items-center justify-center flex-shrink-0">
+                    <UserIcon size={12} className="md:hidden" />
+                    <UserIcon size={16} className="hidden md:block" />
                   </div>
                 )
               ) : (
-                <div className="w-8 h-8 rounded-full flex-shrink-0 bg-indigo-500 text-white flex items-center justify-center">
-                  <Bot size={16} />
+                <div className="w-6 md:w-8 h-6 md:h-8 rounded-full flex-shrink-0 bg-indigo-500 text-white flex items-center justify-center flex-shrink-0">
+                  <Bot size={12} className="md:hidden" />
+                  <Bot size={16} className="hidden md:block" />
                 </div>
               )}
               <div className={cn(
-                "rounded-2xl px-4 py-3 text-sm leading-relaxed",
+                "rounded-2xl px-3 md:px-4 py-2 md:py-3 text-xs md:text-sm leading-relaxed",
                 msg.role === 'user' 
                   ? "bg-zinc-800 text-zinc-100 rounded-tr-none" 
                   : "bg-zinc-950 border border-zinc-800 text-zinc-300 rounded-tl-none markdown-body"
@@ -834,13 +841,15 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
             </div>
           ))}
           {loading && (
-            <div className="flex gap-4 mr-auto max-w-[85%]">
-              <div className="w-8 h-8 rounded-full bg-indigo-500 text-white flex items-center justify-center">
-                <Bot size={16} />
+            <div className="flex gap-2 md:gap-4 mr-auto max-w-full md:max-w-[85%]">
+              <div className="w-6 md:w-8 h-6 md:h-8 rounded-full bg-indigo-500 text-white flex items-center justify-center flex-shrink-0">
+                <Bot size={12} className="md:hidden" />
+                <Bot size={16} className="hidden md:block" />
               </div>
-              <div className="bg-zinc-950 border border-zinc-800 rounded-2xl rounded-tl-none px-4 py-3 flex items-center gap-2">
-                <Loader2 size={16} className="animate-spin text-indigo-400" />
-                <span className="text-xs text-zinc-500 font-medium italic">Janso is thinking...</span>
+              <div className="bg-zinc-950 border border-zinc-800 rounded-2xl rounded-tl-none px-3 md:px-4 py-2 md:py-3 flex items-center gap-2">
+                <Loader2 size={14} className="animate-spin text-indigo-400 md:hidden" />
+                <Loader2 size={16} className="animate-spin text-indigo-400 hidden md:block" />
+                <span className="text-[10px] md:text-xs text-zinc-500 font-medium italic">Janso is thinking...</span>
               </div>
             </div>
           )}
@@ -848,43 +857,46 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
 
         {/* Quick Prompts */}
         {messages.length === 1 && (
-          <div className="px-6 pb-4 flex flex-wrap gap-2">
+          <div className="px-3 md:px-6 pb-3 md:pb-4 flex flex-wrap gap-1.5 md:gap-2">
             {quickPrompts.map((p, i) => (
               <button
                 key={i}
                 onClick={() => {
                   setInput(p.label);
                 }}
-                className="flex items-center gap-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-3 py-1.5 rounded-full text-xs font-medium transition-colors"
+                className="flex items-center gap-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-2 md:px-3 py-1 md:py-1.5 rounded-full text-[10px] md:text-xs font-medium transition-colors"
               >
-                <p.icon size={14} className="text-indigo-400" />
-                {p.label}
+                <p.icon size={12} className="text-indigo-400 md:hidden" />
+                <p.icon size={14} className="text-indigo-400 hidden md:block" />
+                <span className="hidden sm:inline">{p.label}</span>
               </button>
             ))}
           </div>
         )}
 
         {/* Input */}
-        <div className="p-4 bg-zinc-900/50 border-t border-zinc-800">
-          <div className="relative flex items-center">
+        <div className="p-3 md:p-4 bg-zinc-900/50 border-t border-zinc-800">
+          <div className="relative flex items-center gap-2 md:gap-0">
             <input
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-              placeholder="Ask Janso anything..."
-              className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-4 pr-12 py-3 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all"
+              placeholder="Ask Janso..."
+              className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-3 md:pl-4 pr-10 md:pr-12 py-2 md:py-3 text-xs md:text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all"
             />
             <button
               onClick={handleSend}
               disabled={!input.trim() || loading}
-              className="absolute right-2 p-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+              className="absolute right-2 p-1.5 md:p-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-colors flex-shrink-0"
+              title="Send message"
             >
-              <Send size={18} />
+              <Send size={14} className="md:hidden" />
+              <Send size={18} className="hidden md:block" />
             </button>
           </div>
-          <p className="text-[10px] text-zinc-500 mt-2 text-center">
-            Powered by Gemini 2.5 Flash • Actionable strategies for YouTube growth
+          <p className="text-[8px] md:text-[10px] text-zinc-500 mt-1.5 md:mt-2 text-center">
+            Powered by Gemini 2.5 Flash • YouTube Growth Coach
           </p>
         </div>
       </div>

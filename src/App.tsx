@@ -456,10 +456,23 @@ export default function App() {
         return;
       }
 
-      // Check if this is iOS Safari - these don't support popups reliably
-      const isIosSafari = /iPad|iPhone|iPod/.test(navigator.userAgent) && 
-                          !navigator.userAgent.includes('Chrome') &&
-                          !navigator.userAgent.includes('Firefox');
+      // Check if this is iOS/iPadOS Safari - these don't support popups reliably
+      // Check for Safari on iOS/iPadOS using multiple indicators since user agents vary
+      const ua = navigator.userAgent;
+      const isSafari = /Safari/.test(ua) && !/Chrome|Firefox|Chromium|Edg/.test(ua);
+      const isIos = /iPhone|iPad|iPod|iOS|Mac OS X.*Safari/.test(ua);
+      const isTouchDevice = () => {
+        try {
+          return (('ontouchstart' in window) ||
+                  (navigator.maxTouchPoints > 0));
+        } catch (e) {
+          return false;
+        }
+      };
+      
+      const isIosSafari = isSafari && (isIos || isTouchDevice());
+
+      console.log('[Connect] Browser detection - Safari:', isSafari, 'iOS:', isIos, 'TouchDevice:', isTouchDevice(), 'Result:', isIosSafari);
 
       if (isIosSafari) {
         // On iOS Safari, use full page redirect instead of popup
@@ -473,7 +486,9 @@ export default function App() {
       
       if (!popup) {
         console.error('[Connect Error] Popup blocked or could not open');
-        alert('Popup was blocked. Please allow popups and try again, or try on a desktop browser.');
+        // Fallback: if popup is blocked, try a redirect
+        console.log('[Connect] Fallback: Using redirect instead of popup');
+        window.location.href = data.url;
         return;
       }
 
@@ -786,24 +801,25 @@ export default function App() {
 
       <aside
         className={cn(
-          'fixed inset-y-0 left-0 z-40 w-72 border-r transform transition-transform duration-200 ease-in-out lg:translate-x-0 lg:static lg:block flex flex-col',
+          'fixed inset-y-0 left-0 z-40 w-64 sm:w-72 border-r transform transition-transform duration-200 ease-in-out lg:translate-x-0 lg:static lg:block flex flex-col',
           theme === 'light' ? 'bg-slate-50 border-slate-200' : 'bg-[#0a0a0a] border-white/10',
           isSidebarOpen ? 'translate-x-0' : '-translate-x-full',
         )}
       >
-        <div className="flex items-center gap-2 px-6 py-6 border-b border-white/10">
-          <div className="w-8 h-8 rounded-lg bg-white/10 border border-white/20 flex items-center justify-center">
-            <Youtube size={20} className="text-white" />
+        <div className="flex items-center gap-2 px-4 sm:px-6 py-4 sm:py-6 border-b border-white/10">
+          <div className="w-8 h-8 rounded-lg bg-white/10 border border-white/20 flex items-center justify-center flex-shrink-0">
+            <Youtube size={18} className="sm:block hidden" />
+            <Youtube size={16} className="sm:hidden" />
           </div>
-          <div>
-            <p className="text-base font-bold tracking-tight text-white">Tube Vision</p>
-            <p className="text-[10px] uppercase tracking-[0.22em] text-slate-500">Neural Interface</p>
+          <div className="min-w-0">
+            <p className="text-sm sm:text-base font-bold tracking-tight text-white">Tube Vision</p>
+            <p className="text-[9px] sm:text-[10px] uppercase tracking-[0.22em] text-slate-500">Neural Interface</p>
           </div>
         </div>
 
-        <nav className="p-4 space-y-5 flex-1 overflow-y-auto">
+        <nav className="p-2 sm:p-4 space-y-4 sm:space-y-5 flex-1 overflow-y-auto">
           <div className="space-y-1">
-            <p className="px-2 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">Overview</p>
+            <p className="px-2 text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">Overview</p>
             {overviewTabs.map((tab) => {
               const Icon = tab.icon;
               return (
@@ -821,21 +837,22 @@ export default function App() {
                     setIsSidebarOpen(false);
                   }}
                   className={cn(
-                    'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors border',
+                    'w-full flex items-center gap-2 sm:gap-3 px-2 sm:px-3 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-colors border',
                     activeTab === tab.id
                       ? 'bg-white/10 text-white border-white/20'
                       : 'text-slate-300 border-transparent hover:bg-white/5 hover:border-white/10',
                   )}
                 >
-                  <Icon size={18} />
-                  {tab.label}
+                  <Icon size={16} className="sm:hidden flex-shrink-0" />
+                  <Icon size={18} className="hidden sm:block flex-shrink-0" />
+                  <span className="min-w-0">{tab.label}</span>
                 </button>
               );
             })}
           </div>
 
           <div className="space-y-1" data-tour-id="tour-studios-section">
-            <p className="px-2 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">Studios</p>
+            <p className="px-2 text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">Studios</p>
             {studioTabs.map((tab) => {
               const Icon = tab.icon;
               const iconColor = 
@@ -851,21 +868,22 @@ export default function App() {
                     setIsSidebarOpen(false);
                   }}
                   className={cn(
-                    'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors border',
+                    'w-full flex items-center gap-2 sm:gap-3 px-2 sm:px-3 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-colors border',
                     activeTab === tab.id
                       ? 'bg-white/10 text-white border-white/20'
                       : 'text-slate-300 border-transparent hover:bg-white/5 hover:border-white/10',
                   )}
                 >
-                  <Icon size={18} className={iconColor} />
-                  {tab.label}
+                  <Icon size={16} className={`sm:hidden flex-shrink-0 ${iconColor}`} />
+                  <Icon size={18} className={`hidden sm:block flex-shrink-0 ${iconColor}`} />
+                  <span className="min-w-0">{tab.label}</span>
                 </button>
               );
             })}
           </div>
 
           <div className="space-y-1" data-tour-id="tour-growth-section">
-            <p className="px-2 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">Growth OS</p>
+            <p className="px-2 text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">Growth OS</p>
             {growthTabs.map((tab) => {
               const Icon = tab.icon;
               return (
@@ -876,14 +894,15 @@ export default function App() {
                     setIsSidebarOpen(false);
                   }}
                   className={cn(
-                    'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors border',
+                    'w-full flex items-center gap-2 sm:gap-3 px-2 sm:px-3 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-colors border',
                     activeTab === tab.id
                       ? 'bg-white/10 text-white border-white/20'
                       : 'text-slate-400 border-transparent hover:bg-white/5 hover:text-slate-200 hover:border-white/10',
                   )}
                 >
-                  <Icon size={18} />
-                  {tab.label}
+                  <Icon size={16} className="sm:hidden flex-shrink-0" />
+                  <Icon size={18} className="hidden sm:block flex-shrink-0" />
+                  <span className="min-w-0">{tab.label}</span>
                 </button>
               );
             })}
@@ -1058,23 +1077,23 @@ export default function App() {
               <button
                 data-tour-id="tour-account-entry"
                 onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
-                className="w-full flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-white/5 transition-colors group"
+                className="w-full flex items-center gap-2 sm:gap-3 px-2 py-2 rounded-lg hover:bg-white/5 transition-colors group"
               >
                 <img
                   src={user.channel?.thumbnails?.default?.url || user.picture}
                   alt={user.name}
-                  className="w-10 h-10 rounded-full border border-white/20 group-hover:border-white/40 transition-colors"
+                  className="w-8 sm:w-10 h-8 sm:h-10 rounded-full border border-white/20 group-hover:border-white/40 transition-colors flex-shrink-0"
                   referrerPolicy="no-referrer"
                 />
-                <div className="flex-1 min-w-0 text-left">
-                  <p className="text-sm font-semibold text-white truncate group-hover:text-slate-100">
+                <div className="flex-1 min-w-0 text-left hidden sm:block">
+                  <p className="text-xs sm:text-sm font-semibold text-white truncate group-hover:text-slate-100">
                     {user.channel?.title || user.name}
                   </p>
-                  <p className="text-xs text-slate-400 truncate group-hover:text-slate-300">
+                  <p className="text-[10px] sm:text-xs text-slate-400 truncate group-hover:text-slate-300">
                     {user.channel ? `${Number(user.channel.statistics.subscriberCount).toLocaleString()} subscribers` : 'No channel found'}
                   </p>
                 </div>
-                <Menu size={16} className="text-slate-500 group-hover:text-slate-300 transition-colors" />
+                <Menu size={16} className="text-slate-500 group-hover:text-slate-300 transition-colors flex-shrink-0 sm:ml-auto" />
               </button>
             </div>
           ) : (
@@ -1091,13 +1110,13 @@ export default function App() {
       </aside>
 
       <main className={cn('flex-1 overflow-y-auto transition-colors', theme === 'light' ? 'bg-slate-100' : 'bg-[#050505]')}>
-        <div className="max-w-6xl mx-auto p-6 lg:p-10">
-          <div className="mb-8 rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl p-6">
+        <div className="max-w-6xl mx-auto p-3 sm:p-6 lg:p-10">
+          <div className="mb-6 sm:mb-8 rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl p-4 sm:p-6">
             <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-              <div>
-                <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Active Workspace</p>
-                <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-white mt-1">{activeTabConfig.label}</h1>
-                <p className="text-sm text-slate-400 mt-2 max-w-3xl">{activeTabConfig.summary}</p>
+              <div className="min-w-0">
+                <p className="text-[10px] sm:text-xs uppercase tracking-[0.2em] text-slate-500">Active Workspace</p>
+                <h1 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight text-white mt-1">{activeTabConfig.label}</h1>
+                <p className="text-xs sm:text-sm text-slate-400 mt-1 md:mt-2 max-w-3xl">{activeTabConfig.summary}</p>
               </div>
             </div>
           </div>
@@ -1105,22 +1124,24 @@ export default function App() {
           {renderSectionHelper()}
 
           {!user && !loadingUser && !requiresChannelConnection && activeTab !== 'home' && (
-            <div className="mb-8 bg-white/[0.04] border border-white/15 rounded-2xl p-6 flex flex-col md:flex-row items-center gap-6">
-              <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center text-slate-200 flex-shrink-0">
-                <ShieldCheck size={24} />
+            <div className="mb-6 sm:mb-8 bg-white/[0.04] border border-white/15 rounded-2xl p-4 sm:p-6 flex flex-col md:flex-row items-start sm:items-center gap-4 sm:gap-6">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white/10 flex items-center justify-center text-slate-200 flex-shrink-0">
+                <ShieldCheck size={20} className="sm:hidden" />
+                <ShieldCheck size={24} className="hidden sm:block" />
               </div>
-              <div className="flex-1 text-center md:text-left">
-                <h3 className="text-lg font-bold text-white">Connect your channel for better insights</h3>
-                <p className="text-sm text-slate-400 mt-1">
+              <div className="flex-1 text-left">
+                <h3 className="text-base sm:text-lg font-bold text-white">Connect your channel for better insights</h3>
+                <p className="text-xs sm:text-sm text-slate-400 mt-1">
                   Tube Vision works best when it can analyze your real channel data. Connect your YouTube account to unlock personalized growth strategies.
                 </p>
               </div>
               <button
                 onClick={handleConnect}
-                className="whitespace-nowrap bg-white hover:bg-slate-200 text-black px-6 py-2.5 rounded-xl font-bold text-sm transition-all inline-flex items-center gap-2"
+                className="whitespace-nowrap bg-white hover:bg-slate-200 text-black px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all inline-flex items-center gap-2 flex-shrink-0"
               >
-                <YouTubeLogoIcon size={16} />
-                Get Started
+                <YouTubeLogoIcon size={14} className="sm:hidden" />
+                <YouTubeLogoIcon size={16} className="hidden sm:block" />
+                <span>Get Started</span>
               </button>
             </div>
           )}

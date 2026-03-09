@@ -516,36 +516,36 @@ export default function VoiceOver() {
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="glass-card rounded-3xl overflow-hidden relative min-h-[400px] flex flex-col backdrop-blur-xl bg-white/5 border border-white/10"
+        className="glass-card rounded-2xl sm:rounded-3xl overflow-hidden relative min-h-[300px] sm:min-h-[400px] flex flex-col backdrop-blur-xl bg-white/5 border border-white/10"
       >
         {/* Background subtle gradient for hero feel */}
         <div className="absolute inset-0 bg-gradient-to-br from-blue-900/5 to-indigo-900/5 pointer-events-none"></div>
         
-        <div className="relative z-10 p-8 flex-1 flex flex-col">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold text-white tracking-tight">
+        <div className="relative z-10 p-4 sm:p-8 flex-1 flex flex-col">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0 mb-4 sm:mb-6">
+            <h2 className="text-lg sm:text-2xl font-bold text-white tracking-tight">
               Script Editor
             </h2>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 sm:gap-3">
               <motion.button 
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => setScript('')}
                 disabled={!script.trim()}
-                className="text-xs font-medium text-slate-400 hover:text-white px-3 py-2 rounded-xl flex items-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed bg-white/5 hover:bg-white/10"
+                className="text-[10px] sm:text-xs font-medium text-slate-400 hover:text-white px-2 sm:px-3 py-1.5 sm:py-2 rounded-xl flex items-center gap-1.5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed bg-white/5 hover:bg-white/10"
               >
-                <Trash2 className="w-3.5 h-3.5" />
-                Clear
+                <Trash2 className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                <span className="hidden sm:inline">Clear</span>
               </motion.button>
               <motion.button 
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={handleSmartTagging}
                 disabled={isSmartTagging || !script.trim()}
-                className="text-xs font-medium text-white bg-white/10 hover:bg-white/20 px-4 py-2 rounded-xl flex items-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed border border-white/5"
+                className="text-[10px] sm:text-xs font-medium text-white bg-white/10 hover:bg-white/20 px-2 sm:px-4 py-1.5 sm:py-2 rounded-xl flex items-center gap-1.5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed border border-white/5"
               >
-                {isSmartTagging ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />}
-                Smart Tagging
+                {isSmartTagging ? <Loader2 className="w-3 h-3 sm:w-3.5 sm:h-3.5 animate-spin" /> : <Wand2 className="w-3 h-3 sm:w-3.5 sm:h-3.5" />}
+                <span>Tag</span>
               </motion.button>
             </div>
           </div>
@@ -557,7 +557,7 @@ export default function VoiceOver() {
           >
             <div 
               ref={highlightRef}
-              className="absolute inset-0 p-6 text-lg leading-relaxed whitespace-pre-wrap break-words pointer-events-none text-slate-300 overflow-hidden font-mono"
+              className="absolute inset-0 p-3 sm:p-6 text-sm sm:text-lg leading-relaxed whitespace-pre-wrap break-words pointer-events-none text-slate-300 overflow-hidden font-mono"
               aria-hidden="true"
             >
               {renderHighlightedText(script)}
@@ -573,7 +573,7 @@ export default function VoiceOver() {
               }}
               onScroll={handleScroll}
               placeholder="Enter your script here..."
-              className="w-full h-full min-h-[200px] p-6 text-lg leading-relaxed whitespace-pre-wrap break-words resize-none outline-none bg-transparent text-transparent caret-white font-mono overflow-hidden"
+              className="w-full h-full min-h-[200px] sm:min-h-[300px] p-3 sm:p-6 text-sm sm:text-lg leading-relaxed whitespace-pre-wrap break-words resize-none outline-none bg-transparent text-transparent caret-white font-mono overflow-hidden"
               spellCheck="false"
             />
           </motion.div>
@@ -584,30 +584,30 @@ export default function VoiceOver() {
                 initial={{ opacity: 0, height: 0, marginTop: 0 }}
                 animate={{ opacity: 1, height: 'auto', marginTop: 16 }}
                 exit={{ opacity: 0, height: 0, marginTop: 0 }}
-                className="p-4 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm shrink-0"
+                className="p-3 sm:p-4 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs sm:text-sm shrink-0"
               >
                 {error}
               </motion.div>
             )}
           </AnimatePresence>
 
-          <div className="mt-6 flex flex-col sm:flex-row gap-4 items-center">
+          <div className="mt-4 sm:mt-6 flex flex-col sm:flex-row gap-3 sm:gap-4 items-stretch sm:items-center">
             <motion.button
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               onClick={handleGenerate}
               disabled={isGenerating || !script.trim()}
-              className="bg-white text-black hover:bg-slate-200 font-medium text-sm py-3 px-6 rounded-xl flex items-center justify-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shrink-0 w-full sm:w-auto"
+              className="bg-white text-black hover:bg-slate-200 font-medium text-xs sm:text-sm py-2.5 sm:py-3 px-4 sm:px-6 rounded-xl flex items-center justify-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed order-2 sm:order-1 w-full sm:w-auto"
             >
               {isGenerating ? (
                 <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Synthesizing...
+                  <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin" />
+                  <span>Synthesizing...</span>
                 </>
               ) : (
                 <>
-                  <Sparkles className="w-4 h-4" />
-                  Generate Audio
+                  <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                  <span>Generate Audio</span>
                 </>
               )}
             </motion.button>
@@ -674,33 +674,33 @@ export default function VoiceOver() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.15 }}
-        className="glass-card rounded-3xl p-8 backdrop-blur-xl bg-gradient-to-br from-purple-500/10 via-pink-500/10 to-blue-500/10 border border-white/10"
+        className="glass-card rounded-2xl sm:rounded-3xl p-4 sm:p-8 backdrop-blur-xl bg-gradient-to-br from-purple-500/10 via-pink-500/10 to-blue-500/10 border border-white/10"
       >
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500">
-              <Globe className="w-5 h-5 text-white" />
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-3">
+          <div className="flex items-start sm:items-center gap-3">
+            <div className="p-2 sm:p-2.5 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex-shrink-0">
+              <Globe className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-white">Multi-Language Dubbing</h2>
-              <p className="text-sm text-slate-400 mt-0.5">Translate your script and generate AI-dubbed audio for global audiences</p>
+              <h2 className="text-base sm:text-xl font-bold text-white">Multi-Language Dubbing</h2>
+              <p className="text-xs sm:text-sm text-slate-400 mt-0.5">Translate your script and generate AI-dubbed audio for global audiences</p>
             </div>
           </div>
         </div>
 
         {/* Language Selection Grid */}
         <div className="mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-medium text-slate-300 flex items-center gap-2">
-              <Languages className="w-4 h-4" />
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-3 sm:mb-4 gap-2">
+            <h3 className="text-xs sm:text-sm font-medium text-slate-300 flex items-center gap-2">
+              <Languages className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               Select Target Languages
             </h3>
             <div className="flex items-center gap-2">
-              <span className="text-xs text-slate-400">{selectedLanguages.length} selected</span>
+              <span className="text-[10px] sm:text-xs text-slate-400">{selectedLanguages.length} selected</span>
               {selectedLanguages.length > 0 && (
                 <button
                   onClick={() => setSelectedLanguages([])}
-                  className="text-xs text-slate-400 hover:text-white px-2 py-1 rounded-lg bg-white/5 hover:bg-white/10 transition-colors"
+                  className="text-[10px] sm:text-xs text-slate-400 hover:text-white px-2 py-1 rounded-lg bg-white/5 hover:bg-white/10 transition-colors"
                 >
                   Clear All
                 </button>
@@ -708,7 +708,7 @@ export default function VoiceOver() {
             </div>
           </div>
           
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2 sm:gap-3">
             {LANGUAGES.filter(l => l.code !== sourceLanguage).map((lang) => {
               const isSelected = selectedLanguages.includes(lang.code);
               return (
@@ -717,20 +717,20 @@ export default function VoiceOver() {
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={() => toggleLanguageSelection(lang.code)}
-                  className={`relative p-3 rounded-xl transition-all border ${
+                  className={`relative p-2 sm:p-3 rounded-xl transition-all border ${
                     isSelected 
                       ? 'bg-gradient-to-br from-purple-500/20 to-pink-500/20 border-purple-500/50' 
                       : 'bg-white/5 border-white/10 hover:bg-white/10'
                   }`}
                 >
                   {isSelected && (
-                    <div className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
-                      <Check className="w-3 h-3 text-white" />
+                    <div className="absolute -top-1.5 -right-1.5 w-4 h-4 sm:w-5 sm:h-5 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
+                      <Check className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-white" />
                     </div>
                   )}
-                  <div className="text-2xl mb-1">{lang.flag}</div>
-                  <div className="text-xs font-medium text-white">{lang.name}</div>
-                  <div className="text-[10px] text-slate-400 mt-0.5">{lang.voice}</div>
+                  <div className="text-lg sm:text-2xl mb-1">{lang.flag}</div>
+                  <div className="text-[10px] sm:text-xs font-medium text-white line-clamp-1">{lang.name}</div>
+                  <div className="text-[8px] sm:text-[10px] text-slate-400 mt-0.5 line-clamp-1">{lang.voice}</div>
                 </motion.button>
               );
             })}
