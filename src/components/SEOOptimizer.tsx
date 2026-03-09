@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { generateVidVisionInsight } from '../services/geminiService';
 import { Type } from '@google/genai';
-import { Loader2, Sparkles, Copy, Check, Trophy, Zap, Target } from 'lucide-react';
+import { Loader2, Sparkles, Copy, Check, Trophy, Zap, Target, Bookmark, Plus, Trash2, Edit2, Save, X, ChevronDown, ChevronUp } from 'lucide-react';
 
 interface ABVariant {
   title: string;
@@ -13,6 +13,13 @@ interface ABVariant {
   predictedCTR: number;
   reasoning: string;
   winProbability: number;
+}
+
+interface GlobalSnippet {
+  id: string;
+  name: string;
+  content: string;
+  enabled: boolean;
 }
 
 interface SEOOptimizerProps {
@@ -28,6 +35,87 @@ export default function SEOOptimizer({ initialTopic = '', onTopicUsed }: SEOOpti
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const [showABTest, setShowABTest] = useState(false);
   const [lastRequestTime, setLastRequestTime] = useState<number>(0);
+  
+  // Global Snippets state
+  const [snippets, setSnippets] = useState<GlobalSnippet[]>([]);
+  const [showSnippets, setShowSnippets] = useState(false);
+  const [editingSnippet, setEditingSnippet] = useState<string | null>(null);
+  const [newSnippetName, setNewSnippetName] = useState('');
+  const [newSnippetContent, setNewSnippetContent] = useState('');
+  const [isAddingSnippet, setIsAddingSnippet] = useState(false);
+
+  // Load snippets from localStorage on mount
+  useEffect(() => {
+    const saved = localStorage.getItem('vidvision_global_snippets');
+    if (saved) {
+      try {
+        setSnippets(JSON.parse(saved));
+      } catch (e) {
+        console.error('Failed to load snippets:', e);
+      }
+    } else {
+      // Set default snippets on first load
+      const defaultSnippets: GlobalSnippet[] = [
+        {
+          id: '1',
+          name: 'Social Links',
+          content: '🔗 Follow me:\nTwitter: @yourhandle\nInstagram: @yourhandle\nTikTok: @yourhandle',
+          enabled: true
+        },
+        {
+          id: '2',
+          name: 'Gear List',
+          content: '📷 My Gear:\nCamera: Sony A7IV\nMic: Rode NT1\nLights: Elgato Key Light',
+          enabled: true
+        }
+      ];
+      setSnippets(defaultSnippets);
+      localStorage.setItem('vidvision_global_snippets', JSON.stringify(defaultSnippets));
+    }
+  }, []);
+
+  // Save snippets to localStorage whenever they change
+  useEffect(() => {
+    if (snippets.length > 0) {
+      localStorage.setItem('vidvision_global_snippets', JSON.stringify(snippets));
+    }
+  }, [snippets]);
+
+  const addSnippet = () => {
+    if (!newSnippetName.trim() || !newSnippetContent.trim()) return;
+    
+    const newSnippet: GlobalSnippet = {
+      id: Date.now().toString(),
+      name: newSnippetName.trim(),
+      content: newSnippetContent.trim(),
+      enabled: true
+    };
+    
+    setSnippets(prev => [...prev, newSnippet]);
+    setNewSnippetName('');
+    setNewSnippetContent('');
+    setIsAddingSnippet(false);
+  };
+
+  const updateSnippet = (id: string, updates: Partial<GlobalSnippet>) => {
+    setSnippets(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s));
+    setEditingSnippet(null);
+  };
+
+  const deleteSnippet = (id: string) => {
+    setSnippets(prev => prev.filter(s => s.id !== id));
+  };
+
+  const toggleSnippet = (id: string) => {
+    setSnippets(prev => prev.map(s => s.id === id ? { ...s, enabled: !s.enabled } : s));
+  };
+
+  const getEnabledSnippetsText = () => {
+    return snippets
+      .filter(s => s.enabled)
+      .map(s => s.content)
+      .join('\n\n');
+  };
 
   useEffect(() => {
     if (initialTopic) {
@@ -77,7 +165,9 @@ export default function SEOOptimizer({ initialTopic = '', onTopicUsed }: SEOOpti
       };
 
       const prompt = `Generate highly optimized SEO metadata for a YouTube video about: "${topic}". 
-      Provide 3 high-CTR title options, a keyword-rich description (first 2 lines are crucial), and 15-20 high-ranking tags.`;
+      Provide 3 high-CTR title options, a keyword-rich description (first 2 lines are crucial), and 15-20 high-ranking tags.
+      
+      ${snippets.filter(s => s.enabled).length > 0 ? `IMPORTANT: Naturally weave the following pre-saved content snippets into the description where relevant:\n\n${getEnabledSnippetsText()}\n\n` : ''}Make the description engaging and keyword-rich while incorporating any provided snippets seamlessly.`;
       
       const response = await generateVidVisionInsight(prompt, schema);
       if (response) {
@@ -208,6 +298,171 @@ Ensure variants are MAXIMALLY different from each other to represent true A/B te
         <p className="text-xs text-zinc-500 mt-2">
           💡 Tip: A/B Test simulates which title/thumbnail combo will perform best before upload
         </p>
+      </div>
+
+      {/* Global Snippets Section */}
+      <div className="bg-gradient-to-br from-indigo-900/20 to-zinc-900 border border-indigo-500/30 rounded-xl overflow-hidden">
+        <button
+          onClick={() => setShowSnippets(!showSnippets)}
+          className="w-full px-6 py-4 flex items-center justify-between hover:bg-indigo-500/5 transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-indigo-500/20">
+              <Bookmark className="text-indigo-400" size={20} />
+            </div>
+            <div className="text-left">
+              <h2 className="text-lg font-semibold text-zinc-100">Global Snippets</h2>
+              <p className="text-sm text-zinc-400">Save social links, gear lists, and more. AI will auto-include them in descriptions.</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-indigo-400 bg-indigo-500/10 px-3 py-1 rounded-full">
+              {snippets.filter(s => s.enabled).length} active
+            </span>
+            {showSnippets ? <ChevronUp className="text-zinc-400" size={20} /> : <ChevronDown className="text-zinc-400" size={20} />}
+          </div>
+        </button>
+
+        {showSnippets && (
+          <div className="border-t border-indigo-500/30 p-6 space-y-4">
+            {/* Existing Snippets */}
+            {snippets.map(snippet => (
+              <div
+                key={snippet.id}
+                className={`border rounded-lg p-4 transition-all ${
+                  snippet.enabled 
+                    ? 'border-indigo-500/30 bg-indigo-500/5' 
+                    : 'border-zinc-700 bg-zinc-900/50 opacity-60'
+                }`}
+              >
+                {editingSnippet === snippet.id ? (
+                  <div className="space-y-3">
+                    <input
+                      type="text"
+                      value={snippet.name}
+                      onChange={(e) => updateSnippet(snippet.id, { name: e.target.value })}
+                      className="w-full bg-zinc-950 border border-zinc-700 rounded-lg px-3 py-2 text-zinc-100 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                      placeholder="Snippet name"
+                    />
+                    <textarea
+                      value={snippet.content}
+                      onChange={(e) => updateSnippet(snippet.id, { content: e.target.value })}
+                      rows={4}
+                      className="w-full bg-zinc-950 border border-zinc-700 rounded-lg px-3 py-2 text-zinc-100 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 font-mono"
+                      placeholder="Snippet content"
+                    />
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setEditingSnippet(null)}
+                        className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm transition-colors"
+                      >
+                        <Save size={14} />
+                        Save
+                      </button>
+                      <button
+                        onClick={() => setEditingSnippet(null)}
+                        className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-zinc-700 hover:bg-zinc-600 text-white text-sm transition-colors"
+                      >
+                        <X size={14} />
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={() => toggleSnippet(snippet.id)}
+                          className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
+                            snippet.enabled
+                              ? 'border-indigo-500 bg-indigo-500'
+                              : 'border-zinc-600 bg-transparent'
+                          }`}
+                        >
+                          {snippet.enabled && <Check size={14} className="text-white" />}
+                        </button>
+                        <h3 className="font-medium text-zinc-100">{snippet.name}</h3>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => setEditingSnippet(snippet.id)}
+                          className="p-1.5 rounded-lg hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200 transition-colors"
+                        >
+                          <Edit2 size={14} />
+                        </button>
+                        <button
+                          onClick={() => deleteSnippet(snippet.id)}
+                          className="p-1.5 rounded-lg hover:bg-red-500/20 text-zinc-400 hover:text-red-400 transition-colors"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </div>
+                    <pre className="text-sm text-zinc-400 whitespace-pre-wrap font-mono leading-relaxed">
+                      {snippet.content}
+                    </pre>
+                  </div>
+                )}
+              </div>
+            ))}
+
+            {/* Add New Snippet */}
+            {isAddingSnippet ? (
+              <div className="border border-indigo-500/30 rounded-lg p-4 bg-indigo-500/5 space-y-3">
+                <input
+                  type="text"
+                  value={newSnippetName}
+                  onChange={(e) => setNewSnippetName(e.target.value)}
+                  className="w-full bg-zinc-950 border border-zinc-700 rounded-lg px-3 py-2 text-zinc-100 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                  placeholder="Snippet name (e.g., Affiliate Disclaimer)"
+                />
+                <textarea
+                  value={newSnippetContent}
+                  onChange={(e) => setNewSnippetContent(e.target.value)}
+                  rows={4}
+                  className="w-full bg-zinc-950 border border-zinc-700 rounded-lg px-3 py-2 text-zinc-100 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 font-mono"
+                  placeholder="Snippet content (e.g., links, disclaimers, gear info...)"
+                />
+                <div className="flex gap-2">
+                  <button
+                    onClick={addSnippet}
+                    disabled={!newSnippetName.trim() || !newSnippetContent.trim()}
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium transition-colors"
+                  >
+                    <Save size={14} />
+                    Add Snippet
+                  </button>
+                  <button
+                    onClick={() => {
+                      setIsAddingSnippet(false);
+                      setNewSnippetName('');
+                      setNewSnippetContent('');
+                    }}
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg bg-zinc-700 hover:bg-zinc-600 text-white text-sm font-medium transition-colors"
+                  >
+                    <X size={14} />
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                onClick={() => setIsAddingSnippet(true)}
+                className="w-full border-2 border-dashed border-zinc-700 hover:border-indigo-500/50 rounded-lg p-4 flex items-center justify-center gap-2 text-zinc-400 hover:text-indigo-400 transition-colors group"
+              >
+                <Plus size={18} className="group-hover:scale-110 transition-transform" />
+                <span className="font-medium">Add New Snippet</span>
+              </button>
+            )}
+
+            <div className="mt-4 p-3 bg-indigo-500/10 border border-indigo-500/20 rounded-lg">
+              <p className="text-xs text-indigo-200">
+                💡 <strong>Tip:</strong> Enable/disable snippets using the checkboxes. Only enabled snippets will be included in AI-generated descriptions.
+              </p>
+            </div>
+          </div>
+        )}
       </div>
 
       {result && (
