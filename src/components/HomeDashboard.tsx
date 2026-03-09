@@ -985,7 +985,7 @@ Return valid JSON only.`;
           </div>
         </div>
       </div>
-
+}
       {/* AI-Powered Best Posting Time Recommendation */}
       {bestPostingTime && bestPostingTime.bestHour !== null && (
         <div className="rounded-2xl border border-indigo-400/30 bg-gradient-to-br from-indigo-500/10 via-purple-500/10 to-pink-500/10 p-6">
