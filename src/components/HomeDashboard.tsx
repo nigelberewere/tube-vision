@@ -471,6 +471,18 @@ Return valid JSON only.`;
     () => isFreshUpload(latestVideo?.snippet?.publishedAt),
     [latestVideo?.snippet?.publishedAt],
   );
+  const shouldShowRepurposeInsight = useMemo(() => {
+    if (!latestVideo || !hasFreshUpload || !repurposeInsight || repurposeInsightDismissed) {
+      return false;
+    }
+
+    return repurposeInsight.videoId === latestVideo.id;
+  }, [hasFreshUpload, latestVideo, repurposeInsight, repurposeInsightDismissed]);
+
+  useEffect(() => {
+    // Reopen the tile when a newly detected upload becomes the latest video.
+    setRepurposeInsightDismissed(false);
+  }, [latestVideo?.id]);
 
   useEffect(() => {
     if (!isConnected || !channel?.id || !latestVideo || !hasFreshUpload) {
@@ -756,48 +768,35 @@ Return valid JSON only.`;
       />
 
       {/* Smart Content Repurposing Insight */}
-      {latestVideo && !repurposeInsightDismissed && (
-        <div className="rounded-2xl border border-sky-400/30 bg-gradient-to-br from-sky-500/10 via-indigo-500/10 to-violet-500/10 p-6">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
-            <div className="flex-1">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                    <Sparkles size={18} className="text-sky-300" />
-                    Smart Repurposing Insight
-                  </h3>
-                  <p className="text-zinc-300 text-sm mt-1">
-                    Home watches for new uploads and prepares cross-platform post drafts automatically.
-                  </p>
-                </div>
-                <button
-                  onClick={dismissRepurposeInsight}
-                  className="flex-shrink-0 rounded-lg p-1.5 text-zinc-400 transition hover:bg-white/10 hover:text-white"
-                  aria-label="Dismiss insight"
-                >
-                  <X size={16} />
-                </button>
-              </div>
+      {shouldShowRepurposeInsight && latestVideo && repurposeInsight && (
+        <div className="rounded-2xl border border-white/10 bg-black/35 p-6 shadow-[0_18px_45px_rgba(0,0,0,0.4)]">
+          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h3 className="flex items-center gap-2 text-lg font-bold text-white">
+                <Sparkles size={18} className="text-sky-300" />
+                Smart Repurposing Insight
+              </h3>
+              <p className="mt-1 text-sm text-zinc-300">
+                Fresh cross-platform drafts from your latest upload.
+              </p>
             </div>
+
             <div className="flex items-center gap-2">
-              {hasFreshUpload && (
-                <button
-                  onClick={() => generateRepurposeInsight(latestVideo)}
-                  disabled={repurposeLoading}
-                  className="inline-flex items-center gap-1 rounded-lg bg-sky-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-sky-500 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {repurposeLoading ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
-                  Refresh Drafts
-                </button>
-              )}
-              <span
-                className={cn(
-                  'inline-flex items-center rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em]',
-                  hasFreshUpload ? 'bg-emerald-500/20 text-emerald-300' : 'bg-slate-500/20 text-slate-300',
-                )}
+              <button
+                onClick={() => generateRepurposeInsight(latestVideo)}
+                disabled={repurposeLoading}
+                className="inline-flex items-center gap-1 rounded-lg bg-sky-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-sky-500 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {hasFreshUpload ? 'New Upload Detected' : 'Listening For Next Upload'}
-              </span>
+                {repurposeLoading ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+                Refresh Drafts
+              </button>
+              <button
+                onClick={dismissRepurposeInsight}
+                className="rounded-lg p-1.5 text-zinc-400 transition hover:bg-white/10 hover:text-white"
+                aria-label="Dismiss insight"
+              >
+                <X size={16} />
+              </button>
             </div>
           </div>
 
@@ -807,93 +806,65 @@ Return valid JSON only.`;
             </div>
           )}
 
-          {!hasFreshUpload && (
+          <div className="space-y-3">
             <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-              <p className="text-sm text-zinc-200">
-                Latest upload tracked: <span className="font-semibold text-white">{latestVideo.snippet.title}</span>
+              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-sky-300">Source Upload</p>
+              <p className="mt-1 text-base font-semibold text-white">{repurposeInsight.videoTitle}</p>
+              <p className="mt-1 text-xs text-zinc-400">
+                Generated {new Date(repurposeInsight.generatedAt).toLocaleString()} for cross-platform publishing.
               </p>
-              <p className="text-xs text-zinc-400 mt-1">
-                Published {new Date(latestVideo.snippet.publishedAt).toLocaleString()}. A new insight tile appears when
-                your next upload is detected.
-              </p>
+              <p className="mt-3 text-sm text-zinc-300">{repurposeInsight.recommendedNextStep}</p>
             </div>
-          )}
 
-          {hasFreshUpload && repurposeLoading && (
-            <div className="space-y-3">
-              <div className="rounded-xl border border-white/10 bg-white/5 p-4 animate-pulse">
-                <div className="h-4 bg-white/10 rounded w-3/4 mb-2" />
-                <div className="h-3 bg-white/10 rounded w-full" />
-              </div>
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-                <div className="h-28 rounded-xl border border-white/10 bg-white/5 animate-pulse" />
-                <div className="h-28 rounded-xl border border-white/10 bg-white/5 animate-pulse" />
-                <div className="h-28 rounded-xl border border-white/10 bg-white/5 animate-pulse" />
-              </div>
-            </div>
-          )}
-
-          {hasFreshUpload && !repurposeLoading && repurposeInsight && (
-            <div className="space-y-3">
-              <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-sky-300">Source Upload</p>
-                <p className="text-base font-semibold text-white mt-1">{repurposeInsight.videoTitle}</p>
-                <p className="text-xs text-zinc-400 mt-1">
-                  Generated {new Date(repurposeInsight.generatedAt).toLocaleString()} for cross-platform publishing.
-                </p>
-                <p className="text-sm text-zinc-300 mt-3">{repurposeInsight.recommendedNextStep}</p>
+            <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
+              <div className="rounded-xl border border-white/10 bg-black/20 p-4">
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-sky-300">X Post</p>
+                  <button
+                    onClick={() => copyRepurposeText('x')}
+                    className="inline-flex items-center gap-1 rounded-md border border-white/15 px-2 py-1 text-[11px] text-zinc-200 hover:bg-white/10"
+                  >
+                    {copiedRepurposeItem === 'x' ? <Check size={12} /> : <Copy size={12} />}
+                    {copiedRepurposeItem === 'x' ? 'Copied' : 'Copy'}
+                  </button>
+                </div>
+                <p className="text-sm leading-relaxed text-zinc-200">{repurposeInsight.xPost}</p>
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-                <div className="rounded-xl border border-white/10 bg-black/20 p-4">
-                  <div className="flex items-center justify-between gap-2 mb-2">
-                    <p className="text-xs font-bold uppercase tracking-[0.16em] text-sky-300">X Post</p>
-                    <button
-                      onClick={() => copyRepurposeText('x')}
-                      className="inline-flex items-center gap-1 rounded-md border border-white/15 px-2 py-1 text-[11px] text-zinc-200 hover:bg-white/10"
-                    >
-                      {copiedRepurposeItem === 'x' ? <Check size={12} /> : <Copy size={12} />}
-                      {copiedRepurposeItem === 'x' ? 'Copied' : 'Copy'}
-                    </button>
-                  </div>
-                  <p className="text-sm text-zinc-200 leading-relaxed">{repurposeInsight.xPost}</p>
+              <div className="rounded-xl border border-white/10 bg-black/20 p-4">
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-indigo-300">LinkedIn</p>
+                  <button
+                    onClick={() => copyRepurposeText('linkedin')}
+                    className="inline-flex items-center gap-1 rounded-md border border-white/15 px-2 py-1 text-[11px] text-zinc-200 hover:bg-white/10"
+                  >
+                    {copiedRepurposeItem === 'linkedin' ? <Check size={12} /> : <Copy size={12} />}
+                    {copiedRepurposeItem === 'linkedin' ? 'Copied' : 'Copy'}
+                  </button>
                 </div>
+                <p className="text-sm leading-relaxed text-zinc-200">{repurposeInsight.linkedinPost}</p>
+              </div>
 
-                <div className="rounded-xl border border-white/10 bg-black/20 p-4">
-                  <div className="flex items-center justify-between gap-2 mb-2">
-                    <p className="text-xs font-bold uppercase tracking-[0.16em] text-indigo-300">LinkedIn</p>
-                    <button
-                      onClick={() => copyRepurposeText('linkedin')}
-                      className="inline-flex items-center gap-1 rounded-md border border-white/15 px-2 py-1 text-[11px] text-zinc-200 hover:bg-white/10"
-                    >
-                      {copiedRepurposeItem === 'linkedin' ? <Check size={12} /> : <Copy size={12} />}
-                      {copiedRepurposeItem === 'linkedin' ? 'Copied' : 'Copy'}
-                    </button>
-                  </div>
-                  <p className="text-sm text-zinc-200 leading-relaxed">{repurposeInsight.linkedinPost}</p>
+              <div className="rounded-xl border border-white/10 bg-black/20 p-4">
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-violet-300">Blog Angle</p>
+                  <button
+                    onClick={() => copyRepurposeText('blog')}
+                    className="inline-flex items-center gap-1 rounded-md border border-white/15 px-2 py-1 text-[11px] text-zinc-200 hover:bg-white/10"
+                  >
+                    {copiedRepurposeItem === 'blog' ? <Check size={12} /> : <Copy size={12} />}
+                    {copiedRepurposeItem === 'blog' ? 'Copied' : 'Copy'}
+                  </button>
                 </div>
-
-                <div className="rounded-xl border border-white/10 bg-black/20 p-4">
-                  <div className="flex items-center justify-between gap-2 mb-2">
-                    <p className="text-xs font-bold uppercase tracking-[0.16em] text-violet-300">Blog Angle</p>
-                    <button
-                      onClick={() => copyRepurposeText('blog')}
-                      className="inline-flex items-center gap-1 rounded-md border border-white/15 px-2 py-1 text-[11px] text-zinc-200 hover:bg-white/10"
-                    >
-                      {copiedRepurposeItem === 'blog' ? <Check size={12} /> : <Copy size={12} />}
-                      {copiedRepurposeItem === 'blog' ? 'Copied' : 'Copy'}
-                    </button>
-                  </div>
-                  <p className="text-sm font-semibold text-white leading-relaxed">{repurposeInsight.blogTitle}</p>
-                  <p className="text-sm text-zinc-300 leading-relaxed mt-2">{repurposeInsight.blogAngle}</p>
-                </div>
+                <p className="text-sm font-semibold leading-relaxed text-white">{repurposeInsight.blogTitle}</p>
+                <p className="mt-2 text-sm leading-relaxed text-zinc-300">{repurposeInsight.blogAngle}</p>
               </div>
             </div>
-          )}
+          </div>
         </div>
       )}
 
-      {/* Daily Video Ideas Section */
+      {/* Daily Video Ideas Section */}
       <div className="rounded-2xl border border-emerald-400/30 bg-gradient-to-br from-emerald-500/10 via-teal-500/10 to-cyan-500/10 p-6">
         <div className="flex items-start gap-4">
           <div className="w-12 h-12 rounded-xl bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
@@ -985,7 +956,7 @@ Return valid JSON only.`;
           </div>
         </div>
       </div>
-}
+
       {/* AI-Powered Best Posting Time Recommendation */}
       {bestPostingTime && bestPostingTime.bestHour !== null && (
         <div className="rounded-2xl border border-indigo-400/30 bg-gradient-to-br from-indigo-500/10 via-purple-500/10 to-pink-500/10 p-6">
