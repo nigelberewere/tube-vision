@@ -782,7 +782,7 @@ export default function App() {
           </div>
         </div>
 
-        <nav className="p-2 sm:p-4 space-y-4 sm:space-y-5 flex-1 overflow-y-auto">
+        <nav className="p-2 sm:p-4 flex-1 min-h-0 flex flex-col gap-4 sm:gap-5">
           <div className="space-y-1">
             <p className="px-2 text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">Overview</p>
             {overviewTabs.map((tab) => {
@@ -816,65 +816,72 @@ export default function App() {
             })}
           </div>
 
-          <div className="space-y-1" data-tour-id="tour-studios-section">
-            <p className="px-2 text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">Studios</p>
-            {studioTabs.map((tab) => {
-              const Icon = tab.icon;
-              const iconColor = 
-                tab.id === 'voiceover' ? 'text-blue-400' :
-                tab.id === 'clips' ? 'text-red-400' :
-                tab.id === 'thumbnail' ? 'text-green-400' :
-                undefined;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => {
-                    setActiveTab(tab.id);
-                    setIsSidebarOpen(false);
-                  }}
-                  className={cn(
-                    'w-full flex items-center gap-2 sm:gap-3 px-2 sm:px-3 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-colors border',
-                    activeTab === tab.id
-                      ? 'bg-white/10 text-white border-white/20'
-                      : 'text-slate-300 border-transparent hover:bg-white/5 hover:border-white/10',
-                  )}
-                >
-                  <Icon size={16} className={`sm:hidden flex-shrink-0 ${iconColor}`} />
-                  <Icon size={18} className={`hidden sm:block flex-shrink-0 ${iconColor}`} />
-                  <span className="min-w-0">{tab.label}</span>
-                </button>
-              );
-            })}
-          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto space-y-4 sm:space-y-5 pr-1">
+            <div className="space-y-1" data-tour-id="tour-studios-section">
+              <p className="px-2 text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">Studios</p>
+              {studioTabs.map((tab) => {
+                const Icon = tab.icon;
+                const iconColor = 
+                  tab.id === 'voiceover' ? 'text-blue-400' :
+                  tab.id === 'clips' ? 'text-red-400' :
+                  tab.id === 'thumbnail' ? 'text-green-400' :
+                  undefined;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => {
+                      setActiveTab(tab.id);
+                      setIsSidebarOpen(false);
+                    }}
+                    className={cn(
+                      'w-full flex items-center gap-2 sm:gap-3 px-2 sm:px-3 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-colors border',
+                      activeTab === tab.id
+                        ? 'bg-white/10 text-white border-white/20'
+                        : 'text-slate-300 border-transparent hover:bg-white/5 hover:border-white/10',
+                    )}
+                  >
+                    <Icon size={16} className={`sm:hidden flex-shrink-0 ${iconColor}`} />
+                    <Icon size={18} className={`hidden sm:block flex-shrink-0 ${iconColor}`} />
+                    <span className="min-w-0">{tab.label}</span>
+                  </button>
+                );
+              })}
+            </div>
 
-          <div className="space-y-1" data-tour-id="tour-growth-section">
-            <p className="px-2 text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">Growth OS</p>
-            {growthTabs.map((tab) => {
-              const Icon = tab.icon;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => {
-                    setActiveTab(tab.id);
-                    setIsSidebarOpen(false);
-                  }}
-                  className={cn(
-                    'w-full flex items-center gap-2 sm:gap-3 px-2 sm:px-3 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-colors border',
-                    activeTab === tab.id
-                      ? 'bg-white/10 text-white border-white/20'
-                      : 'text-slate-400 border-transparent hover:bg-white/5 hover:text-slate-200 hover:border-white/10',
-                  )}
-                >
-                  <Icon size={16} className="sm:hidden flex-shrink-0" />
-                  <Icon size={18} className="hidden sm:block flex-shrink-0" />
-                  <span className="min-w-0">{tab.label}</span>
-                </button>
-              );
-            })}
+            <div className="space-y-1" data-tour-id="tour-growth-section">
+              <p className="px-2 text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">Growth OS</p>
+              {growthTabs.map((tab) => {
+                const Icon = tab.icon;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => {
+                      setActiveTab(tab.id);
+                      setIsSidebarOpen(false);
+                    }}
+                    className={cn(
+                      'w-full flex items-center gap-2 sm:gap-3 px-2 sm:px-3 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-colors border',
+                      activeTab === tab.id
+                        ? 'bg-white/10 text-white border-white/20'
+                        : 'text-slate-400 border-transparent hover:bg-white/5 hover:text-slate-200 hover:border-white/10',
+                    )}
+                  >
+                    <Icon size={16} className="sm:hidden flex-shrink-0" />
+                    <Icon size={18} className="hidden sm:block flex-shrink-0" />
+                    <span className="min-w-0">{tab.label}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </nav>
 
-        <div className="p-4 border-t border-white/10">
+        <div
+          className={cn(
+            'p-4 border-t shrink-0',
+            theme === 'light' ? 'border-slate-200 bg-slate-50' : 'border-white/10 bg-[#0a0a0a]'
+          )}
+        >
           {loadingUser ? (
             <div className="h-12 bg-white/5 animate-pulse rounded-lg"></div>
           ) : user ? (
