@@ -116,7 +116,7 @@ To go back to all Flash models:
 
 ⚠️ **Model changes apply immediately** - Once saved, new requests use your selected models.
 
-⚠️ **Quota limits are real** - Check your [Google AI Studio quota](https://aistudio.google.com/app/billing/overview) if you get errors.
+⚠️ **Quota limits are real** - Check your [Google AI Studio quota](https://aistudio.google.com/app/apikey) if you get errors.
 
 ⚠️ **Pro models have tight quotas** - Using Pro for all features will quickly exhaust your daily limit. Use strategically.
 
@@ -147,7 +147,7 @@ To go back to all Flash models:
 - Check your browser console for errors
 
 ### Want to check your actual quota?
-Visit [Google AI Studio Billing](https://aistudio.google.com/app/billing/overview) to see real-time usage.
+Visit [Google AI Studio](https://aistudio.google.com/app/apikey) to see real-time usage.
 
 ## FAQ
 
@@ -172,7 +172,7 @@ A: Not directly, but if you export your browser data, your preferences are inclu
 ## Pro Tips
 
 1. **Use Flash for exploration, Pro for finalization** - Generate ideas quickly with Flash, refine with Pro
-2. **Monitor your usage** - Check [billing page](https://aistudio.google.com/app/billing/overview) weekly
+2. **Monitor your usage** - Check [API key page](https://aistudio.google.com/app/apikey) weekly
 3. **Enable quota warnings** - Let VidVision remind you about quotas before requesting
 4. **Keep AI Coach on Flash** - Real-time coaching works fine with Flash quality
 5. **Use Pro for Script Architecture** - Your scripts are your output, worth the quality

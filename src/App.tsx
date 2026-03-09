@@ -782,7 +782,7 @@ export default function App() {
           </div>
           <div className="min-w-0">
             <p className="text-sm sm:text-base font-bold tracking-tight text-white">Tube Vision</p>
-            <p className="text-[9px] sm:text-[10px] uppercase tracking-[0.22em] text-slate-500">New Height Everyday</p>
+            <p className="text-[9px] sm:text-[10px] uppercase tracking-[0.22em] text-slate-500">New Heights Everyday</p>
           </div>
         </div>
 

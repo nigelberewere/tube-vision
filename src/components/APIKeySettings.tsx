@@ -290,7 +290,7 @@ export default function APIKeySettings() {
             Understanding quotas and rate limits
           </a>
           <a
-            href="https://aistudio.google.com/app/billing/overview"
+            href="https://aistudio.google.com/app/apikey"
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-2 text-sm text-zinc-400 hover:text-indigo-400 transition-colors"
