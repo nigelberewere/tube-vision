@@ -91,14 +91,23 @@ async function getAIClient() {
   return new GoogleGenAI({ apiKey });
 }
 
-// Helper function to get model for voiceover functionality
+// Helper function to get model for voiceover functionality.
+// Text tasks (smart tagging/translation) must never use TTS-only models.
 async function getVoiceOverModel(isTTS: boolean = false): Promise<string> {
   const { getModel } = await import('../lib/modelStorage');
   const modelId = getModel('voiceover');
+  const isTtsModel = modelId.includes('tts');
+
   // If TTS is required and the current model doesn't support it, fall back to TTS variant
-  if (isTTS && !modelId.includes('tts')) {
+  if (isTTS && !isTtsModel) {
     return 'gemini-2.5-flash-preview-tts';
   }
+
+  // If text output is required and the selected model is TTS-only, fall back to text-capable model
+  if (!isTTS && isTtsModel) {
+    return 'gemini-2.5-flash';
+  }
+
   return modelId;
 }
 
