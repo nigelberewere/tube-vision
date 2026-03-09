@@ -437,10 +437,15 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
     setMessages(prev => [...prev, { role: 'user', text: userMessage }]);
     setLoading(true);
 
+    // Import BYOK utilities dynamically to avoid circular dependencies
+    const { loadGeminiKey, recordAPIRequest, recordAPIError } = await import('../lib/geminiKeyStorage');
+    const { classifyGeminiError } = await import('../lib/geminiErrorClassifier');
+
     try {
-      const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+      
+      const apiKey = await loadGeminiKey();
       if (!apiKey) {
-        throw new Error('Missing VITE_GEMINI_API_KEY in .env.local. Add it and restart the dev server.');
+        throw new Error('Gemini API key required. Please add your key in Settings → API Keys.');
       }
 
       const ai = new GoogleGenAI({ apiKey });
@@ -473,11 +478,21 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
       const response = await chatRef.current.sendMessage({ message: userMessage });
       const text = response.text;
       
+      // Record successful API request
+      recordAPIRequest();
+      
       setMessages(prev => [...prev, { role: 'model', text: text || "I'm sorry, I couldn't process that request." }]);
     } catch (error) {
+      // Classify error for user-friendly messaging
+      const classified = classifyGeminiError(error);
+      
+      // Record specific error types for status display
+      if (classified.type === 'invalid_key' || classified.type === 'rate_limited' || classified.type === 'quota_exhausted') {
+        recordAPIError(classified.type);
+      }
+      
       console.error('Chat error:', error);
-      const message = error instanceof Error ? error.message : 'Sorry, I encountered an error. Please try again.';
-      setMessages(prev => [...prev, { role: 'model', text: message }]);
+      setMessages(prev => [...prev, { role: 'model', text: classified.userMessage }]);
     } finally {
       setLoading(false);
     }

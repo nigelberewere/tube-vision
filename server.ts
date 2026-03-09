@@ -55,6 +55,20 @@ function parseISODurationToSeconds(duration: string): number {
   return hours * 3600 + minutes * 60 + seconds;
 }
 
+/**
+ * Get Gemini API key from request header (BYOK model)
+ * Never logs, persists, or echoes the key
+ */
+function getGeminiKeyFromRequest(req: express.Request): string {
+  const apiKey = req.headers['x-gemini-key'] as string;
+  
+  if (!apiKey || !apiKey.trim()) {
+    throw new Error('Gemini API key required. Please configure your key in Settings.');
+  }
+  
+  return apiKey.trim();
+}
+
 function formatDurationLabel(totalSeconds: number): string {
   const hours = Math.floor(totalSeconds / 3600);
   const minutes = Math.floor((totalSeconds % 3600) / 60);
@@ -338,7 +352,7 @@ export async function createApp(options: CreateAppOptions = {}) {
   // Viral Clip Analyzer Endpoint
   app.post('/api/analyze', upload.single('video'), async (req, res) => {
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const ai = new GoogleGenAI({ apiKey: getGeminiKeyFromRequest(req) });
       let filePath = '';
       let mimeType = 'video/mp4';
       let videoUrl = '';
@@ -783,7 +797,7 @@ For every video provided, evaluate segments based on:
         throw new Error("Missing GEMINI_API_KEY");
       }
 
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const ai = new GoogleGenAI({ apiKey: getGeminiKeyFromRequest(req) });
       const prompt = `You are helping a YouTube creator start a new script draft.
 Return exactly one concise topic placeholder (max 100 characters) tailored to this channel.
 It should feel fresh for date ${dateKey} and be specific enough to spark a script.
@@ -1006,9 +1020,9 @@ Recent videos: ${recentTitles.join(" | ") || "No recent titles"}`;
       let summary = `This pattern indicates audience momentum. Double down on ${topicInsight.topicLabel} with follow-up angles while this interest is hot.`;
       let ideas = buildFallbackIdeas(topicInsight.topicLabel, channelTitle);
 
-      if (process.env.GEMINI_API_KEY) {
+      if (req.headers['x-gemini-key']) {
         try {
-          const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+          const ai = new GoogleGenAI({ apiKey: getGeminiKeyFromRequest(req) });
           const prompt = `You are generating a proactive YouTube coaching alert.
 
 Important identity rule:
@@ -1729,9 +1743,9 @@ Return JSON with:
 
       // Generate AI-powered insight using Gemini
       let aiInsight = '';
-      if (process.env.GEMINI_API_KEY) {
+      if (req.headers['x-gemini-key']) {
         try {
-          const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+          const ai = new GoogleGenAI({ apiKey: getGeminiKeyFromRequest(req) });
           const prompt = `Analyze this YouTube channel's posting performance and provide a concise recommendation.
 
 Videos analyzed: ${videos.length}
@@ -1793,7 +1807,7 @@ Provide a 1-2 sentence actionable recommendation for the creator about when to p
     }
 
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const ai = new GoogleGenAI({ apiKey: getGeminiKeyFromRequest(req) });
       const prompt = `Build an original YouTube Shorts remix plan for this niche and reference short.
 
 Niche: ${niche || "General"}
@@ -1918,9 +1932,9 @@ Return concise, practical recommendations.`;
       const videoTags = myVideos.flatMap((v: any) => v.snippet.tags || []);
       const channelDescription = user.channel.description || '';
 
-      if (process.env.GEMINI_API_KEY) {
+      if (req.headers['x-gemini-key']) {
         try {
-          const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+          const ai = new GoogleGenAI({ apiKey: getGeminiKeyFromRequest(req) });
 
           const prompt = `Analyze this YouTube channel and identify its niche and optimal competitor search queries.
 
@@ -2368,6 +2382,38 @@ Return as JSON.`;
     } catch (error) {
       console.error("Get snapshot momentum error:", error);
       res.status(500).json({ error: "Failed to fetch growth momentum" });
+    }
+  });
+
+  // Gemini API Key Validation Endpoint (BYOK)
+  app.post('/api/gemini/validate', async (req, res) => {
+    try {
+      const apiKey = getGeminiKeyFromRequest(req);
+      const ai = new GoogleGenAI({ apiKey });
+      
+      // Lightweight test request
+      await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: 'Say "test successful" in exactly 2 words.',
+        config: {
+          maxOutputTokens: 10,
+        },
+      });
+      
+      res.json({ valid: true, message: 'API key is valid' });
+    } catch (error: any) {
+      console.error('API key validation error:', error.message);
+      
+      const errorStr = String(error).toLowerCase();
+      if (errorStr.includes('api key not valid') || errorStr.includes('unauthorized') || errorStr.includes('401')) {
+        res.status(401).json({ valid: false, error: 'Invalid API key' });
+      } else if (errorStr.includes('rate limit') || errorStr.includes('429')) {
+        res.status(429).json({ valid: false, error: 'Rate limited' });
+      } else if (errorStr.includes('quota')) {
+        res.status(429).json({ valid: false, error: 'Quota exceeded' });
+      } else {
+        res.status(500).json({ valid: false, error: 'Validation failed' });
+      }
     }
   });
 

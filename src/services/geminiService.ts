@@ -1,9 +1,11 @@
 import { GoogleGenAI, Type } from "@google/genai";
+import { loadGeminiKey, recordAPIRequest, recordAPIError, redactKey } from "../lib/geminiKeyStorage";
+import { classifyGeminiError } from "../lib/geminiErrorClassifier";
 
-function getAIClient() {
-  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+async function getAIClient() {
+  const apiKey = await loadGeminiKey();
   if (!apiKey) {
-    throw new Error("Missing VITE_GEMINI_API_KEY in .env.local. Add it and restart the dev server.");
+    throw new Error("Gemini API key required. Please add your key in Settings → API Keys.");
   }
 
   return new GoogleGenAI({ apiKey });
@@ -33,7 +35,7 @@ interface GenerateInsightOptions {
 
 export async function generateVidVisionInsight(prompt: string, responseSchema?: any, options?: GenerateInsightOptions) {
   try {
-    const ai = getAIClient();
+    const ai = await getAIClient();
 
     const config: any = {
       systemInstruction: options?.systemInstruction || SYSTEM_INSTRUCTION,
@@ -62,6 +64,9 @@ export async function generateVidVisionInsight(prompt: string, responseSchema?: 
       ];
     }
 
+    // Record API request for usage tracking
+    recordAPIRequest();
+
     const response = await ai.models.generateContent({
       model: options?.model || "gemini-2.5-flash",
       contents,
@@ -70,7 +75,18 @@ export async function generateVidVisionInsight(prompt: string, responseSchema?: 
     
     return response.text;
   } catch (error) {
-    console.error("Error generating insight:", error);
-    throw error;
+    // Classify error for user-friendly messaging
+    const classified = classifyGeminiError(error);
+    
+    // Record specific error types for status display
+    if (classified.type === 'invalid_key' || classified.type === 'rate_limited' || classified.type === 'quota_exhausted') {
+      recordAPIError(classified.type);
+    }
+    
+    // Log safely without exposing keys
+    console.error("Error generating insight:", redactKey(classified.message));
+    
+    // Throw user-friendly error
+    throw new Error(classified.userMessage);
   }
 }

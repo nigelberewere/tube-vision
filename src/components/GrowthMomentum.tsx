@@ -224,7 +224,6 @@ export default function GrowthMomentum({ isConnected, className }: GrowthMomentu
                   borderColor: '#e5e7eb',
                   borderRadius: '8px',
                 }}
-                className="dark:bg-gray-800 dark:border-gray-700"
                 formatter={(value: any) => {
                   if (typeof value === 'number') {
                     return [formatNumber(value), ''];

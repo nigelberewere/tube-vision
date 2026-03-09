@@ -39,6 +39,20 @@ function createOAuthClient() {
 
 const oauth2Client = createOAuthClient();
 
+/**
+ * Get Gemini API key from request header (BYOK model)
+ * Never logs, persists, or echoes the key
+ */
+function getGeminiKeyFromRequest(req: VercelRequest): string {
+  const apiKey = req.headers['x-gemini-key'] as string;
+  
+  if (!apiKey || !apiKey.trim()) {
+    throw new Error('Gemini API key required. Please configure your key in Settings.');
+  }
+  
+  return apiKey.trim();
+}
+
 function toNumber(value: unknown): number {
   const parsed = Number(value ?? 0);
   return Number.isFinite(parsed) ? parsed : 0;
@@ -623,11 +637,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       try {
-        if (!process.env.GEMINI_API_KEY) {
+        if (!req.headers['x-gemini-key']) {
           throw new Error('Missing GEMINI_API_KEY');
         }
 
-        const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+        const ai = new GoogleGenAI({ apiKey: getGeminiKeyFromRequest(req) });
         const prompt = `You are helping a YouTube creator start a new script draft.
 Return exactly one concise topic placeholder (max 100 characters) tailored to this channel.
 It should feel fresh for date ${dateKey} and be specific enough to spark a script.
@@ -855,9 +869,9 @@ Recent videos: ${recentTitles.join(' | ') || 'No recent titles'}`;
       let summary = `This pattern indicates audience momentum. Double down on ${topicInsight.topicLabel} with follow-up angles while this interest is hot.`;
       let ideas = buildFallbackIdeas(topicInsight.topicLabel, channelTitle);
 
-      if (process.env.GEMINI_API_KEY) {
+      if (req.headers['x-gemini-key']) {
         try {
-          const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+          const ai = new GoogleGenAI({ apiKey: getGeminiKeyFromRequest(req) });
           const prompt = `You are generating a proactive YouTube coaching alert.
 
 Important identity rule:
@@ -1898,12 +1912,12 @@ Return JSON with:
       return res.status(400).json({ error: 'Source short data is required' });
     }
 
-    if (!process.env.GEMINI_API_KEY) {
+    if (!req.headers['x-gemini-key']) {
       return res.status(500).json({ error: 'Missing GEMINI_API_KEY on server' });
     }
 
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const ai = new GoogleGenAI({ apiKey: getGeminiKeyFromRequest(req) });
       const prompt = `Build an original YouTube Shorts remix plan for this niche and reference short.
 
 Niche: ${niche || 'General'}
@@ -2026,9 +2040,9 @@ Return concise, practical recommendations.`;
       const videoTags = myVideos.flatMap((v: any) => v.snippet.tags || []);
       const channelDescription = userData.channel.description || '';
 
-      if (process.env.GEMINI_API_KEY) {
+      if (req.headers['x-gemini-key']) {
         try {
-          const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+          const ai = new GoogleGenAI({ apiKey: getGeminiKeyFromRequest(req) });
 
           const prompt = `Analyze this YouTube channel and identify its niche and optimal competitor search queries.
 
@@ -2278,6 +2292,38 @@ Return as JSON.`;
       currentMetrics: {},
       note: 'Growth momentum tracking only available on local dev server. Use npm run dev for full features.'
     });
+  }
+
+  // Gemini API Key Validation Endpoint (BYOK)
+  if (path === 'api/gemini/validate' && req.method === 'POST') {
+    try {
+      const apiKey = getGeminiKeyFromRequest(req);
+      const ai = new GoogleGenAI({ apiKey });
+      
+      // Lightweight test request
+      await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: 'Say "test successful" in exactly 2 words.',
+        config: {
+          maxOutputTokens: 10,
+        },
+      });
+      
+      return res.json({ valid: true, message: 'API key is valid' });
+    } catch (error: any) {
+      console.error('API key validation error:', error.message);
+      
+      const errorStr = String(error).toLowerCase();
+      if (errorStr.includes('api key not valid') || errorStr.includes('unauthorized') || errorStr.includes('401')) {
+        return res.status(401).json({ valid: false, error: 'Invalid API key' });
+      } else if (errorStr.includes('rate limit') || errorStr.includes('429')) {
+        return res.status(429).json({ valid: false, error: 'Rate limited' });
+      } else if (errorStr.includes('quota')) {
+        return res.status(429).json({ valid: false, error: 'Quota exceeded' });
+      } else {
+        return res.status(500).json({ valid: false, error: 'Validation failed' });
+      }
+    }
   }
 
   // Default response for unknown paths

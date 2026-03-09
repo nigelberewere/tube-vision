@@ -29,7 +29,6 @@ A unified platform for YouTube creators with AI-powered tools to grow your chann
 
 2. Set up environment variables in `.env.local`:
    ```
-   GEMINI_API_KEY=your_gemini_api_key
    GOOGLE_CLIENT_ID=your_google_client_id
    GOOGLE_CLIENT_SECRET=your_google_client_secret
    SESSION_SECRET=your_session_secret
@@ -42,21 +41,31 @@ A unified platform for YouTube creators with AI-powered tools to grow your chann
 
 4. Open http://localhost:3000 in your browser
 
+5. **Add your Gemini API key:**
+   - Navigate to Settings → API Keys
+   - Get your free API key from [Google AI Studio](https://aistudio.google.com/app/apikey)
+   - Paste it into the settings panel
+   - Your key is encrypted and stored only in your browser
+
 ## Tech Stack
 
 - **Frontend:** React 19, TypeScript, Tailwind CSS, Motion (Framer Motion)
 - **Backend:** Express, Node.js
-- **AI:** Google Gemini API for content generation and analysis
+- **AI:** Google Gemini API for content generation and analysis (Bring Your Own Key)
 - **Auth:** Google OAuth 2.0 for YouTube integration
 - **Video Processing:** FFmpeg.wasm for client-side video editing
 
 ## Environment Variables
 
-- `GEMINI_API_KEY` - Your Google Gemini API key
+**Required for OAuth:**
 - `GOOGLE_CLIENT_ID` - OAuth client ID from Google Cloud Console
 - `GOOGLE_CLIENT_SECRET` - OAuth client secret
 - `SESSION_SECRET` - Secret for session encryption
+
+**Optional:**
 - `APP_URL` - Your app URL (defaults to http://localhost:3000)
+
+**Note:** Gemini API keys are no longer set via environment variables. Users provide their own API keys through Settings → API Keys for privacy and scalability.
 
 ## License
 

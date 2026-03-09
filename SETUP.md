@@ -11,12 +11,12 @@ All dependencies have been installed. There was a minor network timeout with `yo
    cp .env.local.example .env.local
    ```
 
-2. **Add your API keys** to `.env.local`:
-   - Get Gemini API key: https://ai.google.dev/
+2. **Add OAuth credentials** to `.env.local`:
    - Create Google OAuth credentials: https://console.cloud.google.com/apis/credentials
      - Enable YouTube Data API v3
      - Enable YouTube Analytics API
      - Add authorized redirect URI: http://localhost:3000/auth/google/callback
+   - Add `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and `SESSION_SECRET` to `.env.local`
 
 3. **Start the development server**:
    ```bash
@@ -24,6 +24,12 @@ All dependencies have been installed. There was a minor network timeout with `yo
    ```
 
 4. **Open your browser**: http://localhost:3000
+
+5. **Add your Gemini API key** (required for AI features):
+   - Click Settings → API Keys
+   - Get a free API key from https://aistudio.google.com/app/apikey
+   - Paste it into the settings panel
+   - Your key is encrypted and stored only in your browser
 
 ## Features Available
 
@@ -52,7 +58,8 @@ The Viral Clip Creator's YouTube download feature requires `youtube-dl-exec`. If
 - Or manually install yt-dlp: `npm install yt-dlp` (alternative)
 
 ### Voice Over Not Working?
-- Make sure `VITE_GEMINI_API_KEY` is set in `.env.local`
+- Add your Gemini API key in Settings → API Keys
+- Get a free key from https://aistudio.google.com/app/apikey
 - The Gemini API must support the `gemini-2.5-flash-preview-tts` model
 
 ### OAuth Not Working?

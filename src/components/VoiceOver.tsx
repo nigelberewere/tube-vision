@@ -81,6 +81,16 @@ function createWavFile(base64Data: string, sampleRate: number = 24000): Blob {
   return new Blob([buffer], { type: 'audio/wav' });
 }
 
+// Helper function to get AI client with BYOK
+async function getAIClient() {
+  const { loadGeminiKey } = await import('../lib/geminiKeyStorage');
+  const apiKey = await loadGeminiKey();
+  if (!apiKey) {
+    throw new Error('Gemini API key required. Please add your key in Settings → API Keys.');
+  }
+  return new GoogleGenAI({ apiKey });
+}
+
 export default function VoiceOver() {
   const [script, setScript] = useState('In a world where silence was the only currency, [Pause] one voice dared to speak... [Whispering] and it changed everything.');
   const [voice, setVoice] = useState(VOICES[0]);
@@ -154,7 +164,7 @@ export default function VoiceOver() {
     
     setPreviewingVoice(voiceName);
     try {
-      const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
+      const ai = await getAIClient();
       const response = await ai.models.generateContent({
         model: "gemini-2.5-flash-preview-tts",
         contents: [{ parts: [{ text: `Say cheerfully: Hi, I am ${voiceName}.` }] }],
@@ -218,7 +228,7 @@ export default function VoiceOver() {
     setError(null);
     
     try {
-      const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
+      const ai = await getAIClient();
       const response = await ai.models.generateContent({
         model: "gemini-2.5-flash",
         contents: script,
@@ -244,7 +254,7 @@ export default function VoiceOver() {
     setError(null);
     
     try {
-      const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
+      const ai = await getAIClient();
       const targetLang = LANGUAGES.find(l => l.code === targetLanguageCode);
       
       const response = await ai.models.generateContent({
@@ -304,7 +314,7 @@ export default function VoiceOver() {
     setError(null);
     
     try {
-      const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
+      const ai = await getAIClient();
       const targetLang = LANGUAGES.find(l => l.code === languageCode);
       const recommendedVoice = targetLang?.voice || voice;
       
@@ -400,7 +410,7 @@ export default function VoiceOver() {
     setDuration(0);
 
     try {
-      const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
+      const ai = await getAIClient();
       
       const pitchInstruction = pitch !== 0 ? ` Adjust pitch to be ${pitch > 0 ? 'higher' : 'deeper'}.` : '';
       const speedInstruction = speed !== 1.0 ? ` Speak at ${speed}x speed.` : '';
