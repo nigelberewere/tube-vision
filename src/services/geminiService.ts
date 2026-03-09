@@ -24,12 +24,17 @@ Analytical, data-driven, and encouraging. Use "Growth Hacker" terminology (e.g.,
 ### Contextual Constraint:
 If a user provides a transcript or a link, prioritize the unique "hook" of their content over generic SEO advice.`;
 
-export async function generateVidVisionInsight(prompt: string, responseSchema?: any) {
+interface GenerateInsightOptions {
+  systemInstruction?: string;
+  model?: string;
+}
+
+export async function generateVidVisionInsight(prompt: string, responseSchema?: any, options?: GenerateInsightOptions) {
   try {
     const ai = getAIClient();
 
     const config: any = {
-      systemInstruction: SYSTEM_INSTRUCTION,
+      systemInstruction: options?.systemInstruction || SYSTEM_INSTRUCTION,
     };
     
     if (responseSchema) {
@@ -38,7 +43,7 @@ export async function generateVidVisionInsight(prompt: string, responseSchema?: 
     }
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: options?.model || "gemini-2.5-flash",
       contents: prompt,
       config,
     });

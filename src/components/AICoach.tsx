@@ -12,7 +12,10 @@ import {
   MessageSquare,
   History,
   Plus,
-  Trash2
+  Trash2,
+  BellRing,
+  X,
+  RefreshCw
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import Markdown from 'react-markdown';
@@ -44,8 +47,41 @@ interface ConversationRecord {
   messages: Message[];
 }
 
+interface InsightAlert {
+  id: string;
+  topic: string;
+  liftPercent: number;
+  signalType: 'retention' | 'retention-proxy';
+  headline: string;
+  summary: string;
+  ideas: string[];
+  generatedAt: string;
+}
+
 const JANSO_HISTORY_STORAGE_KEY = 'janso_chat_history_v1';
+const JANSO_DISMISSED_ALERTS_STORAGE_KEY = 'janso_dismissed_alerts_v1';
 const MAX_SAVED_CONVERSATIONS = 20;
+
+function readDismissedAlertIds(): string[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = window.localStorage.getItem(JANSO_DISMISSED_ALERTS_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((value) => typeof value === 'string' && value.trim()).slice(0, 40);
+  } catch {
+    return [];
+  }
+}
+
+function persistDismissedAlertIds(ids: string[]): void {
+  if (typeof window === 'undefined') return;
+  window.localStorage.setItem(
+    JANSO_DISMISSED_ALERTS_STORAGE_KEY,
+    JSON.stringify(ids.slice(0, 40)),
+  );
+}
 
 function asNumber(value: unknown): number {
   const parsed = Number(value ?? 0);
@@ -196,6 +232,10 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
   const [messages, setMessages] = useState<Message[]>([createWelcomeMessage(channelContext)]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [loadingInsightAlert, setLoadingInsightAlert] = useState(false);
+  const [insightAlert, setInsightAlert] = useState<InsightAlert | null>(null);
+  const [lastAlertCheckAt, setLastAlertCheckAt] = useState<string | null>(null);
+  const [dismissedAlertIds, setDismissedAlertIds] = useState<string[]>(() => readDismissedAlertIds());
   const [conversations, setConversations] = useState<ConversationRecord[]>([]);
   const [activeConversationId, setActiveConversationId] = useState('');
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -226,6 +266,69 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
     setMessages(initialConversation.messages);
     persistConversations([initialConversation]);
   }, []);
+
+  useEffect(() => {
+    if (!channelContext?.id) {
+      setInsightAlert(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    const fetchInsightAlert = async (silent = false) => {
+      if (!silent) {
+        setLoadingInsightAlert(true);
+      }
+
+      try {
+        const response = await fetch('/api/coach/insight-alert');
+        if (!response.ok) {
+          return;
+        }
+
+        const payload = await response.json();
+        const alert = payload?.alert;
+
+        if (cancelled) {
+          return;
+        }
+
+        if (
+          alert &&
+          typeof alert.id === 'string' &&
+          typeof alert.headline === 'string' &&
+          Array.isArray(alert.ideas)
+        ) {
+          if (!dismissedAlertIds.includes(alert.id)) {
+            setInsightAlert(alert as InsightAlert);
+          } else {
+            setInsightAlert(null);
+          }
+        } else {
+          setInsightAlert(null);
+        }
+
+        setLastAlertCheckAt(new Date().toISOString());
+      } catch (error) {
+        console.error('Insight alert fetch error:', error);
+      } finally {
+        if (!silent && !cancelled) {
+          setLoadingInsightAlert(false);
+        }
+      }
+    };
+
+    fetchInsightAlert();
+
+    const intervalId = window.setInterval(() => {
+      fetchInsightAlert(true);
+    }, 5 * 60 * 1000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+    };
+  }, [channelContext?.id, dismissedAlertIds]);
 
   useEffect(() => {
     if (!activeConversationId) return;
@@ -314,6 +417,16 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
     });
 
     chatRef.current = null;
+  };
+
+  const dismissInsightAlert = (alertId: string) => {
+    setInsightAlert(null);
+    setDismissedAlertIds((previous) => {
+      if (previous.includes(alertId)) return previous;
+      const next = [alertId, ...previous].slice(0, 40);
+      persistDismissedAlertIds(next);
+      return next;
+    });
   };
 
   const handleSend = async () => {
@@ -500,6 +613,92 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
         <h1 className="text-3xl font-bold tracking-tight text-zinc-100">Janso</h1>
         <p className="text-zinc-400 mt-2">Your personal 24/7 strategist for content ideas, hooks, and growth.</p>
       </div>
+
+      {channelContext?.id && (
+        <div className="mb-4 rounded-2xl border border-indigo-500/30 bg-indigo-500/10 px-4 py-3">
+          <div className="flex items-start gap-3">
+            <div className="w-8 h-8 rounded-lg bg-indigo-500/20 flex items-center justify-center text-indigo-300 mt-0.5">
+              <BellRing size={16} />
+            </div>
+
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-indigo-300">Insight Alert</p>
+                <button
+                  onClick={() => {
+                    setLoadingInsightAlert(true);
+                    fetch('/api/coach/insight-alert')
+                      .then((response) => (response.ok ? response.json() : null))
+                      .then((payload) => {
+                        const alert = payload?.alert;
+                        if (
+                          alert &&
+                          typeof alert.id === 'string' &&
+                          typeof alert.headline === 'string' &&
+                          Array.isArray(alert.ideas) &&
+                          !dismissedAlertIds.includes(alert.id)
+                        ) {
+                          setInsightAlert(alert as InsightAlert);
+                        }
+                        setLastAlertCheckAt(new Date().toISOString());
+                      })
+                      .catch((error) => {
+                        console.error('Manual insight alert refresh failed:', error);
+                      })
+                      .finally(() => setLoadingInsightAlert(false));
+                  }}
+                  className="inline-flex items-center gap-1 rounded-lg border border-zinc-700 px-2 py-1 text-[11px] text-zinc-300 hover:bg-zinc-800/60 transition-colors"
+                >
+                  <RefreshCw size={12} className={cn(loadingInsightAlert && 'animate-spin')} />
+                  Refresh
+                </button>
+              </div>
+
+              {insightAlert ? (
+                <div className="mt-2">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold text-zinc-100">{insightAlert.headline}</p>
+                      <p className="text-xs text-zinc-400 mt-1">{insightAlert.summary}</p>
+                      <p className="text-[11px] text-zinc-500 mt-1">
+                        {insightAlert.signalType === 'retention' ? 'Based on retention data' : 'Based on retention proxy signals'}
+                        {lastAlertCheckAt ? ` • Updated ${formatRelativeTime(lastAlertCheckAt)}` : ''}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => dismissInsightAlert(insightAlert.id)}
+                      className="p-1.5 text-zinc-500 hover:text-zinc-300 transition-colors"
+                      aria-label="Dismiss insight alert"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+
+                  <div className="mt-3 grid gap-2 md:grid-cols-3">
+                    {insightAlert.ideas.slice(0, 3).map((idea, index) => (
+                      <button
+                        key={`${insightAlert.id}-${index}`}
+                        onClick={() => {
+                          setInput(`Let's execute this insight alert idea: ${idea}`);
+                        }}
+                        className="text-left rounded-xl border border-zinc-700/70 bg-zinc-950/70 px-3 py-2 text-xs text-zinc-300 hover:border-indigo-400/60 hover:bg-zinc-900 transition-colors"
+                      >
+                        <span className="text-indigo-300 font-semibold">Idea {index + 1}:</span> {idea}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <p className="text-xs text-zinc-400 mt-2">
+                  {loadingInsightAlert
+                    ? 'Analyzing your latest channel patterns...'
+                    : 'No active trend alert right now. We will keep monitoring your channel patterns automatically.'}
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="flex-1 bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden flex flex-col shadow-2xl">
         {/* Chat Header */}

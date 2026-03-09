@@ -70,6 +70,174 @@ function toNumber(value: unknown): number {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+const COACH_ALERT_CACHE_TTL_MS = 20 * 60 * 1000;
+const COACH_ALERT_LOOKBACK_DAYS = 90;
+const COACH_STOP_WORDS = new Set([
+  "about", "after", "again", "also", "another", "because", "before", "being", "could", "every", "first",
+  "from", "have", "history", "into", "just", "make", "more", "most", "next", "other", "over", "part",
+  "really", "should", "some", "than", "that", "their", "there", "these", "they", "this", "those", "through",
+  "today", "video", "videos", "what", "when", "where", "which", "while", "with", "your", "youtube", "why",
+]);
+const coachInsightAlertCache = new Map<string, { expiresAt: number; payload: any }>();
+
+type CoachVideoSignal = {
+  id: string;
+  title: string;
+  publishedAt: string;
+  publishedAtMs: number;
+  views: number;
+  likes: number;
+  comments: number;
+  retentionPct: number | null;
+  signalScore: number;
+  tokens: string[];
+};
+
+type CoachTopicInsight = {
+  topicToken: string;
+  topicLabel: string;
+  recent: CoachVideoSignal[];
+  baseline: CoachVideoSignal[];
+  liftPercent: number;
+  retentionLiftPercent: number | null;
+  usesRetention: boolean;
+};
+
+function average(values: number[]): number {
+  if (!values.length) return 0;
+  return values.reduce((sum, value) => sum + value, 0) / values.length;
+}
+
+function toTopicLabel(token: string): string {
+  return token
+    .split(/\s+/)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+function extractTopicTokens(title: string): string[] {
+  const normalized = String(title || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .split(/\s+/)
+    .map((token) => token.trim())
+    .filter((token) => token.length >= 4 && !COACH_STOP_WORDS.has(token));
+
+  return [...new Set(normalized)].slice(0, 8);
+}
+
+function buildFallbackIdeas(topicLabel: string, channelTitle: string): string[] {
+  const audience = channelTitle?.trim() || "your audience";
+  return [
+    `${topicLabel} myths your viewers still believe in 2026`,
+    `${topicLabel}: 3 mistakes ${audience} should avoid this week`,
+    `Beginner-to-advanced ${topicLabel} roadmap in one video`,
+  ];
+}
+
+function pickBestTopicInsight(signals: CoachVideoSignal[]): CoachTopicInsight | null {
+  if (signals.length < 6) return null;
+
+  const recentWindow = signals.slice(0, 12);
+  const candidateTokens = new Set(recentWindow.flatMap((signal) => signal.tokens));
+  let best: CoachTopicInsight | null = null;
+  let bestComparisonLift = Number.NEGATIVE_INFINITY;
+
+  for (const token of candidateTokens) {
+    const recentMatches = recentWindow.filter((signal) => signal.tokens.includes(token)).slice(0, 3);
+    if (recentMatches.length < 3) continue;
+
+    const baselineMatches = signals
+      .filter((signal) => signal.tokens.includes(token) && !recentMatches.some((item) => item.id === signal.id))
+      .slice(0, 3);
+
+    let baseline = baselineMatches;
+    if (baseline.length < 3) {
+      baseline = signals
+        .filter((signal) => !recentMatches.some((item) => item.id === signal.id))
+        .slice(0, 3);
+    }
+    if (baseline.length < 3) continue;
+
+    const recentSignalAverage = average(recentMatches.map((signal) => signal.signalScore));
+    const baselineSignalAverage = average(baseline.map((signal) => signal.signalScore));
+    if (baselineSignalAverage <= 0) continue;
+
+    const liftPercent = ((recentSignalAverage - baselineSignalAverage) / baselineSignalAverage) * 100;
+
+    const recentRetentionValues = recentMatches
+      .map((signal) => signal.retentionPct)
+      .filter((value): value is number => typeof value === "number" && value > 0);
+    const baselineRetentionValues = baseline
+      .map((signal) => signal.retentionPct)
+      .filter((value): value is number => typeof value === "number" && value > 0);
+
+    let retentionLiftPercent: number | null = null;
+    let usesRetention = false;
+
+    if (recentRetentionValues.length >= 2 && baselineRetentionValues.length >= 2) {
+      const recentRetentionAverage = average(recentRetentionValues);
+      const baselineRetentionAverage = average(baselineRetentionValues);
+      if (baselineRetentionAverage > 0) {
+        retentionLiftPercent = ((recentRetentionAverage - baselineRetentionAverage) / baselineRetentionAverage) * 100;
+        usesRetention = true;
+      }
+    }
+
+    const comparisonLift = usesRetention && retentionLiftPercent !== null ? retentionLiftPercent : liftPercent;
+    if (comparisonLift > bestComparisonLift) {
+      bestComparisonLift = comparisonLift;
+      best = {
+        topicToken: token,
+        topicLabel: toTopicLabel(token),
+        recent: recentMatches,
+        baseline,
+        liftPercent,
+        retentionLiftPercent,
+        usesRetention,
+      };
+    }
+  }
+
+  if (!best) return null;
+
+  const bestLift = best.usesRetention && best.retentionLiftPercent !== null
+    ? best.retentionLiftPercent
+    : best.liftPercent;
+
+  if (bestLift >= 5) {
+    return best;
+  }
+
+  const fallbackRecent = signals.slice(0, 3);
+  const fallbackBaseline = signals.slice(3, 6);
+  if (fallbackRecent.length < 3 || fallbackBaseline.length < 3) {
+    return null;
+  }
+
+  const fallbackToken = fallbackRecent.flatMap((signal) => signal.tokens)[0] || "content";
+  const fallbackRecentAvg = average(fallbackRecent.map((signal) => signal.signalScore));
+  const fallbackBaselineAvg = average(fallbackBaseline.map((signal) => signal.signalScore));
+  if (fallbackBaselineAvg <= 0) {
+    return null;
+  }
+
+  const fallbackLift = ((fallbackRecentAvg - fallbackBaselineAvg) / fallbackBaselineAvg) * 100;
+  if (fallbackLift < 5) {
+    return null;
+  }
+
+  return {
+    topicToken: fallbackToken,
+    topicLabel: toTopicLabel(fallbackToken),
+    recent: fallbackRecent,
+    baseline: fallbackBaseline,
+    liftPercent: fallbackLift,
+    retentionLiftPercent: null,
+    usesRetention: false,
+  };
+}
+
 type CreateAppOptions = {
   includeFrontend?: boolean;
   port?: number;
@@ -655,6 +823,275 @@ Recent videos: ${recentTitles.join(" | ") || "No recent titles"}`;
         channelId: user.channel.id,
         source: "fallback",
       });
+    }
+  });
+
+  app.get("/api/coach/insight-alert", async (req, res) => {
+    const { accounts, activeIndex } = getSessionAccountsAndActiveIndex(req);
+    const user = accounts[activeIndex];
+
+    if (!user || !user.tokens) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
+    if (!user.channel?.id) {
+      return res.status(400).json({ error: "No channel connected" });
+    }
+
+    const channelId = String(user.channel.id);
+    const cachedAlert = coachInsightAlertCache.get(channelId);
+    if (cachedAlert && cachedAlert.expiresAt > Date.now()) {
+      return res.json({ ...cachedAlert.payload, cached: true });
+    }
+
+    try {
+      const authHeader = { Authorization: `Bearer ${user.tokens.access_token}` };
+      const searchResponse = await fetch(
+        "https://www.googleapis.com/youtube/v3/search?part=snippet&forMine=true&type=video&maxResults=30&order=date",
+        { headers: authHeader }
+      );
+
+      if (!searchResponse.ok) {
+        const errorPayload = await searchResponse.json().catch(() => ({}));
+        return res.status(searchResponse.status).json({
+          error: errorPayload?.error?.message || "Failed to fetch videos for insight analysis",
+        });
+      }
+
+      const searchData = await searchResponse.json();
+      const videoIds = (searchData.items || [])
+        .map((item: any) => item?.id?.videoId)
+        .filter((id: unknown) => typeof id === "string" && id.trim())
+        .slice(0, 30)
+        .join(",");
+
+      if (!videoIds) {
+        return res.json({
+          generatedAt: new Date().toISOString(),
+          analysisWindowDays: COACH_ALERT_LOOKBACK_DAYS,
+          cached: false,
+          alert: null,
+          message: "Not enough video data for proactive insights yet.",
+        });
+      }
+
+      const videosResponse = await fetch(
+        `https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics,contentDetails&id=${videoIds}`,
+        { headers: authHeader }
+      );
+
+      if (!videosResponse.ok) {
+        const errorPayload = await videosResponse.json().catch(() => ({}));
+        return res.status(videosResponse.status).json({
+          error: errorPayload?.error?.message || "Failed to fetch detailed video data",
+        });
+      }
+
+      const videosData = await videosResponse.json();
+      const videos = Array.isArray(videosData.items) ? videosData.items : [];
+
+      if (videos.length < 6) {
+        return res.json({
+          generatedAt: new Date().toISOString(),
+          analysisWindowDays: COACH_ALERT_LOOKBACK_DAYS,
+          cached: false,
+          alert: null,
+          message: "Need at least 6 videos before proactive insight alerts can be generated.",
+        });
+      }
+
+      const retentionByVideoId: Record<string, number> = {};
+
+      try {
+        const endDate = new Date().toISOString().slice(0, 10);
+        const startDate = new Date(Date.now() - COACH_ALERT_LOOKBACK_DAYS * 24 * 60 * 60 * 1000)
+          .toISOString()
+          .slice(0, 10);
+
+        const analyticsResponse = await fetch(
+          `https://youtubeanalytics.googleapis.com/v2/reports?ids=channel==MINE&startDate=${startDate}&endDate=${endDate}&metrics=views,averageViewPercentage&dimensions=video&sort=-views&maxResults=200`,
+          { headers: authHeader }
+        );
+
+        if (analyticsResponse.ok) {
+          const analyticsData = await analyticsResponse.json();
+          const headers = Array.isArray(analyticsData.columnHeaders) ? analyticsData.columnHeaders : [];
+          const rows = Array.isArray(analyticsData.rows) ? analyticsData.rows : [];
+
+          const videoIndex = headers.findIndex((header: any) => header?.name === "video");
+          const retentionIndex = headers.findIndex((header: any) => header?.name === "averageViewPercentage");
+
+          if (videoIndex >= 0 && retentionIndex >= 0) {
+            for (const row of rows) {
+              const videoId = String(row?.[videoIndex] || "");
+              const retentionValue = toNumber(row?.[retentionIndex]);
+              if (videoId && retentionValue > 0) {
+                retentionByVideoId[videoId] = retentionValue;
+              }
+            }
+          }
+        }
+      } catch (analyticsError) {
+        console.log("Coach insight analytics fallback to retention-proxy signals", analyticsError);
+      }
+
+      const now = Date.now();
+      const signals: CoachVideoSignal[] = videos
+        .map((video: any) => {
+          const id = String(video?.id || "").trim();
+          const title = String(video?.snippet?.title || "").trim();
+          const publishedAt = String(video?.snippet?.publishedAt || "");
+          const publishedAtMs = new Date(publishedAt).getTime();
+
+          if (!id || !title || !Number.isFinite(publishedAtMs)) {
+            return null;
+          }
+
+          const views = toNumber(video?.statistics?.viewCount);
+          const likes = toNumber(video?.statistics?.likeCount);
+          const comments = toNumber(video?.statistics?.commentCount);
+          const retentionPct = typeof retentionByVideoId[id] === "number" ? retentionByVideoId[id] : null;
+
+          const ageDays = Math.max(1, (now - publishedAtMs) / (24 * 60 * 60 * 1000));
+          const viewsPerDay = views / ageDays;
+          const engagementRate = views > 0 ? ((likes + comments) / views) * 100 : 0;
+          const signalScore = retentionPct !== null
+            ? retentionPct
+            : engagementRate * 8 + Math.log10(viewsPerDay + 1) * 14;
+
+          return {
+            id,
+            title,
+            publishedAt,
+            publishedAtMs,
+            views,
+            likes,
+            comments,
+            retentionPct,
+            signalScore,
+            tokens: extractTopicTokens(title),
+          };
+        })
+        .filter((signal: CoachVideoSignal | null): signal is CoachVideoSignal => Boolean(signal))
+        .sort((a, b) => b.publishedAtMs - a.publishedAtMs)
+        .slice(0, 24);
+
+      const topicInsight = pickBestTopicInsight(signals);
+      if (!topicInsight) {
+        return res.json({
+          generatedAt: new Date().toISOString(),
+          analysisWindowDays: COACH_ALERT_LOOKBACK_DAYS,
+          cached: false,
+          alert: null,
+          message: "No strong positive trend detected yet. Keep publishing and check back soon.",
+        });
+      }
+
+      const liftRaw = topicInsight.usesRetention && topicInsight.retentionLiftPercent !== null
+        ? topicInsight.retentionLiftPercent
+        : topicInsight.liftPercent;
+      const liftPercent = Math.max(5, Math.round(liftRaw));
+      const signalType = topicInsight.usesRetention ? "retention" : "retention-proxy";
+      const channelTitle = String(user.channel?.title || "your channel").trim();
+
+      let headline = `Your last 3 videos on ${topicInsight.topicLabel} had ${liftPercent}% higher retention signals.`;
+      let summary = `This pattern indicates audience momentum. Double down on ${topicInsight.topicLabel} with follow-up angles while this interest is hot.`;
+      let ideas = buildFallbackIdeas(topicInsight.topicLabel, channelTitle);
+
+      if (process.env.GEMINI_API_KEY) {
+        try {
+          const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+          const prompt = `You are generating a proactive YouTube coaching alert.
+
+Important identity rule:
+- VidVision is the app name, not the creator name.
+- Creator channel name is "${channelTitle}".
+- Never call the creator or audience "VidVision" or "VidVisionaries" unless channel name exactly matches VidVision.
+
+Trend data:
+- Topic with strongest positive momentum: ${topicInsight.topicLabel}
+- Lift over baseline: ${liftPercent}%
+- Signal type: ${signalType}
+- Most recent 3 matching videos: ${topicInsight.recent.map((video) => video.title).join(" | ")}
+
+Return JSON with:
+1) headline: one sentence like "Your last 3 videos on X had Y% higher retention..."
+2) summary: 1-2 short sentences that explain why this matters now
+3) ideas: exactly 3 concrete video ideas to double down.`;
+
+          const aiResponse = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: prompt,
+            config: {
+              responseMimeType: "application/json",
+              responseSchema: {
+                type: Type.OBJECT,
+                properties: {
+                  headline: { type: Type.STRING },
+                  summary: { type: Type.STRING },
+                  ideas: {
+                    type: Type.ARRAY,
+                    items: { type: Type.STRING },
+                  },
+                },
+                required: ["headline", "summary", "ideas"],
+              },
+            },
+          });
+
+          const parsed = JSON.parse(aiResponse.text || "{}");
+          const parsedHeadline = String(parsed?.headline || "").trim();
+          const parsedSummary = String(parsed?.summary || "").trim();
+          const parsedIdeas = Array.isArray(parsed?.ideas)
+            ? parsed.ideas.map((idea: unknown) => String(idea || "").trim()).filter(Boolean)
+            : [];
+
+          if (parsedHeadline) {
+            headline = parsedHeadline;
+          }
+          if (parsedSummary) {
+            summary = parsedSummary;
+          }
+          if (parsedIdeas.length >= 3) {
+            ideas = parsedIdeas.slice(0, 3);
+          }
+        } catch (aiError) {
+          console.error("Coach insight AI generation error:", aiError);
+        }
+      }
+
+      const alertId = `${channelId}:${topicInsight.topicToken}:${topicInsight.recent[0]?.id || Date.now()}`;
+      const payload = {
+        generatedAt: new Date().toISOString(),
+        analysisWindowDays: COACH_ALERT_LOOKBACK_DAYS,
+        cached: false,
+        alert: {
+          id: alertId,
+          topic: topicInsight.topicLabel,
+          liftPercent,
+          signalType,
+          headline,
+          summary,
+          ideas: ideas.slice(0, 3),
+          supportingVideos: topicInsight.recent.map((video) => ({
+            id: video.id,
+            title: video.title,
+            publishedAt: video.publishedAt,
+            views: video.views,
+            retentionPct: video.retentionPct,
+          })),
+        },
+      };
+
+      coachInsightAlertCache.set(channelId, {
+        expiresAt: Date.now() + COACH_ALERT_CACHE_TTL_MS,
+        payload,
+      });
+
+      return res.json(payload);
+    } catch (error) {
+      console.error("Coach insight alert error:", error);
+      return res.status(500).json({ error: "Failed to generate insight alert" });
     }
   });
 

@@ -638,7 +638,13 @@ export default function App() {
       case 'keywords':
         return <KeywordResearch />;
       case 'script':
-        return <ScriptArchitect initialTopic={scriptTopic} onTopicUsed={() => setScriptTopic('')} />;
+        return (
+          <ScriptArchitect
+            initialTopic={scriptTopic}
+            onTopicUsed={() => setScriptTopic('')}
+            channelContext={user?.channel || null}
+          />
+        );
       case 'thumbnail':
         return <ThumbnailConcepting />;
       case 'voiceover':

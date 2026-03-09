@@ -7,23 +7,136 @@ import { cn } from '../lib/utils';
 interface ScriptArchitectProps {
   initialTopic?: string;
   onTopicUsed?: () => void;
+  channelContext?: {
+    id?: string;
+    title?: string;
+  } | null;
 }
 
 type VideoFormat = 'short' | 'long';
 
+interface ScriptBodyParagraph {
+  heading: string;
+  content: string;
+  visualCue: string;
+}
+
+interface ScriptResult {
+  title: string;
+  hook: string;
+  intro: string;
+  bodyParagraphs: ScriptBodyParagraph[];
+  cta: string;
+  outro: string;
+}
+
 const DEFAULT_TOPIC_PLACEHOLDER = 'e.g., The history of mechanical keyboards';
 const DAILY_PLACEHOLDER_CACHE_KEY = 'vid_vision_script_daily_placeholder';
+const SCRIPT_ARCHITECT_SYSTEM_INSTRUCTION = `You are VidVision's Script Architect.
 
-export default function ScriptArchitect({ initialTopic, onTopicUsed }: ScriptArchitectProps = {}) {
+You only generate spoken YouTube scripts, not SEO metadata.
+
+Rules:
+- Return only the requested JSON structure.
+- Do not include hashtags anywhere.
+- Do not include tag lists, keyword lists, or title dumps.
+- Keep language natural and spoken, optimized for retention.
+- Respect the requested format (short or long-form) and target final length.`;
+
+function sanitizeText(value: unknown): string {
+  if (typeof value !== 'string') {
+    return '';
+  }
+
+  return value
+    .replace(/#[A-Za-z0-9_]+/g, ' ')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
+function sanitizeChannelMentions(value: string, channelName?: string): string {
+  const normalizedChannelName = (channelName || '').trim();
+  const isVidVisionChannel = /vid\s*vision/i.test(normalizedChannelName);
+
+  if (isVidVisionChannel) {
+    return value;
+  }
+
+  const replacementName = normalizedChannelName || 'your channel';
+
+  return value
+    .replace(/\bvid\s*visionaries\b/gi, 'everyone')
+    .replace(/\bvid\s*vision\b/gi, replacementName)
+    .replace(/\btube\s*vision\b/gi, replacementName)
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
+function normalizeParagraph(value: unknown, channelName?: string): ScriptBodyParagraph | null {
+  if (!value || typeof value !== 'object') {
+    return null;
+  }
+
+  const paragraph = value as Record<string, unknown>;
+  const heading = sanitizeChannelMentions(sanitizeText(paragraph.heading), channelName);
+  const content = sanitizeChannelMentions(sanitizeText(paragraph.content), channelName);
+  const visualCue = sanitizeChannelMentions(sanitizeText(paragraph.visualCue), channelName);
+
+  if (!heading && !content && !visualCue) {
+    return null;
+  }
+
+  return {
+    heading: heading || 'Main Point',
+    content: content || 'Expand this point with a concrete example and clear takeaway.',
+    visualCue: visualCue || 'Supporting b-roll or on-screen text',
+  };
+}
+
+function normalizeScriptResult(value: unknown, channelName?: string): ScriptResult | null {
+  if (!value || typeof value !== 'object') {
+    return null;
+  }
+
+  const data = value as Record<string, unknown>;
+  const title = sanitizeChannelMentions(sanitizeText(data.title), channelName);
+  const hook = sanitizeChannelMentions(sanitizeText(data.hook), channelName);
+  const intro = sanitizeChannelMentions(sanitizeText(data.intro), channelName);
+  const cta = sanitizeChannelMentions(sanitizeText(data.cta), channelName);
+  const outro = sanitizeChannelMentions(sanitizeText(data.outro), channelName);
+
+  const bodyParagraphs = Array.isArray(data.bodyParagraphs)
+    ? data.bodyParagraphs
+        .map((paragraph) => normalizeParagraph(paragraph, channelName))
+        .filter((paragraph): paragraph is ScriptBodyParagraph => Boolean(paragraph))
+    : [];
+
+  if (!title || !hook || !intro || !cta || !outro || bodyParagraphs.length === 0) {
+    return null;
+  }
+
+  return {
+    title,
+    hook,
+    intro,
+    bodyParagraphs,
+    cta,
+    outro,
+  };
+}
+
+export default function ScriptArchitect({ initialTopic, onTopicUsed, channelContext }: ScriptArchitectProps = {}) {
   const [topic, setTopic] = useState('');
   const [videoFormat, setVideoFormat] = useState<VideoFormat | ''>('');
   const [targetLength, setTargetLength] = useState('');
   const [topicPlaceholder, setTopicPlaceholder] = useState(DEFAULT_TOPIC_PLACEHOLDER);
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<any>(null);
+  const [result, setResult] = useState<ScriptResult | null>(null);
   const [generationError, setGenerationError] = useState<string | null>(null);
   const [generatedConfig, setGeneratedConfig] = useState<{ videoFormat: VideoFormat; targetLength: string } | null>(null);
   const [copied, setCopied] = useState(false);
+
+  const connectedChannelName = String(channelContext?.title || '').trim();
 
   // Auto-populate topic from initialTopic
   useEffect(() => {
@@ -95,14 +208,16 @@ export default function ScriptArchitect({ initialTopic, onTopicUsed }: ScriptArc
     const requestedFormat: VideoFormat = videoFormat;
 
     setGenerationError(null);
+    setResult(null);
+    setGeneratedConfig(null);
     setLoading(true);
     try {
       const schema = {
         type: Type.OBJECT,
         properties: {
-          title: { type: Type.STRING },
-          hook: { type: Type.STRING, description: "First 15-30 seconds. Must be highly engaging." },
-          intro: { type: Type.STRING, description: "Setting expectations and building credibility." },
+          title: { type: Type.STRING, description: 'Clean title text only. Never use hashtags.' },
+          hook: { type: Type.STRING, description: 'Opening lines only. Never use hashtags.' },
+          intro: { type: Type.STRING, description: 'Set expectation and context. Never use hashtags.' },
           bodyParagraphs: {
             type: Type.ARRAY,
             items: {
@@ -110,13 +225,15 @@ export default function ScriptArchitect({ initialTopic, onTopicUsed }: ScriptArc
               properties: {
                 heading: { type: Type.STRING },
                 content: { type: Type.STRING },
-                visualCue: { type: Type.STRING, description: "What should be on screen?" }
-              }
+                visualCue: { type: Type.STRING, description: 'What should be on screen?' }
+              },
+              required: ['heading', 'content', 'visualCue']
             }
           },
           cta: { type: Type.STRING, description: "Call to action (subscribe, next video, etc.)" },
           outro: { type: Type.STRING }
-        }
+        },
+        required: ['title', 'hook', 'intro', 'bodyParagraphs', 'cta', 'outro']
       };
 
       const formatLabel = requestedFormat === 'short' ? 'YouTube Short' : 'Long-form YouTube video';
@@ -134,16 +251,36 @@ export default function ScriptArchitect({ initialTopic, onTopicUsed }: ScriptArc
       - ${pacingGuidance}
       - ${bodySectionGuidance}
       - Include a strong hook, clear transitions, visual cues for the editor, and a compelling call to action.
-      - Ensure the final spoken script fits the required final length.`;
+      - Ensure the final spoken script fits the required final length.
+      - Do not include hashtags, tag lists, SEO metadata, or keyword dumps.
+      - App name is "VidVision" and must never be treated as the creator's channel identity.
+      - Connected creator channel name: ${connectedChannelName || 'Not connected'}
+      - If a greeting is used, address the audience neutrally ("everyone", "friends") or based on the connected channel identity only.
+      - Never say "VidVisionaries" unless the connected channel name itself is actually VidVision.
+      - Return only JSON matching the schema.`;
       
-      const response = await generateVidVisionInsight(prompt, schema);
+      const response = await generateVidVisionInsight(prompt, schema, {
+        systemInstruction: SCRIPT_ARCHITECT_SYSTEM_INSTRUCTION,
+      });
+
       if (response) {
-        setResult(JSON.parse(response));
+        const parsed = JSON.parse(response);
+        const normalized = normalizeScriptResult(parsed, connectedChannelName);
+        if (!normalized) {
+          throw new Error('Invalid script payload');
+        }
+
+        setResult(normalized);
         setGeneratedConfig({ videoFormat: requestedFormat, targetLength: trimmedTargetLength });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      setGenerationError('Failed to generate script. Please try again.');
+
+      if (error?.message?.includes('Invalid script payload')) {
+        setGenerationError('The AI returned an invalid script format. Please generate again.');
+      } else {
+        setGenerationError('Failed to generate script. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -162,7 +299,7 @@ export default function ScriptArchitect({ initialTopic, onTopicUsed }: ScriptArc
     text += `## HOOK (${hookRange})\n${result.hook}\n\n`;
     text += `## INTRO\n${result.intro}\n\n`;
     
-    result.bodyParagraphs.forEach((p: any, i: number) => {
+    result.bodyParagraphs.forEach((p, i) => {
       text += `## SECTION ${i + 1}: ${p.heading}\n`;
       text += `[VISUAL CUE: ${p.visualCue}]\n`;
       text += `${p.content}\n\n`;
