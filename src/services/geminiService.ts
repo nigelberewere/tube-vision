@@ -27,6 +27,8 @@ If a user provides a transcript or a link, prioritize the unique "hook" of their
 interface GenerateInsightOptions {
   systemInstruction?: string;
   model?: string;
+  imageBase64?: string;
+  imageMediaType?: string;
 }
 
 export async function generateVidVisionInsight(prompt: string, responseSchema?: any, options?: GenerateInsightOptions) {
@@ -42,9 +44,27 @@ export async function generateVidVisionInsight(prompt: string, responseSchema?: 
       config.responseSchema = responseSchema;
     }
 
+    // Build contents array - include image if provided (for vision API)
+    let contents: any = prompt;
+    if (options?.imageBase64) {
+      contents = [
+        {
+          parts: [
+            { text: prompt },
+            {
+              inlineData: {
+                mimeType: options.imageMediaType || 'image/png',
+                data: options.imageBase64
+              }
+            }
+          ]
+        }
+      ];
+    }
+
     const response = await ai.models.generateContent({
       model: options?.model || "gemini-2.5-flash",
-      contents: prompt,
+      contents,
       config,
     });
     

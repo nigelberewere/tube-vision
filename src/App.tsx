@@ -40,6 +40,7 @@ import ContentRepurposer from './components/ContentRepurposer';
 import CommentStrategist from './components/CommentStrategist';
 import CollaborationEngine from './components/CollaborationEngine';
 import ThumbnailHeatmapSimulator from './components/ThumbnailHeatmapSimulator';
+import ThumbnailABTester from './components/ThumbnailABTester';
 import OnboardingTour, { type OnboardingStep } from './components/OnboardingTour';
 import SettingsPanel from './components/SettingsPanel';
 import YouTubeShortsIcon from './components/icons/YouTubeShortsIcon';
@@ -54,6 +55,7 @@ type Tab =
   | 'script'
   | 'thumbnail'
   | 'heatmap'
+  | 'abtest'
   | 'channel'
   | 'coach'
   | 'ideas'
@@ -200,6 +202,13 @@ export default function App() {
       icon: Eye,
       section: 'studios',
       summary: 'Analyze where viewers eyes land and optimize thumbnail layout for CTR.',
+    },
+    {
+      id: 'abtest',
+      label: 'A/B Testing',
+      icon: ShieldCheck,
+      section: 'studios',
+      summary: 'Upload two thumbnails and predict which one will drive more clicks.',
     },
     {
       id: 'seo',
@@ -688,6 +697,8 @@ export default function App() {
         return <ThumbnailConcepting />;
       case 'heatmap':
         return <ThumbnailHeatmapSimulator />;
+      case 'abtest':
+        return <ThumbnailABTester />;
       case 'voiceover':
         return <VoiceOver />;
       case 'clips':
