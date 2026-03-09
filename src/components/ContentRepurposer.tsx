@@ -3,6 +3,20 @@ import { generateVidVisionInsight } from '../services/geminiService';
 import { Type } from '@google/genai';
 import { Loader2, Share2, Copy, Check, Twitter, Linkedin, FileText } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { loadBrandKit } from './BrandKit';
+
+function getBrandVoiceContext(): string {
+  const brandKit = loadBrandKit();
+  
+  return `
+BRAND VOICE GUIDELINES (Maintain consistency with these):
+- Primary Brand Color: ${brandKit.colors.primary} (reference when discussing brand elements)
+- Visual Style: Uses ${brandKit.fonts.heading} for emphasis, ${brandKit.fonts.body} for body text
+- Tone: Professional yet approachable, reflecting the brand's color palette
+
+Subtly reflect this brand identity in the content's style and tone.
+`.trim();
+}
 
 interface TwitterThread {
   tweets: string[];
@@ -174,6 +188,8 @@ Rules:
 Content:
 ${content}
 
+${getBrandVoiceContext()}
+
 Return ONLY valid JSON matching the schema.`;
 
     const response = await generateVidVisionInsight(prompt, schema, {
@@ -248,6 +264,8 @@ Rules:
 
 Content:
 ${content}
+
+${getBrandVoiceContext()}
 
 Return ONLY valid JSON matching the schema.`;
 

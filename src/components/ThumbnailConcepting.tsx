@@ -14,6 +14,7 @@ import {
   Wand2,
 } from 'lucide-react';
 import { generateVidVisionInsight } from '../services/geminiService';
+import { loadBrandKit } from './BrandKit';
 
 interface VideoItem {
   id: string;
@@ -116,6 +117,25 @@ function formatDurationLabel(totalSeconds: number): string {
 function toNumber(value: unknown): number {
   const parsed = Number(value ?? 0);
   return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function getBrandKitPromptContext(): string {
+  const brandKit = loadBrandKit();
+  const hasLogos = brandKit.logos.main || brandKit.logos.secondary;
+  
+  return `
+BRAND KIT (Use these assets to maintain brand consistency):
+- Primary Color: ${brandKit.colors.primary}
+- Secondary Color: ${brandKit.colors.secondary}
+- Accent Color: ${brandKit.colors.accent}
+- Background Color: ${brandKit.colors.background}
+- Text Color: ${brandKit.colors.text}
+- Heading Font: ${brandKit.fonts.heading}
+- Body Font: ${brandKit.fonts.body}
+${hasLogos ? '- Logo: Available (incorporate logo placement in layout)' : '- Logo: None uploaded'}
+
+Apply these brand assets in your thumbnail recommendations.
+`.trim();
 }
 
 function compact(value: number): string {
@@ -338,7 +358,9 @@ export default function ThumbnailConcepting() {
       };
 
       const prompt = `Act as a master YouTube thumbnail strategist. Generate 3 high-CTR thumbnail concepts for: "${topic}".
-Each concept must include: composition, short text overlay (max 4 words), color direction, emotional trigger, and conversion logic.`;
+    Each concept must include: composition, short text overlay (max 4 words), color direction, emotional trigger, and conversion logic.
+
+    ${getBrandKitPromptContext()}`;
 
       const response = await generateVidVisionInsight(prompt, schema);
       if (!response) {
@@ -451,7 +473,9 @@ Rules:
 - thumbnailHealthScore is 1-100 (higher is better current thumbnail quality).
 - swapPriority is 1-100 (higher means apply this swap first).
 - Focus on practical visual changes a creator can execute quickly.
-- Include 3 to 5 high-impact channel-level actions.`;
+- Include 3 to 5 high-impact channel-level actions.
+
+${getBrandKitPromptContext()}`;
 
       const response = await generateVidVisionInsight(prompt, schema);
       if (!response) {
@@ -544,7 +568,9 @@ Rules:
 - thumbnailHealthScore: 1 to 100.
 - swapPriority: 1 to 100.
 - thumbnailImagePrompt: ready for image generation.
-- Return JSON only.`;
+- Return JSON only.
+
+${getBrandKitPromptContext()}`;
 
       const response = await generateVidVisionInsight(prompt, schema);
       if (!response) {
