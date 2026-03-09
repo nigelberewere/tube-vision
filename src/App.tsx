@@ -158,13 +158,6 @@ export default function App() {
       summary: 'Track your channel pulse: subscribers, last-hour views, and daily momentum.',
     },
     {
-      id: 'settings',
-      label: 'Settings',
-      icon: Settings2,
-      section: 'overview',
-      summary: 'Customize your workspace preferences, including dark and light mode.',
-    },
-    {
       id: 'voiceover',
       label: 'Neural Voice Studio',
       icon: Mic,
@@ -1003,6 +996,24 @@ export default function App() {
                     
                     {/* Actions */}
                     <div className="py-1">
+                      <button
+                        data-tour-id="tour-settings-entry"
+                        onClick={() => {
+                          setIsProfileMenuOpen(false);
+                          setActiveTab('settings');
+                          setIsSidebarOpen(false);
+                        }}
+                        className={cn(
+                          'w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors',
+                          theme === 'light'
+                            ? 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'
+                            : 'text-slate-300 hover:bg-white/10 hover:text-white'
+                        )}
+                      >
+                        <Settings2 size={16} />
+                        <span>Settings</span>
+                      </button>
+
                       <button
                         onClick={() => {
                           setIsProfileMenuOpen(false);
