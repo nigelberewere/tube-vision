@@ -10,6 +10,7 @@ import multer from "multer";
 import { GoogleGenAI, Type } from "@google/genai";
 import fs from "fs";
 import youtubedl from "youtube-dl-exec";
+import { initializeSnapshotTable, saveChannelSnapshot, getChannelSnapshots, getLatestSnapshot } from "./src/services/snapshotService.ts";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -293,6 +294,13 @@ export async function createApp(options: CreateAppOptions = {}) {
   // Create uploads directory if it doesn't exist
   if (!fs.existsSync('uploads')) {
     fs.mkdirSync('uploads');
+  }
+
+  // Initialize snapshot database
+  try {
+    initializeSnapshotTable();
+  } catch (error) {
+    console.warn('Snapshot database not available:', error instanceof Error ? error.message : 'Unknown error');
   }
 
   // Headers for SharedArrayBuffer (ffmpeg.wasm) and CORS
@@ -2213,6 +2221,154 @@ Return as JSON.`;
       res.clearCookie("connect.sid");
       res.json({ success: true });
     });
+  });
+
+  // Channel Snapshots - Growth Momentum Tracking
+  app.post("/api/snapshots/save", async (req, res) => {
+    const { accounts, activeIndex } = getSessionAccountsAndActiveIndex(req);
+    const user = accounts[activeIndex];
+    
+    if (!user || !user.channel?.id) {
+      return res.status(401).json({ error: "Not authenticated or no channel connected" });
+    }
+
+    try {
+      const channelId = user.channel.id;
+      const subscribers = toNumber(user.channel.statistics?.subscriberCount);
+      const videoCount = toNumber(user.channel.statistics?.videoCount);
+      const viewCount = toNumber(user.channel.statistics?.viewCount);
+      
+      // Get estimated daily views from analytics if available
+      const authHeader = { Authorization: `Bearer ${user.tokens.access_token}` };
+      const endDate = new Date().toISOString().split("T")[0];
+      const startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+      
+      let estimatedDailyViews = 0;
+      try {
+        const analyticsResponse = await fetch(
+          `https://youtubeanalytics.googleapis.com/v2/reports?ids=channel==MINE&startDate=${startDate}&endDate=${endDate}&metrics=views`,
+          { headers: authHeader }
+        );
+        
+        if (analyticsResponse.ok) {
+          const analyticsData = await analyticsResponse.json();
+          const rows = analyticsData.rows || [];
+          if (rows.length > 0) {
+            const totalViews = rows.reduce((sum: number, row: any[]) => sum + toNumber(row[0]), 0);
+            estimatedDailyViews = Math.round(totalViews / Math.max(1, rows.length));
+          }
+        }
+      } catch (error) {
+        console.warn('Failed to fetch daily views for snapshot:', error);
+      }
+
+      const snapshot = {
+        channelId,
+        date: new Date().toISOString().split("T")[0],
+        timestamp: Date.now(),
+        subscriberCount: subscribers,
+        videoCount,
+        viewCount,
+        estimatedDailyViews,
+      };
+
+      const success = saveChannelSnapshot(snapshot);
+      
+      if (success) {
+        res.json({ 
+          success: true, 
+          snapshot,
+          message: "Snapshot saved successfully"
+        });
+      } else {
+        res.status(500).json({ error: "Failed to save snapshot" });
+      }
+    } catch (error) {
+      console.error("Save snapshot error:", error);
+      res.status(500).json({ error: "Failed to save snapshot" });
+    }
+  });
+
+  app.get("/api/snapshots/history", async (req, res) => {
+    const { accounts, activeIndex } = getSessionAccountsAndActiveIndex(req);
+    const user = accounts[activeIndex];
+    
+    if (!user || !user.channel?.id) {
+      return res.status(401).json({ error: "Not authenticated or no channel connected" });
+    }
+
+    try {
+      const channelId = user.channel.id;
+      const days = Number(req.query.days) || 90;
+      
+      const snapshots = getChannelSnapshots(channelId, days);
+      
+      res.json({
+        channelId,
+        snapshots,
+        count: snapshots.length,
+        period: `${days} days`,
+        startDate: snapshots.length > 0 ? snapshots[0].date : null,
+        endDate: snapshots.length > 0 ? snapshots[snapshots.length - 1].date : null,
+      });
+    } catch (error) {
+      console.error("Get snapshots history error:", error);
+      res.status(500).json({ error: "Failed to fetch snapshot history" });
+    }
+  });
+
+  app.get("/api/snapshots/momentum", async (req, res) => {
+    const { accounts, activeIndex } = getSessionAccountsAndActiveIndex(req);
+    const user = accounts[activeIndex];
+    
+    if (!user || !user.channel?.id) {
+      return res.status(401).json({ error: "Not authenticated or no channel connected" });
+    }
+
+    try {
+      const channelId = user.channel.id;
+      
+      // Get growth metrics for different time periods
+      const week = getChannelSnapshots(channelId, 7);
+      const month = getChannelSnapshots(channelId, 30);
+      const quarter = getChannelSnapshots(channelId, 90);
+      
+      // Calculate growth rates
+      const calculateGrowth = (snapshots: any[]) => {
+        if (snapshots.length < 2) return null;
+        
+        const first = snapshots[0];
+        const last = snapshots[snapshots.length - 1];
+        
+        return {
+          period: `${snapshots.length} days`,
+          subscriberGrowth: last.subscriberCount - first.subscriberCount,
+          subscriberGrowthPct: first.subscriberCount > 0 
+            ? Number((((last.subscriberCount - first.subscriberCount) / first.subscriberCount) * 100).toFixed(2))
+            : 0,
+          viewGrowth: last.viewCount - first.viewCount,
+          videoGrowth: last.videoCount - first.videoCount,
+          avgDailyViews: Math.round(last.estimatedDailyViews),
+        };
+      };
+      
+      res.json({
+        channelId,
+        momentum: {
+          week: calculateGrowth(week),
+          month: calculateGrowth(month),
+          quarter: calculateGrowth(quarter),
+        },
+        currentMetrics: {
+          subscribers: user.channel.statistics?.subscriberCount || 0,
+          videoCount: user.channel.statistics?.videoCount || 0,
+          totalViews: user.channel.statistics?.viewCount || 0,
+        },
+      });
+    } catch (error) {
+      console.error("Get snapshot momentum error:", error);
+      res.status(500).json({ error: "Failed to fetch growth momentum" });
+    }
   });
 
   if (includeFrontend) {

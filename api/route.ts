@@ -2243,6 +2243,43 @@ Return as JSON.`;
     return res.json({ success: true });
   }
 
+  // Channel Snapshots - Growth Momentum (Vercel stub endpoints)
+  // Note: Full snapshot persistence with SQLite only available on local dev server
+  // Vercel returns current metrics without historical data
+  if (path === 'api/snapshots/save' && req.method === 'POST') {
+    // Vercel doesn't persist data between function invocations
+    // Local dev server uses better-sqlite3 for snapshots
+    return res.json({ 
+      success: false,
+      message: 'Snapshot persistence only available on local dev server. Use npm run dev for full snapshot features.'
+    });
+  }
+
+  if (path === 'api/snapshots/history' && req.method === 'GET') {
+    // Return empty snapshots for Vercel deployment
+    return res.json({
+      snapshots: [],
+      count: 0,
+      period: 'N/A',
+      startDate: null,
+      endDate: null,
+      note: 'Snapshot history only available on local dev server. Use npm run dev for Growth Momentum chart.'
+    });
+  }
+
+  if (path === 'api/snapshots/momentum' && req.method === 'GET') {
+    // Return placeholder momentum data for Vercel
+    return res.json({
+      momentum: {
+        week: null,
+        month: null,
+        quarter: null
+      },
+      currentMetrics: {},
+      note: 'Growth momentum tracking only available on local dev server. Use npm run dev for full features.'
+    });
+  }
+
   // Default response for unknown paths
   return res.status(404).json({ error: 'Not found', path });
 }

@@ -16,6 +16,7 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { ShimmerCard, ShimmerStat, ShimmerChart } from './Shimmer';
+import GrowthMomentum from './GrowthMomentum';
 import { generateVidVisionInsight } from '../services/geminiService';
 import { Type } from '@google/genai';
 import { cn } from '../lib/utils';
@@ -551,6 +552,12 @@ export default function HomeDashboard({
           <p className="text-2xl font-bold text-zinc-100 mt-1">{metrics.bestHour}</p>
         </div>
       </div>
+
+      {/* Growth Momentum Section */}
+      <GrowthMomentum 
+        isConnected={isConnected}
+        className="rounded-2xl border border-white/10 bg-gradient-to-br from-purple-500/10 via-pink-500/10 to-blue-500/10 p-6"
+      />
 
       {/* Daily Video Ideas Section */}
       <div className="rounded-2xl border border-emerald-400/30 bg-gradient-to-br from-emerald-500/10 via-teal-500/10 to-cyan-500/10 p-6">
