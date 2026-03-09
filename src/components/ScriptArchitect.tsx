@@ -9,14 +9,20 @@ interface ScriptArchitectProps {
   onTopicUsed?: () => void;
 }
 
+type VideoFormat = 'short' | 'long';
+
 const DEFAULT_TOPIC_PLACEHOLDER = 'e.g., The history of mechanical keyboards';
 const DAILY_PLACEHOLDER_CACHE_KEY = 'vid_vision_script_daily_placeholder';
 
 export default function ScriptArchitect({ initialTopic, onTopicUsed }: ScriptArchitectProps = {}) {
   const [topic, setTopic] = useState('');
+  const [videoFormat, setVideoFormat] = useState<VideoFormat | ''>('');
+  const [targetLength, setTargetLength] = useState('');
   const [topicPlaceholder, setTopicPlaceholder] = useState(DEFAULT_TOPIC_PLACEHOLDER);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
+  const [generationError, setGenerationError] = useState<string | null>(null);
+  const [generatedConfig, setGeneratedConfig] = useState<{ videoFormat: VideoFormat; targetLength: string } | null>(null);
   const [copied, setCopied] = useState(false);
 
   // Auto-populate topic from initialTopic
@@ -78,7 +84,17 @@ export default function ScriptArchitect({ initialTopic, onTopicUsed }: ScriptArc
   }, []);
 
   const handleGenerate = async () => {
-    if (!topic) return;
+    const trimmedTopic = topic.trim();
+    const trimmedTargetLength = targetLength.trim();
+
+    if (!trimmedTopic || !videoFormat || !trimmedTargetLength) {
+      setGenerationError('Please enter a topic, choose short or long-form, and set a required final length.');
+      return;
+    }
+
+    const requestedFormat: VideoFormat = videoFormat;
+
+    setGenerationError(null);
     setLoading(true);
     try {
       const schema = {
@@ -103,15 +119,31 @@ export default function ScriptArchitect({ initialTopic, onTopicUsed }: ScriptArc
         }
       };
 
-      const prompt = `Act as a master YouTube scriptwriter. Write a highly engaging, retention-optimized script for a video about: "${topic}".
-      Include a strong hook, clear transitions, visual cues for the editor, and a compelling call to action.`;
+      const formatLabel = requestedFormat === 'short' ? 'YouTube Short' : 'Long-form YouTube video';
+      const pacingGuidance = requestedFormat === 'short'
+        ? 'Keep momentum high with concise lines, quick transitions, and immediate payoff. Avoid filler.'
+        : 'Use deliberate pacing with smooth transitions, examples, and retention hooks between sections.';
+      const bodySectionGuidance = requestedFormat === 'short'
+        ? 'Limit body sections to 2-3 compact sections.'
+        : 'Use 4-6 clear body sections with rising value.';
+
+      const prompt = `Act as a master YouTube scriptwriter. Write a highly engaging, retention-optimized script for a ${formatLabel} about: "${trimmedTopic}".
+
+      Strict requirements:
+      - Required final script length: ${trimmedTargetLength}
+      - ${pacingGuidance}
+      - ${bodySectionGuidance}
+      - Include a strong hook, clear transitions, visual cues for the editor, and a compelling call to action.
+      - Ensure the final spoken script fits the required final length.`;
       
       const response = await generateVidVisionInsight(prompt, schema);
       if (response) {
         setResult(JSON.parse(response));
+        setGeneratedConfig({ videoFormat: requestedFormat, targetLength: trimmedTargetLength });
       }
     } catch (error) {
       console.error(error);
+      setGenerationError('Failed to generate script. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -119,9 +151,15 @@ export default function ScriptArchitect({ initialTopic, onTopicUsed }: ScriptArc
 
   const copyToClipboard = () => {
     if (!result) return;
+
+    const scriptFormatLabel = generatedConfig?.videoFormat === 'short' ? 'Short-form' : 'Long-form';
+    const scriptLengthLabel = generatedConfig?.targetLength || 'Not specified';
+    const hookRange = generatedConfig?.videoFormat === 'short' ? '0:00 - 0:03' : '0:00 - 0:30';
     
     let text = `# ${result.title}\n\n`;
-    text += `## HOOK (0:00 - 0:30)\n${result.hook}\n\n`;
+    text += `## FORMAT\n${scriptFormatLabel}\n\n`;
+    text += `## TARGET LENGTH\n${scriptLengthLabel}\n\n`;
+    text += `## HOOK (${hookRange})\n${result.hook}\n\n`;
     text += `## INTRO\n${result.intro}\n\n`;
     
     result.bodyParagraphs.forEach((p: any, i: number) => {
@@ -149,19 +187,72 @@ export default function ScriptArchitect({ initialTopic, onTopicUsed }: ScriptArc
         <label className="block text-sm font-medium text-zinc-300 mb-2">
           Video Topic or Outline
         </label>
-        <div className="flex gap-3">
+        <div className="space-y-4">
           <input
             type="text"
             value={topic}
             onChange={(e) => setTopic(e.target.value)}
             placeholder={topicPlaceholder}
-            className="flex-1 bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2.5 text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+            className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2.5 text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
             onKeyDown={(e) => e.key === 'Enter' && handleGenerate()}
           />
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-zinc-300 mb-2">
+                Script Format
+              </label>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setVideoFormat('short')}
+                  className={cn(
+                    'px-4 py-2 rounded-lg border text-sm font-medium transition-colors',
+                    videoFormat === 'short'
+                      ? 'bg-indigo-600 border-indigo-500 text-white'
+                      : 'bg-zinc-950 border-zinc-800 text-zinc-300 hover:bg-zinc-900'
+                  )}
+                >
+                  Short
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setVideoFormat('long')}
+                  className={cn(
+                    'px-4 py-2 rounded-lg border text-sm font-medium transition-colors',
+                    videoFormat === 'long'
+                      ? 'bg-indigo-600 border-indigo-500 text-white'
+                      : 'bg-zinc-950 border-zinc-800 text-zinc-300 hover:bg-zinc-900'
+                  )}
+                >
+                  Long-form
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-zinc-300 mb-2">
+                Required Final Length
+              </label>
+              <input
+                type="text"
+                value={targetLength}
+                onChange={(e) => setTargetLength(e.target.value)}
+                placeholder={videoFormat === 'short' ? 'e.g., 45 seconds' : 'e.g., 8 minutes'}
+                className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2.5 text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                onKeyDown={(e) => e.key === 'Enter' && handleGenerate()}
+              />
+            </div>
+          </div>
+
+          {generationError && (
+            <p className="text-sm text-rose-400">{generationError}</p>
+          )}
+
           <button
             onClick={handleGenerate}
-            disabled={loading || !topic}
-            className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-6 py-2.5 rounded-lg font-medium flex items-center gap-2 transition-colors"
+            disabled={loading || !topic.trim() || !videoFormat || !targetLength.trim()}
+            className="w-full md:w-auto bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-6 py-2.5 rounded-lg font-medium flex items-center justify-center gap-2 transition-colors"
           >
             {loading ? <Loader2 size={18} className="animate-spin" /> : <PenTool size={18} />}
             Draft Script
@@ -172,7 +263,14 @@ export default function ScriptArchitect({ initialTopic, onTopicUsed }: ScriptArc
       {result && (
         <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
           <div className="px-6 py-4 border-b border-zinc-800 bg-zinc-900/50 flex justify-between items-center sticky top-0 z-10">
-            <h2 className="text-xl font-bold text-zinc-100">{result.title}</h2>
+            <div>
+              <h2 className="text-xl font-bold text-zinc-100">{result.title}</h2>
+              {generatedConfig && (
+                <p className="text-xs text-zinc-400 mt-1">
+                  {generatedConfig.videoFormat === 'short' ? 'Short-form' : 'Long-form'} • Target length: {generatedConfig.targetLength}
+                </p>
+              )}
+            </div>
             <button 
               onClick={copyToClipboard}
               className="flex items-center gap-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
@@ -186,7 +284,9 @@ export default function ScriptArchitect({ initialTopic, onTopicUsed }: ScriptArc
             {/* Hook */}
             <section className="relative pl-6 border-l-2 border-indigo-500">
               <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-indigo-500 border-4 border-zinc-900"></div>
-              <h3 className="text-sm font-bold tracking-wider text-indigo-400 uppercase mb-2">The Hook (0:00 - 0:30)</h3>
+              <h3 className="text-sm font-bold tracking-wider text-indigo-400 uppercase mb-2">
+                The Hook ({generatedConfig?.videoFormat === 'short' ? '0:00 - 0:03' : '0:00 - 0:30'})
+              </h3>
               <p className="text-zinc-300 leading-relaxed text-lg">{result.hook}</p>
             </section>
 
