@@ -19,6 +19,7 @@ import {
   Settings2,
   Share2,
   MessageSquare,
+  Eye,
 } from 'lucide-react';
 import { cn } from './lib/utils';
 import SEOOptimizer from './components/SEOOptimizer';
@@ -38,6 +39,7 @@ import ViralClipExtractor from './components/ViralClipExtractor.tsx';
 import ContentRepurposer from './components/ContentRepurposer';
 import CommentStrategist from './components/CommentStrategist';
 import CollaborationEngine from './components/CollaborationEngine';
+import ThumbnailHeatmapSimulator from './components/ThumbnailHeatmapSimulator';
 import OnboardingTour, { type OnboardingStep } from './components/OnboardingTour';
 import SettingsPanel from './components/SettingsPanel';
 import YouTubeShortsIcon from './components/icons/YouTubeShortsIcon';
@@ -51,6 +53,7 @@ type Tab =
   | 'keywords'
   | 'script'
   | 'thumbnail'
+  | 'heatmap'
   | 'channel'
   | 'coach'
   | 'ideas'
@@ -190,6 +193,13 @@ export default function App() {
       icon: ImageIcon,
       section: 'studios',
       summary: 'Audit poor thumbnails, auto-generate upgrade concepts, and apply upgrades.',
+    },
+    {
+      id: 'heatmap',
+      label: 'Heatmap Simulator',
+      icon: Eye,
+      section: 'studios',
+      summary: 'Analyze where viewers eyes land and optimize thumbnail layout for CTR.',
     },
     {
       id: 'seo',
@@ -676,6 +686,8 @@ export default function App() {
         );
       case 'thumbnail':
         return <ThumbnailConcepting />;
+      case 'heatmap':
+        return <ThumbnailHeatmapSimulator />;
       case 'voiceover':
         return <VoiceOver />;
       case 'clips':
