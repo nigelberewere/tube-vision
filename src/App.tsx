@@ -39,11 +39,13 @@ import CommentStrategist from './components/CommentStrategist';
 import OnboardingTour, { type OnboardingStep } from './components/OnboardingTour';
 import SettingsPanel from './components/SettingsPanel';
 import { LegalViewer } from './components/LegalViewer';
+import { AuthCallback } from './components/AuthCallback';
 import YouTubeShortsIcon from './components/icons/YouTubeShortsIcon';
 import YouTubeLogoIcon from './components/icons/YouTubeLogoIcon';
 import YouTubeMyVideosIcon from './components/icons/YouTubeMyVideosIcon';
 import YouTubeLogoBlackIcon from './components/icons/YouTubeLogoBlackIcon';
 import { GEMINI_USER_ERROR_EVENT, type GeminiUserErrorDetail } from './lib/geminiErrorEvents';
+import { useAuth } from './lib/supabaseAuth';
 
 type Tab =
   | 'home'
@@ -128,6 +130,12 @@ const ONBOARDING_STEPS: TourStep[] = [
 ];
 
 export default function App() {
+  const {
+    user: supabaseUser,
+    loading: supabaseLoading,
+    signInWithGoogle,
+    signOut: signOutSupabase,
+  } = useAuth();
   const [activeTab, setActiveTab] = useState<Tab>('home');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [theme, setTheme] = useState<Theme>(() => {
@@ -147,13 +155,15 @@ export default function App() {
   const [seoVideoTopic, setSeoVideoTopic] = useState<string>('');
   const [scriptTopic, setScriptTopic] = useState<string>('');
   const [geminiErrorToast, setGeminiErrorToast] = useState<GeminiUserErrorDetail | null>(null);
-  const [currentPage, setCurrentPage] = useState<'app' | 'privacy' | 'terms'>('app');
+  const [currentPage, setCurrentPage] = useState<'app' | 'privacy' | 'terms' | 'authCallback'>('app');
 
   // Handle URL-based routing for legal pages
   useEffect(() => {
     const handleRouteChange = () => {
       const pathname = window.location.pathname;
-      if (pathname === '/privacy') {
+      if (pathname === '/auth/callback') {
+        setCurrentPage('authCallback');
+      } else if (pathname === '/privacy') {
         setCurrentPage('privacy');
       } else if (pathname === '/terms') {
         setCurrentPage('terms');
@@ -352,10 +362,11 @@ export default function App() {
 
   // Redirect unauthenticated users to marketing site (unless viewing legal pages)
   useEffect(() => {
-    if (!loadingUser && !user && currentPage === 'app') {
+    const isAuthenticated = Boolean(user || supabaseUser);
+    if (!loadingUser && !supabaseLoading && !isAuthenticated && currentPage === 'app') {
       window.location.replace('https://janso.studio');
     }
-  }, [loadingUser, user, currentPage]);
+  }, [loadingUser, supabaseLoading, user, supabaseUser, currentPage]);
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -453,6 +464,11 @@ export default function App() {
 
   const handleConnect = async () => {
     try {
+      if (!supabaseUser && !user) {
+        await signInWithGoogle();
+        return;
+      }
+
       console.log('[Connect] Fetching auth URL...');
       const response = await fetch('/api/auth/google/url');
 
@@ -558,7 +574,10 @@ export default function App() {
 
   const handleLogout = async () => {
     try {
-      await fetch('/api/auth/logout', { method: 'POST' });
+      await Promise.allSettled([
+        fetch('/api/auth/logout', { method: 'POST' }),
+        signOutSupabase(),
+      ]);
       setUser(null);
       setAccounts([]);
       setActiveAccountIndex(0);
@@ -802,6 +821,10 @@ export default function App() {
       window.history.back();
       setCurrentPage('app');
     }} />;
+  }
+
+  if (currentPage === 'authCallback') {
+    return <AuthCallback />;
   }
 
   return (

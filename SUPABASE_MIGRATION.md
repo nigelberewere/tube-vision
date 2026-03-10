@@ -168,12 +168,17 @@ All tables have RLS policies enabled to ensure users can only access their own d
 - [x] Update environment variables (`.env.example`)
 
 ### Phase 2: Auth Migration (Next)
-- [ ] Wrap `App.tsx` with `<AuthProvider>`
+- [x] Wrap `App.tsx` with `<AuthProvider>`
 - [ ] Replace cookie-based auth checks with `useAuth()` hook
 - [ ] Update server.ts to use `verifyUser(req)` instead of cookie parsing
 - [ ] Update api/route.ts to use `verifyUser(req)` instead of cookie parsing
 - [ ] Remove `tube_vision_accounts` cookie logic
 - [ ] Test OAuth flow end-to-end
+
+Phase 2 kickoff status:
+- `AuthProvider` is now mounted in `src/main.tsx`.
+- `/auth/callback` is now routed to `AuthCallback` in `src/App.tsx`.
+- `src/App.tsx` now uses `useAuth()` for hybrid auth gating during migration.
 
 ### Phase 3: Data Migration
 - [ ] Replace YouTube account cookie storage with Supabase `youtube_accounts` table
