@@ -350,6 +350,13 @@ export default function App() {
     return () => window.removeEventListener('message', handleMessage);
   }, []);
 
+  // Redirect unauthenticated users to marketing site (unless viewing legal pages)
+  useEffect(() => {
+    if (!loadingUser && !user && currentPage === 'app') {
+      window.location.replace('https://janso.studio');
+    }
+  }, [loadingUser, user, currentPage]);
+
   useEffect(() => {
     if (typeof window === 'undefined') {
       return;

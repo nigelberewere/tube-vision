@@ -30,13 +30,13 @@ type NavigationProps = {
   onPrimaryAction: () => void;
 };
 
-const DOCS_URL = "https://docs.janso.studio";
+// const DOCS_URL = "https://docs.janso.studio"; // TODO: Uncomment when docs are available
 
 const links = [
-  { label: "Features", href: "#features" },
-  { label: "Pricing", href: "#pricing" },
-  { label: "About", href: "#about" },
-  { label: "Docs", href: DOCS_URL, external: true }
+  { label: "Features", href: "#features", external: false },
+  { label: "Pricing", href: "#pricing", external: false },
+  { label: "About", href: "#about", external: false }
+  // { label: "Docs", href: DOCS_URL, external: true } // TODO: Re-add when docs site is ready
 ];
 
 export function Navigation({
