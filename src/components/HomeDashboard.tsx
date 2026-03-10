@@ -497,9 +497,9 @@ Return valid JSON only.`;
   const hourlyObjects = useMemo(() => rowsToObjects(analytics?.hourly), [analytics]);
 
   const metrics = useMemo(() => {
-    const lastDayViews = toNumber(dailyObjects[dailyObjects.length - 1]?.views);
     const last7DaysViews = dailyObjects.slice(-7).reduce((sum, row) => sum + toNumber(row.views), 0);
     const last30DaysViews = dailyObjects.reduce((sum, row) => sum + toNumber(row.views), 0);
+    const avgViewsPerDay = dailyObjects.length > 0 ? Math.round(last30DaysViews / dailyObjects.length) : 0;
     const netSubs30Days = dailyObjects.reduce(
       (sum, row) => sum + toNumber(row.subscribersGained) - toNumber(row.subscribersLost),
       0,
@@ -527,9 +527,9 @@ Return valid JSON only.`;
     const bestHour = [...hourlyObjects].sort((a, b) => toNumber(b.views) - toNumber(a.views))[0];
 
     return {
-      lastDayViews,
       last7DaysViews,
       last30DaysViews,
+      avgViewsPerDay,
       netSubs30Days,
       viewsLastHour,
       viewsLast24Hours,
@@ -744,8 +744,8 @@ Return valid JSON only.`;
           <p className="text-2xl font-bold text-zinc-100 mt-1">{compact(toNumber(channel?.statistics?.videoCount))}</p>
         </div>
         <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
-          <p className="text-xs uppercase tracking-wider text-zinc-500 font-bold">Views Last Day</p>
-          <p className="text-2xl font-bold text-zinc-100 mt-1">{compact(metrics.lastDayViews)}</p>
+          <p className="text-xs uppercase tracking-wider text-zinc-500 font-bold">Avg Views / Day (30d)</p>
+          <p className="text-2xl font-bold text-zinc-100 mt-1">{compact(metrics.avgViewsPerDay)}</p>
         </div>
         <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
           <p className="text-xs uppercase tracking-wider text-zinc-500 font-bold">Views Last 7 Days</p>
