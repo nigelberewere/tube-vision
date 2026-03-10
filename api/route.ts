@@ -775,6 +775,23 @@ async function getAuthHeaderForAccount(userData: any) {
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const path = Array.isArray(req.query?.path) ? req.query.path.join('/') : req.query?.path || '';
 
+  // Supabase browser callback should resolve to SPA; forward query params to app root if this route intercepts it.
+  if (path === 'auth/callback') {
+    const redirectUrl = new URL(APP_URL);
+
+    for (const [key, value] of Object.entries(req.query || {})) {
+      if (key === 'path') continue;
+
+      if (Array.isArray(value)) {
+        value.forEach((entry) => redirectUrl.searchParams.append(key, String(entry)));
+      } else if (typeof value !== 'undefined') {
+        redirectUrl.searchParams.set(key, String(value));
+      }
+    }
+
+    return res.redirect(307, redirectUrl.toString());
+  }
+
   // Config endpoint
   if (path === 'api/auth/config') {
     return res.json({

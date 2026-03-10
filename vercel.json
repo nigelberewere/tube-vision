@@ -17,8 +17,16 @@
       "destination": "/api/route?path=api/$1"
     },
     {
-      "source": "/auth/(.*)",
-      "destination": "/api/route?path=auth/$1"
+      "source": "/auth/youtube",
+      "destination": "/api/route?path=auth/youtube"
+    },
+    {
+      "source": "/auth/google/callback",
+      "destination": "/api/route?path=auth/google/callback"
+    },
+    {
+      "source": "/auth/callback",
+      "destination": "/index.html"
     }
   ]
 }

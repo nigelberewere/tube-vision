@@ -124,7 +124,11 @@ https://app.janso.studio/**
 - Check `marketing-website/.env.local` and Cloudflare env var `VITE_DASHBOARD_URL`.
 
 ### OAuth `redirect_uri_mismatch`
-- Ensure Google redirect URI exactly matches `https://app.janso.studio/auth/google/callback`.
+- Ensure Google Cloud Console includes both redirect URIs:
+	- `https://app.janso.studio/auth/google/callback` for the app's YouTube OAuth flow
+	- `https://your-project-ref.supabase.co/auth/v1/callback` for Supabase Google sign-in
+- Ensure Supabase Auth URL Configuration uses `https://app.janso.studio` as Site URL.
+- Ensure Supabase Redirect URLs include `https://app.janso.studio/auth/callback` and `https://app.janso.studio/**`.
 
 ### App works on preview, fails on domain
 - Ensure `APP_URL` is updated to `https://app.janso.studio` in production env.

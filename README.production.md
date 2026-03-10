@@ -150,7 +150,12 @@ Janso Studio is optimized for this split deployment model.
 5. **Update OAuth Redirect URIs**
    - Google Cloud Console > Credentials
    - Authorized JavaScript origins: `https://app.janso.studio`
-   - Authorized redirect URIs: `https://app.janso.studio/auth/google/callback`
+    - Authorized redirect URIs:
+       - `https://app.janso.studio/auth/google/callback` for the app's direct YouTube OAuth callback
+       - `https://your-project-ref.supabase.co/auth/v1/callback` for Supabase Google sign-in
+    - Supabase Auth > URL Configuration:
+       - Site URL: `https://app.janso.studio`
+       - Redirect URLs: `https://app.janso.studio/auth/callback` and `https://app.janso.studio/**`
 
 6. **Deploy**
    - Push to `main` branch for automatic deployment

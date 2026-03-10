@@ -874,6 +874,20 @@ For every video provided, evaluate segments based on:
   });
 
   // OAuth and API Routes
+  app.get("/auth/callback", (req, res) => {
+    const redirectUrl = new URL(appUrl);
+
+    for (const [key, value] of Object.entries(req.query || {})) {
+      if (Array.isArray(value)) {
+        value.forEach((entry) => redirectUrl.searchParams.append(key, String(entry)));
+      } else if (typeof value !== "undefined") {
+        redirectUrl.searchParams.set(key, String(value));
+      }
+    }
+
+    res.redirect(307, redirectUrl.toString());
+  });
+
   app.get("/api/auth/config", (req, res) => {
     res.json({
       appUrl,

@@ -163,7 +163,13 @@ Check at: https://securityheaders.com/?q=https://janso.studio
 ## 🆘 Common Issues & Fixes
 
 ### OAuth Error "redirect_uri_mismatch"
-**Fix**: Add `https://app.janso.studio/auth/google/callback` to Google OAuth redirect URIs
+**Fix**: Add both of these Google OAuth redirect URIs:
+- `https://app.janso.studio/auth/google/callback` for direct YouTube OAuth
+- `https://your-project-ref.supabase.co/auth/v1/callback` for Supabase Google sign-in
+
+Also confirm Supabase Auth URL Configuration includes:
+- Site URL: `https://app.janso.studio`
+- Redirect URLs: `https://app.janso.studio/auth/callback` and `https://app.janso.studio/**`
 
 ### "Supabase connection failed"
 **Fix**: Verify environment variables are set correctly in Cloudflare
