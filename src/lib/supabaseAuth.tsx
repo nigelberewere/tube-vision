@@ -45,7 +45,7 @@ interface AuthContextType {
   loading: boolean;
   
   // Auth methods
-  signInWithGoogle: () => Promise<void>;
+  signInWithGoogle: (options?: { redirectTo?: string }) => Promise<void>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
   setActiveChannel: (channelId: string) => Promise<void>;
@@ -151,11 +151,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }
 
   // Sign in with Google OAuth
-  async function signInWithGoogle() {
+  async function signInWithGoogle(options?: { redirectTo?: string }) {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
+        redirectTo: options?.redirectTo || `${window.location.origin}/auth/callback`,
         scopes: 'openid email profile', // Add YouTube scopes if needed
       },
     });

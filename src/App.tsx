@@ -1,4 +1,4 @@
-import { useState, useEffect, type ComponentType } from 'react';
+import { useState, useEffect, useRef, type ComponentType } from 'react';
 import {
   AlertTriangle,
   LayoutDashboard,
@@ -99,6 +99,7 @@ interface TabConfig {
 
 const CHANNEL_REQUIRED_TABS: Tab[] = ['channel', 'competitors', 'videos'];
 const ONBOARDING_STORAGE_KEY = 'tube_vision_onboarding_completed_v2';
+const YOUTUBE_CONNECT_QUERY_KEY = 'connect_youtube';
 const ONBOARDING_STEPS: TourStep[] = [
   {
     targetId: 'tour-home-tab',
@@ -129,6 +130,44 @@ const ONBOARDING_STEPS: TourStep[] = [
   },
 ];
 
+function readYouTubeConnectIntent() {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  const params = new URLSearchParams(window.location.search);
+  if (params.get(YOUTUBE_CONNECT_QUERY_KEY) !== '1') {
+    return null;
+  }
+
+  const next = params.get('next');
+  return {
+    key: window.location.search,
+    next: next && next.trim() ? next.trim() : null,
+  };
+}
+
+function buildYouTubeConnectResumeUrl(next: string | null) {
+  if (typeof window === 'undefined') {
+    return '/auth/callback';
+  }
+
+  const redirectUrl = new URL('/auth/callback', window.location.origin);
+  redirectUrl.searchParams.set(YOUTUBE_CONNECT_QUERY_KEY, '1');
+  if (next) {
+    redirectUrl.searchParams.set('next', next);
+  }
+  return redirectUrl.toString();
+}
+
+function buildYouTubeAuthUrlRequest(next: string | null) {
+  const url = new URL('/api/auth/google/url', window.location.origin);
+  if (next) {
+    url.searchParams.set('next', next);
+  }
+  return url.toString();
+}
+
 export default function App() {
   const {
     user: supabaseUser,
@@ -157,6 +196,7 @@ export default function App() {
   const [scriptTopic, setScriptTopic] = useState<string>('');
   const [geminiErrorToast, setGeminiErrorToast] = useState<GeminiUserErrorDetail | null>(null);
   const [currentPage, setCurrentPage] = useState<'app' | 'privacy' | 'terms' | 'authCallback'>('app');
+  const youtubeConnectIntentRef = useRef<string | null>(null);
 
   // Handle URL-based routing for legal pages
   useEffect(() => {
@@ -319,6 +359,40 @@ export default function App() {
     };
   };
 
+  const requestYouTubeAuthUrl = async (next: string | null = null) => {
+    console.log('[Connect] Fetching auth URL...');
+    const response = await fetch(buildYouTubeAuthUrlRequest(next), {
+      headers: getSupabaseAuthHeaders(),
+    });
+
+    const raw = await response.text();
+    let data: any = {};
+    if (raw) {
+      try {
+        data = JSON.parse(raw);
+      } catch {
+        data = { raw };
+      }
+    }
+
+    if (!response.ok) {
+      console.error('[Connect Error] Response not ok:', response.status, data);
+      const message = data.error || `Failed to get authorization URL (HTTP ${response.status}).`;
+      alert(message);
+      return null;
+    }
+
+    console.log('[Connect] Auth URL received, length:', data.url?.length);
+
+    if (!data.url) {
+      console.error('[Connect Error] No URL in response:', data);
+      alert('Failed to generate auth URL');
+      return null;
+    }
+
+    return String(data.url);
+  };
+
   const fetchUser = async () => {
     try {
       const authHeaders = getSupabaseAuthHeaders();
@@ -387,10 +461,51 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [supabaseLoading, supabaseSession?.access_token]);
 
+  useEffect(() => {
+    if (currentPage !== 'app' || supabaseLoading) {
+      return;
+    }
+
+    const intent = readYouTubeConnectIntent();
+    if (!intent) {
+      youtubeConnectIntentRef.current = null;
+      return;
+    }
+
+    const flowKey = `${intent.key}:${supabaseUser?.id || 'anonymous'}`;
+    if (youtubeConnectIntentRef.current === flowKey) {
+      return;
+    }
+
+    youtubeConnectIntentRef.current = flowKey;
+
+    const continueConnect = async () => {
+      try {
+        if (!supabaseUser || !supabaseSession?.access_token) {
+          await signInWithGoogle({ redirectTo: buildYouTubeConnectResumeUrl(intent.next) });
+          return;
+        }
+
+        const authUrl = await requestYouTubeAuthUrl(intent.next);
+        if (!authUrl) {
+          return;
+        }
+
+        window.location.href = authUrl;
+      } catch (error) {
+        console.error('[Connect Redirect Error] Exception:', error);
+        alert('Unable to start YouTube connection. Check browser console for details.');
+      }
+    };
+
+    void continueConnect();
+  }, [currentPage, requestYouTubeAuthUrl, signInWithGoogle, supabaseLoading, supabaseSession?.access_token, supabaseUser]);
+
   // Redirect unauthenticated users to marketing site (unless viewing legal pages)
   useEffect(() => {
     const isAuthenticated = Boolean(user || supabaseUser);
-    if (!loadingUser && !supabaseLoading && !isAuthenticated && currentPage === 'app') {
+    const hasPendingYouTubeConnect = Boolean(currentPage === 'app' && readYouTubeConnectIntent());
+    if (!loadingUser && !supabaseLoading && !isAuthenticated && currentPage === 'app' && !hasPendingYouTubeConnect) {
       window.location.replace('https://janso.studio');
     }
   }, [loadingUser, supabaseLoading, user, supabaseUser, currentPage]);
@@ -491,38 +606,13 @@ export default function App() {
 
   const handleConnect = async () => {
     try {
-      if (!supabaseUser && !user) {
-        await signInWithGoogle();
+      if (!supabaseUser || !supabaseSession?.access_token) {
+        await signInWithGoogle({ redirectTo: buildYouTubeConnectResumeUrl(null) });
         return;
       }
 
-      console.log('[Connect] Fetching auth URL...');
-      const response = await fetch('/api/auth/google/url', {
-        headers: getSupabaseAuthHeaders(),
-      });
-
-      const raw = await response.text();
-      let data: any = {};
-      if (raw) {
-        try {
-          data = JSON.parse(raw);
-        } catch {
-          data = { raw };
-        }
-      }
-
-      if (!response.ok) {
-        console.error('[Connect Error] Response not ok:', response.status, data);
-        const message = data.error || `Failed to get authorization URL (HTTP ${response.status}).`;
-        alert(message);
-        return;
-      }
-
-      console.log('[Connect] Auth URL received, length:', data.url?.length);
-      
-      if (!data.url) {
-        console.error('[Connect Error] No URL in response:', data);
-        alert('Failed to generate auth URL');
+      const authUrl = await requestYouTubeAuthUrl();
+      if (!authUrl) {
         return;
       }
 
@@ -547,18 +637,18 @@ export default function App() {
       if (isIosSafari) {
         // On iOS Safari, use full page redirect instead of popup
         console.log('[Connect] Detected iOS Safari, using full page redirect');
-        window.location.href = data.url;
+        window.location.href = authUrl;
         return;
       }
 
       // For other browsers, use popup with polling
-      const popup = window.open(data.url, 'oauth_popup', 'width=600,height=700,scrollbars=yes');
+      const popup = window.open(authUrl, 'oauth_popup', 'width=600,height=700,scrollbars=yes');
       
       if (!popup) {
         console.error('[Connect Error] Popup blocked or could not open');
         // Fallback: if popup is blocked, try a redirect
         console.log('[Connect] Fallback: Using redirect instead of popup');
-        window.location.href = data.url;
+        window.location.href = authUrl;
         return;
       }
 

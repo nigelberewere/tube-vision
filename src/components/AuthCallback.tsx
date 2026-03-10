@@ -34,8 +34,21 @@ export function AuthCallback() {
 
         if (data.session) {
           console.log('Authentication successful!');
-          
-          // Navigate to home page
+
+          const searchParams = new URLSearchParams(window.location.search);
+          const shouldResumeYouTubeConnect = searchParams.get('connect_youtube') === '1';
+          const next = searchParams.get('next');
+
+          if (shouldResumeYouTubeConnect) {
+            const redirectUrl = new URL('/', window.location.origin);
+            redirectUrl.searchParams.set('connect_youtube', '1');
+            if (next) {
+              redirectUrl.searchParams.set('next', next);
+            }
+            window.location.href = redirectUrl.toString();
+            return;
+          }
+
           window.location.href = '/';
         } else {
           setError('No session found after authentication');

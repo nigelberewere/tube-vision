@@ -404,6 +404,18 @@ export async function createApp(options: CreateAppOptions = {}) {
     }
   }
 
+  function buildYouTubeAuthBridgeUrl(rawNext: unknown): string {
+    const bridgeUrl = new URL(appUrl);
+    bridgeUrl.searchParams.set("connect_youtube", "1");
+
+    const normalizedNext = normalizePostAuthRedirect(rawNext);
+    if (normalizedNext !== appUrl) {
+      bridgeUrl.searchParams.set("next", normalizedNext);
+    }
+
+    return bridgeUrl.toString();
+  }
+
   function encodeOAuthState(redirectTo: string, supabaseUserId: string | null = null): string {
     const payload = {
       redirectTo: normalizePostAuthRedirect(redirectTo),
@@ -713,7 +725,7 @@ export async function createApp(options: CreateAppOptions = {}) {
         mimeType = req.file.mimetype;
         videoUrl = `/uploads/${req.file.filename}`;
       } else if (req.body.videoId) {
-        const user = (req.session as any).user;
+        const user = await getActiveYouTubeUser(req);
         if (!user || !user.tokens) {
           return res.status(401).json({ error: 'Not authenticated' });
         }
@@ -890,6 +902,11 @@ For every video provided, evaluate segments based on:
     }
 
     const authUser = await verifyUser(req);
+    if (!authUser) {
+      return res.status(401).json({
+        error: "Supabase sign-in required before connecting YouTube.",
+      });
+    }
 
     const url = oauth2Client.generateAuthUrl({
       access_type: "offline",
@@ -907,7 +924,7 @@ For every video provided, evaluate segments based on:
 
   // OAuth entry point for marketing site and direct YouTube auth flow
   app.get("/auth/youtube", (req, res) => {
-    console.log(`[YouTube Auth Entry] Initiating OAuth flow`);
+    console.log(`[YouTube Auth Entry] Redirecting to Supabase auth bridge`);
     const postAuthRedirect = normalizePostAuthRedirect(Array.isArray(req.query.next) ? req.query.next[0] : req.query.next);
     
     if (OAUTH_MISSING_VARS.length > 0) {
@@ -949,19 +966,9 @@ For every video provided, evaluate segments based on:
       `);
     }
 
-    const url = oauth2Client.generateAuthUrl({
-      access_type: "offline",
-      scope: [
-        "https://www.googleapis.com/auth/youtube.readonly",
-        "https://www.googleapis.com/auth/yt-analytics.readonly",
-        "https://www.googleapis.com/auth/userinfo.profile",
-      ],
-      prompt: "consent",
-      state: encodeOAuthState(postAuthRedirect),
-    });
-    
-    console.log(`[YouTube Auth Entry] Redirecting to Google OAuth`);
-    res.redirect(url);
+    const bridgeUrl = buildYouTubeAuthBridgeUrl(postAuthRedirect);
+    console.log(`[YouTube Auth Entry] Redirecting to app bridge: ${bridgeUrl}`);
+    res.redirect(bridgeUrl);
   });
 
   app.get(["/auth/google/callback", "/api/auth/google/callback"], async (req, res) => {
@@ -972,6 +979,56 @@ For every video provided, evaluate segments based on:
 
     if (!code) {
       return res.status(400).send("No code provided");
+    }
+
+    if (!supabaseUserId) {
+      return res.status(400).send(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <meta charset="UTF-8">
+            <title>Authentication Required</title>
+            <style>
+              body {
+                margin: 0;
+                font-family: system-ui, -apple-system, sans-serif;
+                background: #0f172a;
+                color: white;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                min-height: 100vh;
+                text-align: center;
+                padding: 24px;
+              }
+              .container {
+                max-width: 520px;
+                background: rgba(15, 23, 42, 0.92);
+                border: 1px solid rgba(148, 163, 184, 0.25);
+                border-radius: 16px;
+                padding: 32px;
+              }
+              h1 { margin: 0 0 12px 0; font-size: 24px; }
+              p { margin: 0 0 16px 0; color: #cbd5e1; line-height: 1.5; }
+              a {
+                color: white;
+                text-decoration: none;
+                display: inline-block;
+                background: #2563eb;
+                padding: 12px 18px;
+                border-radius: 999px;
+              }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <h1>Sign in before connecting YouTube</h1>
+              <p>Your YouTube connection now attaches to a Supabase account first. Return to the app and sign in, then retry the connection.</p>
+              <a href=${JSON.stringify(buildYouTubeAuthBridgeUrl(postAuthRedirect))}>Return to app</a>
+            </div>
+          </body>
+        </html>
+      `);
     }
 
     try {
@@ -1736,8 +1793,7 @@ Return JSON with:
   });
 
   app.put("/api/user/videos/:videoId/title", async (req, res) => {
-    const { accounts, activeIndex } = getSessionAccountsAndActiveIndex(req);
-    const user = accounts[activeIndex];
+    const user = await getActiveYouTubeUser(req);
     if (!user || !user.tokens) {
       return res.status(401).json({ error: "Not authenticated" });
     }
@@ -1813,8 +1869,7 @@ Return JSON with:
 
   // Bulk update video descriptions
   app.put("/api/user/videos/bulk/description", async (req, res) => {
-    const { accounts, activeIndex } = getSessionAccountsAndActiveIndex(req);
-    const user = accounts[activeIndex];
+    const user = await getActiveYouTubeUser(req);
     if (!user || !user.tokens) {
       return res.status(401).json({ error: "Not authenticated" });
     }
@@ -1897,8 +1952,7 @@ Return JSON with:
 
   // Bulk update video tags
   app.put("/api/user/videos/bulk/tags", async (req, res) => {
-    const { accounts, activeIndex } = getSessionAccountsAndActiveIndex(req);
-    const user = accounts[activeIndex];
+    const user = await getActiveYouTubeUser(req);
     if (!user || !user.tokens) {
       return res.status(401).json({ error: "Not authenticated" });
     }
@@ -1982,8 +2036,8 @@ Return JSON with:
     res.json(results);
   });
 
-  app.get("/api/thumbnails/authorizations", (req, res) => {
-    const user = (req.session as any).user;
+  app.get("/api/thumbnails/authorizations", async (req, res) => {
+    const user = await getActiveYouTubeUser(req);
     if (!user || !user.tokens) {
       return res.status(401).json({ error: "Not authenticated" });
     }
@@ -1992,8 +2046,8 @@ Return JSON with:
     res.json(queue);
   });
 
-  app.post("/api/thumbnails/authorize", (req, res) => {
-    const user = (req.session as any).user;
+  app.post("/api/thumbnails/authorize", async (req, res) => {
+    const user = await getActiveYouTubeUser(req);
     if (!user || !user.tokens) {
       return res.status(401).json({ error: "Not authenticated" });
     }
@@ -2043,8 +2097,8 @@ Return JSON with:
     res.json({ success: true, item: payload, count: queue.length, queue });
   });
 
-  app.post("/api/thumbnails/authorize/clear", (req, res) => {
-    const user = (req.session as any).user;
+  app.post("/api/thumbnails/authorize/clear", async (req, res) => {
+    const user = await getActiveYouTubeUser(req);
     if (!user || !user.tokens) {
       return res.status(401).json({ error: "Not authenticated" });
     }
@@ -2054,8 +2108,7 @@ Return JSON with:
   });
 
   app.get("/api/shorts/my-long-videos", async (req, res) => {
-    const { accounts, activeIndex } = getSessionAccountsAndActiveIndex(req);
-    const user = accounts[activeIndex];
+    const user = await getActiveYouTubeUser(req);
     if (!user || !user.tokens) {
       return res.status(401).json({ error: "Not authenticated" });
     }
@@ -2124,7 +2177,7 @@ Return JSON with:
   });
 
   app.get("/api/shorts/niche-high-performers", async (req, res) => {
-    const user = (req.session as any).user;
+    const user = await getActiveYouTubeUser(req);
     const query = String(req.query.q || "").trim();
 
     if (!user || !user.tokens) {
@@ -2372,7 +2425,7 @@ Provide a 1-2 sentence actionable recommendation for the creator about when to p
   });
 
   app.post("/api/shorts/remix-plan", async (req, res) => {
-    const user = (req.session as any).user;
+    const user = await getActiveYouTubeUser(req);
     const { niche, source } = req.body || {};
 
     if (!user || !user.tokens) {
@@ -2461,7 +2514,7 @@ Return concise, practical recommendations.`;
   });
 
   app.get("/api/competitors/discover", async (req, res) => {
-    const user = (req.session as any).user;
+    const user = await getActiveYouTubeUser(req);
     if (!user || !user.tokens) {
       return res.status(401).json({ error: "Not authenticated" });
     }
@@ -2648,7 +2701,7 @@ Return as JSON.`;
   });
 
   app.get("/api/competitors/search", async (req, res) => {
-    const user = (req.session as any).user;
+    const user = await getActiveYouTubeUser(req);
     const { q } = req.query;
     if (!user || !user.tokens) {
       return res.status(401).json({ error: "Not authenticated" });
@@ -2670,7 +2723,7 @@ Return as JSON.`;
   });
 
   app.get("/api/competitors/videos", async (req, res) => {
-    const user = (req.session as any).user;
+    const user = await getActiveYouTubeUser(req);
     const { channelId } = req.query;
     if (!user || !user.tokens) {
       return res.status(401).json({ error: "Not authenticated" });
@@ -2866,10 +2919,9 @@ Return as JSON.`;
 
   // Channel Snapshots - Growth Momentum Tracking
   app.post("/api/snapshots/save", async (req, res) => {
-    const { accounts, activeIndex } = getSessionAccountsAndActiveIndex(req);
-    const user = accounts[activeIndex];
+    const user = await getActiveYouTubeUser(req);
     
-    if (!user || !user.channel?.id) {
+    if (!user || !user.tokens || !user.channel?.id) {
       return res.status(401).json({ error: "Not authenticated or no channel connected" });
     }
 
@@ -2931,10 +2983,9 @@ Return as JSON.`;
   });
 
   app.get("/api/snapshots/history", async (req, res) => {
-    const { accounts, activeIndex } = getSessionAccountsAndActiveIndex(req);
-    const user = accounts[activeIndex];
+    const user = await getActiveYouTubeUser(req);
     
-    if (!user || !user.channel?.id) {
+    if (!user || !user.tokens || !user.channel?.id) {
       return res.status(401).json({ error: "Not authenticated or no channel connected" });
     }
 
@@ -2959,10 +3010,9 @@ Return as JSON.`;
   });
 
   app.get("/api/snapshots/momentum", async (req, res) => {
-    const { accounts, activeIndex } = getSessionAccountsAndActiveIndex(req);
-    const user = accounts[activeIndex];
+    const user = await getActiveYouTubeUser(req);
     
-    if (!user || !user.channel?.id) {
+    if (!user || !user.tokens || !user.channel?.id) {
       return res.status(401).json({ error: "Not authenticated or no channel connected" });
     }
 
@@ -3141,3 +3191,4 @@ async function startServer() {
 if (!process.env.VERCEL) {
   startServer();
 }
+

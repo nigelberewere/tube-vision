@@ -76,6 +76,18 @@ function normalizePostAuthRedirect(rawValue: unknown): string {
   }
 }
 
+function buildYouTubeAuthBridgeUrl(rawNext: unknown): string {
+  const bridgeUrl = new URL(APP_URL);
+  bridgeUrl.searchParams.set('connect_youtube', '1');
+
+  const normalizedNext = normalizePostAuthRedirect(rawNext);
+  if (normalizedNext !== APP_URL) {
+    bridgeUrl.searchParams.set('next', normalizedNext);
+  }
+
+  return bridgeUrl.toString();
+}
+
 function encodeOAuthState(redirectTo: string, supabaseUserId: string | null = null): string {
   const payload = {
     redirectTo: normalizePostAuthRedirect(redirectTo),
@@ -789,6 +801,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const authUser = await verifySupabaseUser(req);
+    if (!authUser) {
+      return res.status(401).json({
+        error: 'Supabase sign-in required before connecting YouTube.',
+      });
+    }
 
     const url = oauth2Client.generateAuthUrl({
       access_type: 'offline',
@@ -806,7 +823,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   // OAuth entry point for marketing site and direct YouTube auth flow
   if (path === 'auth/youtube') {
-    console.log(`[YouTube Auth Entry] Initiating OAuth flow`);
+    console.log(`[YouTube Auth Entry] Redirecting to Supabase auth bridge`);
     const postAuthRedirect = normalizePostAuthRedirect(Array.isArray(req.query.next) ? req.query.next[0] : req.query.next);
     
     if (OAUTH_MISSING_VARS.length > 0) {
@@ -848,19 +865,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       `);
     }
 
-    const url = oauth2Client.generateAuthUrl({
-      access_type: 'offline',
-      scope: [
-        'https://www.googleapis.com/auth/youtube.readonly',
-        'https://www.googleapis.com/auth/yt-analytics.readonly',
-        'https://www.googleapis.com/auth/userinfo.profile',
-      ],
-      prompt: 'consent',
-      state: encodeOAuthState(postAuthRedirect),
-    });
-    
-    console.log(`[YouTube Auth Entry] Redirecting to Google OAuth`);
-    return res.redirect(307, url);
+    const bridgeUrl = buildYouTubeAuthBridgeUrl(postAuthRedirect);
+    console.log(`[YouTube Auth Entry] Redirecting to app bridge: ${bridgeUrl}`);
+    return res.redirect(307, bridgeUrl);
   }
 
   // OAuth callback
@@ -872,6 +879,56 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (!code) {
       return res.status(400).send('No code provided');
+    }
+
+    if (!supabaseUserId) {
+      return res.status(400).send(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <meta charset="UTF-8">
+            <title>Authentication Required</title>
+            <style>
+              body {
+                margin: 0;
+                font-family: system-ui, -apple-system, sans-serif;
+                background: #0f172a;
+                color: white;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                min-height: 100vh;
+                text-align: center;
+                padding: 24px;
+              }
+              .container {
+                max-width: 520px;
+                background: rgba(15, 23, 42, 0.92);
+                border: 1px solid rgba(148, 163, 184, 0.25);
+                border-radius: 16px;
+                padding: 32px;
+              }
+              h1 { margin: 0 0 12px 0; font-size: 24px; }
+              p { margin: 0 0 16px 0; color: #cbd5e1; line-height: 1.5; }
+              a {
+                color: white;
+                text-decoration: none;
+                display: inline-block;
+                background: #2563eb;
+                padding: 12px 18px;
+                border-radius: 999px;
+              }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <h1>Sign in before connecting YouTube</h1>
+              <p>Your YouTube connection now attaches to a Supabase account first. Return to the app and sign in, then retry the connection.</p>
+              <a href=${JSON.stringify(buildYouTubeAuthBridgeUrl(postAuthRedirect))}>Return to app</a>
+            </div>
+          </body>
+        </html>
+      `);
     }
 
     try {
@@ -1727,8 +1784,8 @@ Return JSON with:
 
   // Update video title
   if (path.match(/^api\/user\/videos\/[^/]+\/title$/) && req.method === 'PUT') {
-    const { accounts, activeIndex } = readAccountsFromCookies(req);
-    if (accounts.length === 0) {
+    const userData = await getActiveYouTubeUser(req);
+    if (!userData) {
       return res.status(401).json({ error: 'Not authenticated' });
     }
 
@@ -1741,12 +1798,6 @@ Return JSON with:
     }
 
     try {
-      const userData = accounts[activeIndex];
-      
-      if (!userData) {
-        return res.status(401).json({ error: 'No active account' });
-      }
-
       const authHeader = await getAuthHeaderForAccount(userData);
 
       // First, get the current video details
@@ -1810,8 +1861,8 @@ Return JSON with:
 
   // Bulk update video descriptions
   if (path === 'api/user/videos/bulk/description' && req.method === 'PUT') {
-    const { accounts, activeIndex } = readAccountsFromCookies(req);
-    if (accounts.length === 0) {
+    const userData = await getActiveYouTubeUser(req);
+    if (!userData) {
       return res.status(401).json({ error: 'Not authenticated' });
     }
 
@@ -1824,11 +1875,6 @@ Return JSON with:
 
     if (!description && !findReplace) {
       return res.status(400).json({ error: 'Either description or findReplace is required' });
-    }
-
-    const userData = accounts[activeIndex];
-    if (!userData) {
-      return res.status(401).json({ error: 'No active account' });
     }
 
     const authHeader = await getAuthHeaderForAccount(userData);
@@ -1900,8 +1946,8 @@ Return JSON with:
 
   // Bulk update video tags
   if (path === 'api/user/videos/bulk/tags' && req.method === 'PUT') {
-    const { accounts, activeIndex } = readAccountsFromCookies(req);
-    if (accounts.length === 0) {
+    const userData = await getActiveYouTubeUser(req);
+    if (!userData) {
       return res.status(401).json({ error: 'Not authenticated' });
     }
 
@@ -1917,11 +1963,6 @@ Return JSON with:
     }
 
     const updateMode = mode || 'replace'; // 'replace', 'append', 'prepend'
-    const userData = accounts[activeIndex];
-    if (!userData) {
-      return res.status(401).json({ error: 'No active account' });
-    }
-
     const authHeader = await getAuthHeaderForAccount(userData);
     const results = { success: [], failed: [] };
 
@@ -2209,14 +2250,9 @@ Return JSON with:
 
   // Thumbnail authorization queue
   if (path === 'api/thumbnails/authorizations') {
-    const { accounts, activeIndex } = readAccountsFromCookies(req);
-    if (accounts.length === 0) {
-      return res.status(401).json({ error: 'Not authenticated' });
-    }
-
-    const userData = accounts[activeIndex];
+    const userData = await getActiveYouTubeUser(req);
     if (!userData) {
-      return res.status(401).json({ error: 'No active account' });
+      return res.status(401).json({ error: 'Not authenticated' });
     }
 
     const ownershipKey = getThumbnailOwnershipKey(userData);
@@ -2228,14 +2264,9 @@ Return JSON with:
   }
 
   if (path === 'api/thumbnails/authorize' && req.method === 'POST') {
-    const { accounts, activeIndex } = readAccountsFromCookies(req);
-    if (accounts.length === 0) {
-      return res.status(401).json({ error: 'Not authenticated' });
-    }
-
-    const userData = accounts[activeIndex];
+    const userData = await getActiveYouTubeUser(req);
     if (!userData) {
-      return res.status(401).json({ error: 'No active account' });
+      return res.status(401).json({ error: 'Not authenticated' });
     }
 
     const {
@@ -2295,14 +2326,9 @@ Return JSON with:
   }
 
   if (path === 'api/thumbnails/authorize/clear' && req.method === 'POST') {
-    const { accounts, activeIndex } = readAccountsFromCookies(req);
-    if (accounts.length === 0) {
-      return res.status(401).json({ error: 'Not authenticated' });
-    }
-
-    const userData = accounts[activeIndex];
+    const userData = await getActiveYouTubeUser(req);
     if (!userData) {
-      return res.status(401).json({ error: 'No active account' });
+      return res.status(401).json({ error: 'Not authenticated' });
     }
 
     const ownershipKey = getThumbnailOwnershipKey(userData);
@@ -2316,17 +2342,12 @@ Return JSON with:
 
   // Shorts source videos from connected channel
   if (path === 'api/shorts/my-long-videos') {
-    const { accounts, activeIndex } = readAccountsFromCookies(req);
-    if (accounts.length === 0) {
+    const userData = await getActiveYouTubeUser(req);
+    if (!userData) {
       return res.status(401).json({ error: 'Not authenticated' });
     }
 
     try {
-      const userData = accounts[activeIndex];
-      if (!userData) {
-        return res.status(401).json({ error: 'No active account' });
-      }
-
       const authHeader = await getAuthHeaderForAccount(userData);
 
       const searchResponse = await fetch(
@@ -2425,14 +2446,9 @@ Return JSON with:
 
     try {
       if (requestedVideoId) {
-        const { accounts, activeIndex } = readAccountsFromCookies(req);
-        if (accounts.length === 0) {
+        const userData = await getActiveYouTubeUser(req);
+        if (!userData || !userData.tokens) {
           return res.status(401).json({ error: 'Not authenticated' });
-        }
-
-        const userData = accounts[activeIndex];
-        if (!userData) {
-          return res.status(401).json({ error: 'No active account' });
         }
       }
 
@@ -2549,8 +2565,8 @@ For every video provided, evaluate segments based on:
   }
 
   if (path === 'api/shorts/niche-high-performers') {
-    const { accounts, activeIndex } = readAccountsFromCookies(req);
-    if (accounts.length === 0) {
+    const userData = await getActiveYouTubeUser(req);
+    if (!userData) {
       return res.status(401).json({ error: 'Not authenticated' });
     }
 
@@ -2561,11 +2577,6 @@ For every video provided, evaluate segments based on:
     }
 
     try {
-      const userData = accounts[activeIndex];
-      if (!userData) {
-        return res.status(401).json({ error: 'No active account' });
-      }
-
       const authHeader = await getAuthHeaderForAccount(userData);
 
       const searchResponse = await fetch(
@@ -2651,14 +2662,9 @@ For every video provided, evaluate segments based on:
   }
 
   if (path === 'api/shorts/remix-plan' && req.method === 'POST') {
-    const { accounts, activeIndex } = readAccountsFromCookies(req);
-    if (accounts.length === 0) {
-      return res.status(401).json({ error: 'Not authenticated' });
-    }
-
-    const userData = accounts[activeIndex];
+    const userData = await getActiveYouTubeUser(req);
     if (!userData) {
-      return res.status(401).json({ error: 'No active account' });
+      return res.status(401).json({ error: 'Not authenticated' });
     }
 
     const body = readJsonBody(req) || {};
@@ -2749,13 +2755,12 @@ Return concise, practical recommendations.`;
 
   // Discover competitors
   if (path === 'api/competitors/discover') {
-    const { accounts, activeIndex } = readAccountsFromCookies(req);
-    if (accounts.length === 0) {
+    const userData = await getActiveYouTubeUser(req);
+    if (!userData) {
       return res.status(401).json({ error: 'Not authenticated' });
     }
 
     try {
-      const userData = accounts[activeIndex];
       if (!userData?.channel) {
         return res.status(400).json({ error: 'No channel connected' });
       }
@@ -2920,13 +2925,12 @@ Return as JSON.`;
 
   // Search competitors
   if (path === 'api/competitors/search') {
-    const { accounts, activeIndex } = readAccountsFromCookies(req);
-    if (accounts.length === 0) {
+    const userData = await getActiveYouTubeUser(req);
+    if (!userData) {
       return res.status(401).json({ error: 'Not authenticated' });
     }
 
     try {
-      const userData = accounts[activeIndex];
       const authHeader = await getAuthHeaderForAccount(userData);
       const { q } = req.query;
 
@@ -2944,13 +2948,12 @@ Return as JSON.`;
 
   // Get competitor videos
   if (path === 'api/competitors/videos') {
-    const { accounts, activeIndex } = readAccountsFromCookies(req);
-    if (accounts.length === 0) {
+    const userData = await getActiveYouTubeUser(req);
+    if (!userData) {
       return res.status(401).json({ error: 'Not authenticated' });
     }
 
     try {
-      const userData = accounts[activeIndex];
       const authHeader = await getAuthHeaderForAccount(userData);
       const { channelId } = req.query;
 
@@ -3132,3 +3135,4 @@ Return as JSON.`;
   // Default response for unknown paths
   return res.status(404).json({ error: 'Not found', path });
 }
+
