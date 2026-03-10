@@ -20,46 +20,69 @@ export function AuthCallback() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Handle the OAuth callback
-    const handleCallback = async () => {
+    // Listen for auth state changes - Supabase will emit when session is exchanged
+    let mounted = true;
+    let unsubscribe: (() => void) | null = null;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+    const setupAuthListener = async () => {
       try {
-        // Supabase automatically handles the token exchange
-        const { data, error: authError } = await supabase.auth.getSession();
-
-        if (authError) {
-          console.error('Auth callback error:', authError);
-          setError(authError.message);
-          return;
-        }
-
-        if (data.session) {
-          console.log('Authentication successful!');
-
-          const searchParams = new URLSearchParams(window.location.search);
-          const shouldResumeYouTubeConnect = searchParams.get('connect_youtube') === '1';
-          const next = searchParams.get('next');
-
-          if (shouldResumeYouTubeConnect) {
-            const redirectUrl = new URL('/', window.location.origin);
-            redirectUrl.searchParams.set('connect_youtube', '1');
-            if (next) {
-              redirectUrl.searchParams.set('next', next);
-            }
-            window.location.href = redirectUrl.toString();
-            return;
+        // Set a timeout in case the session exchange doesn't complete
+        timeoutId = setTimeout(() => {
+          if (mounted) {
+            setError('Authentication timeout - please try again');
           }
+        }, 10000); // 10 second timeout
 
-          window.location.href = '/';
-        } else {
-          setError('No session found after authentication');
-        }
+        // Subscribe to auth state changes
+        unsubscribe = supabase.auth.onAuthStateChange(async (event, session) => {
+          if (!mounted) return;
+
+          console.log('Auth state changed:', event, session ? 'session present' : 'no session');
+
+          if (event === 'SIGNED_IN' && session) {
+            if (timeoutId) clearTimeout(timeoutId);
+            console.log('Authentication successful!');
+
+            const searchParams = new URLSearchParams(window.location.search);
+            const shouldResumeYouTubeConnect = searchParams.get('connect_youtube') === '1';
+            const next = searchParams.get('next');
+
+            if (shouldResumeYouTubeConnect) {
+              const redirectUrl = new URL('/', window.location.origin);
+              redirectUrl.searchParams.set('connect_youtube', '1');
+              if (next) {
+                redirectUrl.searchParams.set('next', next);
+              }
+              window.location.href = redirectUrl.toString();
+              return;
+            }
+
+            // Go to next URL or home
+            const nextUrl = next ? decodeURIComponent(next) : '/';
+            window.location.href = nextUrl;
+          }
+        });
       } catch (err) {
-        console.error('Exception in auth callback:', err);
-        setError('An unexpected error occurred during authentication');
+        console.error('Exception in auth callback setup:', err);
+        if (mounted) {
+          setError('An unexpected error occurred during authentication');
+        }
       }
     };
 
-    handleCallback();
+    setupAuthListener();
+
+    // Cleanup
+    return () => {
+      mounted = false;
+      if (unsubscribe) {
+        unsubscribe();
+      }
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
   }, []);
 
   if (error) {
