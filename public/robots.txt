@@ -1,16 +1,10 @@
-# robots.txt for VidVision (janso.studio)
+# robots.txt for app.janso.studio (authenticated app)
 
-# Allow all crawlers
 User-agent: *
-Allow: /
 
-# Disallow private/sensitive paths
-Disallow: /api/
-Disallow: /auth/
-Disallow: /uploads/
+# Keep the app itself out of search while allowing legal pages.
+Disallow: /
+Allow: /privacy
+Allow: /terms
 
-# Sitemap location
-Sitemap: https://janso.studio/sitemap.xml
-
-# Crawl delay (optional, adjust as needed)
-# Crawl-delay: 1
+Sitemap: https://app.janso.studio/sitemap.xml

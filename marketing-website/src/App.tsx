@@ -4,6 +4,7 @@ import { CTASection } from "@/src/components/CTASection";
 import { Features } from "@/src/components/Features";
 import { Footer } from "@/src/components/Footer";
 import { Hero } from "@/src/components/Hero";
+import { LegalViewer } from "@/src/components/LegalViewer";
 import { Navigation } from "@/src/components/Navigation";
 import { Pricing } from "@/src/components/Pricing";
 import { cn } from "@/src/lib/utils";
@@ -12,8 +13,16 @@ const THEME_STORAGE_KEY = "tube_vision_theme";
 const DASHBOARD_URL = import.meta.env.VITE_DASHBOARD_URL || "http://localhost:3000";
 
 type Theme = "dark" | "light";
+type Page = "home" | "privacy" | "terms";
+
+function getPageFromPath(pathname: string): Page {
+  if (pathname === "/privacy") return "privacy";
+  if (pathname === "/terms") return "terms";
+  return "home";
+}
 
 export default function App() {
+  const [page, setPage] = useState<Page>(() => getPageFromPath(window.location.pathname));
   const [theme, setTheme] = useState<Theme>(() => {
     const storedTheme = window.localStorage.getItem(THEME_STORAGE_KEY);
     return storedTheme === "light" ? "light" : "dark";
@@ -25,11 +34,27 @@ export default function App() {
     window.localStorage.setItem(THEME_STORAGE_KEY, theme);
   }, [theme]);
 
+  useEffect(() => {
+    const onPopState = () => setPage(getPageFromPath(window.location.pathname));
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []);
+
   const isDark = theme === "dark";
 
   const openDashboardAuth = () => {
     window.location.href = `${DASHBOARD_URL}/auth/youtube`;
   };
+
+  const goHome = () => {
+    window.history.pushState({}, "", "/");
+    setPage("home");
+    window.scrollTo({ top: 0, behavior: "auto" });
+  };
+
+  if (page === "privacy" || page === "terms") {
+    return <LegalViewer type={page} isDark={isDark} onBack={goHome} />;
+  }
 
   return (
     <div

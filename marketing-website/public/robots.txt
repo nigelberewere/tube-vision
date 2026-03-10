@@ -1,0 +1,7 @@
+# robots.txt for janso.studio (marketing site)
+
+User-agent: *
+Allow: /
+
+# Sitemap
+Sitemap: https://janso.studio/sitemap.xml

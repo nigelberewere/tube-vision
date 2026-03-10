@@ -28,7 +28,7 @@ export function Footer({ isDark }: FooterProps) {
               "transition",
               isDark ? "text-slate-300 hover:text-white" : "text-slate-700 hover:text-slate-900"
             )}
-            href="https://app.janso.studio/privacy"
+            href="/privacy"
             target="_blank"
             rel="noopener noreferrer"
           >
@@ -39,7 +39,7 @@ export function Footer({ isDark }: FooterProps) {
               "transition",
               isDark ? "text-slate-300 hover:text-white" : "text-slate-700 hover:text-slate-900"
             )}
-            href="https://app.janso.studio/terms"
+            href="/terms"
             target="_blank"
             rel="noopener noreferrer"
           >
