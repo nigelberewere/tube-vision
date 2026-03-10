@@ -1,5 +1,0 @@
-{
-  "name": "Cinematic TTS",
-  "description": "A cinematic dashboard for converting text to speech using Gemini 3 Flash.",
-  "requestFramePermissions": []
-}
