@@ -38,6 +38,7 @@ import ViralClipExtractor from './components/ViralClipExtractor.tsx';
 import CommentStrategist from './components/CommentStrategist';
 import OnboardingTour, { type OnboardingStep } from './components/OnboardingTour';
 import SettingsPanel from './components/SettingsPanel';
+import { LegalViewer } from './components/LegalViewer';
 import YouTubeShortsIcon from './components/icons/YouTubeShortsIcon';
 import YouTubeLogoIcon from './components/icons/YouTubeLogoIcon';
 import YouTubeMyVideosIcon from './components/icons/YouTubeMyVideosIcon';
@@ -146,6 +147,47 @@ export default function App() {
   const [seoVideoTopic, setSeoVideoTopic] = useState<string>('');
   const [scriptTopic, setScriptTopic] = useState<string>('');
   const [geminiErrorToast, setGeminiErrorToast] = useState<GeminiUserErrorDetail | null>(null);
+  const [currentPage, setCurrentPage] = useState<'app' | 'privacy' | 'terms'>('app');
+
+  // Handle URL-based routing for legal pages
+  useEffect(() => {
+    const handleRouteChange = () => {
+      const pathname = window.location.pathname;
+      if (pathname === '/privacy') {
+        setCurrentPage('privacy');
+      } else if (pathname === '/terms') {
+        setCurrentPage('terms');
+      } else {
+        setCurrentPage('app');
+      }
+    };
+
+    // Check initial route
+    handleRouteChange();
+
+    // Listen for URL changes (for links and browser navigation)
+    window.addEventListener('popstate', handleRouteChange);
+    
+    // Also observe history changes via MutationObserver isn't needed, but we could use a link click handler
+    const handleLinkClick = (e: Event) => {
+      const target = e.target as HTMLElement;
+      if (target && (target instanceof HTMLAnchorElement || target.closest('a'))) {
+        const href = (target instanceof HTMLAnchorElement ? target : target.closest('a'))?.getAttribute('href');
+        if (href === '/privacy' || href === '/terms') {
+          e.preventDefault();
+          window.history.pushState(null, '', href);
+          handleRouteChange();
+        }
+      }
+    };
+    
+    document.addEventListener('click', handleLinkClick, true);
+
+    return () => {
+      window.removeEventListener('popstate', handleRouteChange);
+      document.removeEventListener('click', handleLinkClick, true);
+    };
+  }, []);
 
   const tabs: TabConfig[] = [
     {
@@ -743,6 +785,21 @@ export default function App() {
         );
     }
   };
+
+  // Render legal pages
+  if (currentPage === 'privacy') {
+    return <LegalViewer type="privacy" onBack={() => {
+      window.history.back();
+      setCurrentPage('app');
+    }} />;
+  }
+
+  if (currentPage === 'terms') {
+    return <LegalViewer type="terms" onBack={() => {
+      window.history.back();
+      setCurrentPage('app');
+    }} />;
+  }
 
   return (
     <div

@@ -9,9 +9,9 @@ This document outlines how the marketing website seamlessly integrates with the 
 │                    Janso Studio Ecosystem                        │
 ├───────────────────────────┬─────────────────────────────────────┤
 │  Marketing Website        │        Main Dashboard               │
-│  (React + Vite)           │     (React + Express/Vercel)        │
+│  (React + Vite)           │   (React + Express/Cloudflare)      │
 │  Port 5173 (dev)          │        Port 3000 (dev)              │
-│  tubevision.com           │   tubevision.vercel.app             │
+│  janso.studio             │   app.janso.studio                  │
 │                           │                                     │
 │ • Land users              │ • Core application                  │
 │ • Explain features        │ • YouTube OAuth                     │
@@ -31,19 +31,19 @@ This document outlines how the marketing website seamlessly integrates with the 
 ### Root `./env.local`
 ```
 VITE_DASHBOARD_URL=http://localhost:3000          # Dev
-VITE_DASHBOARD_URL=https://tubevision.vercel.app  # Production
+VITE_DASHBOARD_URL=https://app.janso.studio       # Production
 ```
 
 ### Marketing Site `./marketing-website/.env.local`
 ```
 VITE_DASHBOARD_URL=http://localhost:3000          # Dev
-VITE_DASHBOARD_URL=https://tubevision.vercel.app  # Production
+VITE_DASHBOARD_URL=https://app.janso.studio       # Production
 ```
 
 ## User Journey
 
 ### 1. User Lands on Marketing Site
-- URL: `tubevision.com` or `marketing.tubevision.com`
+- URL: `janso.studio` or `www.janso.studio`
 - Sees hero, features, pricing, social proof
 - Theme automatically syncs with browser preference
 
@@ -109,10 +109,10 @@ This allows users to have consistent theme preference even if they bounce betwee
 - `/api/user/remove` → Remove an account
 - All Gemini-powered endpoints (SEO, Scripts, AI Coach, etc.)
 
-### Vercel Production (api/route.ts)
-**CRITICAL**: All endpoints from server.ts MUST be mirrored in api/route.ts to avoid production 404s.
+### Production Runtime Note (Transition)
+**CRITICAL**: While `api/route.ts` still exists, keep endpoint behavior mirrored with `server.ts` to avoid regressions during migration.
 
-Configuration in `vercel.json`:
+Legacy configuration in `vercel.json`:
 ```json
 {
   "rewrites": [
@@ -172,41 +172,41 @@ VITE_DASHBOARD_URL=http://localhost:3000
 
 ## Deployment Strategy
 
-### Option A: Separate Vercel Projects (Recommended)
+### Option A: Separate Cloudflare Pages Projects (Recommended)
 
-**Marketing Site**: `tubevision.com` or `marketing.tubevision.com`
+**Marketing Site**: `janso.studio` (and `www.janso.studio`)
 - Built from `marketing-website/` folder
 - Points to dashboard via `VITE_DASHBOARD_URL` env var
 - No backend, fully static
 
-**Dashboard**: `app.tubevision.com` or `tubevision-app.vercel.app`
+**Dashboard**: `app.janso.studio`
 - Built from root folder
 - Includes api/route.ts for backend
 - Handles OAuth and all AI features
 
-### Option B: Same Vercel Project, Different Routes
+### Option B: Same Cloudflare Project, Different Routes
 
-Not recommended due to vercel.json complexity, but possible:
+Not recommended due to routing complexity, but possible:
 - `/` → Marketing site (static)
 - `/app/*` → Dashboard (dynamic)
 - `/api/*` → Backend (serverless function)
 
 ### Deployment Checklist
 
-- [ ] Dashboard deployed to https://app.tubevision.com
-- [ ] Marketing site deployed to https://tubevision.com
-- [ ] `VITE_DASHBOARD_URL=https://app.tubevision.com` set in marketing site env
+- [ ] Dashboard deployed to https://app.janso.studio
+- [ ] Marketing site deployed to https://janso.studio
+- [ ] `VITE_DASHBOARD_URL=https://app.janso.studio` set in marketing site env
 - [ ] Google OAuth redirect URI includes both domains
 - [ ] CORS configured if on different domains
 - [ ] Favicon.svg accessible from both projects
 - [ ] Theme key consistent (tube_vision_theme)
-- [ ] Email links work (hello@tubevision.ai)
+- [ ] Email links work (hello@janso.studio)
 
 ## Environment Variables Reference
 
 ### Dashboard (root)
 ```
-APP_URL=https://tubevision.vercel.app
+APP_URL=https://app.janso.studio
 VITE_DASHBOARD_URL=http://localhost:3000  # For local dev
 GOOGLE_CLIENT_ID=...
 GOOGLE_CLIENT_SECRET=...
@@ -233,7 +233,7 @@ If `/auth/youtube` fails (missing credentials, network, etc.):
 const dashboardUrl = import.meta.env.VITE_DASHBOARD_URL || "http://localhost:3000";
 
 // Development: http://localhost:3000
-// Production: https://app.tubevision.com
+// Production: https://app.janso.studio
 ```
 
 ## Common Issues & Solutions
@@ -263,7 +263,7 @@ const dashboardUrl = import.meta.env.VITE_DASHBOARD_URL || "http://localhost:300
 **Problem**: Favicon doesn't show
 **Solution**:
 - Ensure favicon.svg in public/ folder
-- Check vercel.json rewrite rule: `/favicon.ico` → `/favicon.svg`
+- For Cloudflare Pages, ensure `public/_redirects` contains `/favicon.ico  /favicon.svg  301`
 - Clear browser cache
 
 ## Future Integrations
@@ -298,4 +298,4 @@ const dashboardUrl = import.meta.env.VITE_DASHBOARD_URL || "http://localhost:300
 5. Same theme preference across both
 6. Consistent branding and messaging
 
-The marketing-website folder is production-ready and can be deployed independently or as part of the same Vercel project.
+The marketing-website folder is production-ready and can be deployed independently as a dedicated Cloudflare Pages project.

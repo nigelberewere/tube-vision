@@ -1,0 +1,55 @@
+# Security Headers for Cloudflare Pages
+# This file configures HTTP security headers for all routes
+# Documentation: https://developers.cloudflare.com/pages/platform/headers
+
+# Apply security headers to all pages
+/*
+  # Prevent clickjacking attacks
+  X-Frame-Options: DENY
+  
+  # Prevent MIME type sniffing
+  X-Content-Type-Options: nosniff
+  
+  # Enable XSS protection (legacy browsers)
+  X-XSS-Protection: 1; mode=block
+  
+  # Referrer policy
+  Referrer-Policy: strict-origin-when-cross-origin
+  
+  # Permissions policy (restrict access to browser features)
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), interest-cohort=()
+  
+  # Strict Transport Security (HSTS) - Force HTTPS
+  Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+  
+  # Content Security Policy (CSP)
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://accounts.google.com https://apis.google.com https://www.google.com https://www.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https: http:; connect-src 'self' https://accounts.google.com https://generativelanguage.googleapis.com https://www.googleapis.com https://*.supabase.co wss://*.supabase.co; frame-src 'self' https://accounts.google.com; media-src 'self' blob: data:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests; block-all-mixed-content
+
+# API routes - more permissive for API responses
+/api/*
+  Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS
+  Access-Control-Allow-Headers: Content-Type, Authorization, X-Gemini-Key
+  Access-Control-Max-Age: 86400
+
+# Static assets - aggressive caching
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# Service worker - short cache
+/sw.js
+  Cache-Control: public, max-age=0, must-revalidate
+
+# Legal documents - cache for 1 hour
+/privacy-policy.md
+  Cache-Control: public, max-age=3600
+
+/terms-of-service.md
+  Cache-Control: public, max-age=3600
+
+# Favicon - cache for 1 week
+/favicon.*
+  Cache-Control: public, max-age=604800
+
+# HTML - no cache to ensure latest version
+/*.html
+  Cache-Control: public, max-age=0, must-revalidate

@@ -28,7 +28,7 @@ export function Footer({ isDark }: FooterProps) {
               "transition",
               isDark ? "text-slate-300 hover:text-white" : "text-slate-700 hover:text-slate-900"
             )}
-            href="/privacy"
+            href="https://app.janso.studio/privacy"
             target="_blank"
             rel="noopener noreferrer"
           >
@@ -39,7 +39,7 @@ export function Footer({ isDark }: FooterProps) {
               "transition",
               isDark ? "text-slate-300 hover:text-white" : "text-slate-700 hover:text-slate-900"
             )}
-            href="/terms"
+            href="https://app.janso.studio/terms"
             target="_blank"
             rel="noopener noreferrer"
           >
@@ -50,7 +50,7 @@ export function Footer({ isDark }: FooterProps) {
               "transition",
               isDark ? "text-slate-300 hover:text-white" : "text-slate-700 hover:text-slate-900"
             )}
-            href="mailto:hello@tubevision.ai"
+            href="mailto:support@janso.studio"
           >
             Contact
           </a>
@@ -58,7 +58,7 @@ export function Footer({ isDark }: FooterProps) {
 
         <div className="flex items-center gap-3">
           <a
-            href="https://youtube.com/@tubevision"
+            href="https://youtube.com/@jansostudio"
             aria-label="YouTube"
             target="_blank"
             rel="noopener noreferrer"
@@ -70,7 +70,7 @@ export function Footer({ isDark }: FooterProps) {
             <Youtube className="h-4 w-4" />
           </a>
           <a
-            href="https://github.com/tubevision"
+            href="https://github.com/jansostudio"
             aria-label="Github"
             target="_blank"
             rel="noopener noreferrer"
@@ -82,7 +82,7 @@ export function Footer({ isDark }: FooterProps) {
             <Github className="h-4 w-4" />
           </a>
           <a
-            href="mailto:hello@tubevision.ai"
+            href="mailto:support@janso.studio"
             aria-label="Email"
             className={cn(
               "rounded-lg border p-2 transition",

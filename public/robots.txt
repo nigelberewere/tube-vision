@@ -1,0 +1,16 @@
+# robots.txt for VidVision (janso.studio)
+
+# Allow all crawlers
+User-agent: *
+Allow: /
+
+# Disallow private/sensitive paths
+Disallow: /api/
+Disallow: /auth/
+Disallow: /uploads/
+
+# Sitemap location
+Sitemap: https://janso.studio/sitemap.xml
+
+# Crawl delay (optional, adjust as needed)
+# Crawl-delay: 1

@@ -1,0 +1,23 @@
+# Cloudflare Pages redirect rules for Janso Studio App
+# Documentation: https://developers.cloudflare.com/pages/platform/redirects
+
+# API routes - these must hit the backend
+/api/* https://app.janso.studio/api/:splat 200
+
+# OAuth routes - these need proper backend handling
+/auth/* https://app.janso.studio/auth/:splat 200
+
+# Favicon redirect (serves from root)
+/privacy-policy.md /privacy-policy.md 200
+/terms-of-service.md /terms-of-service.md 200
+
+# Static files - return as-is
+/assets/* /assets/:splat 200
+/favicon.* /favicon.:splat 200
+
+# robots.txt and other meta files
+/robots.txt /robots.txt 200
+/sitemap.xml /sitemap.xml 200
+
+# SPA fallback - route all other requests to index.html for React Router handling
+* /index.html 200
