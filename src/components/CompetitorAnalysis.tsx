@@ -1106,7 +1106,30 @@ export default function CompetitorAnalysis() {
             </button>
 
             <button
-              onClick={() => window.open(`https://www.youtube.com/channel/${selectedCompetitor.channel.id}`, '_blank')}
+              onClick={() => {
+                const channel = selectedCompetitor.channel;
+                const directUrl = channel.channelUrl;
+                const rawCustomUrl = channel.customUrl
+                  ? String(channel.customUrl).replace(/^https?:\/\/(www\.)?youtube\.com\//i, '')
+                  : '';
+
+                const customPath = rawCustomUrl
+                  ? rawCustomUrl.startsWith('@') ||
+                    rawCustomUrl.startsWith('c/') ||
+                    rawCustomUrl.startsWith('user/') ||
+                    rawCustomUrl.startsWith('channel/')
+                    ? rawCustomUrl
+                    : `@${rawCustomUrl}`
+                  : '';
+
+                const fallbackUrl = customPath
+                  ? `https://www.youtube.com/${customPath}`
+                  : channel.id
+                    ? `https://www.youtube.com/channel/${channel.id}`
+                    : 'https://www.youtube.com';
+
+                window.open(directUrl || fallbackUrl, '_blank', 'noopener,noreferrer');
+              }}
               className="bg-zinc-800 hover:bg-zinc-700 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 transition-all"
             >
               <ExternalLink size={18} />

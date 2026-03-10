@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { generateVidVisionInsight } from '../services/geminiService';
 import { Type } from '@google/genai';
 import { Loader2, Users, Mail, Copy, Check, ExternalLink, Play, TrendingUp } from 'lucide-react';
-import { cn } from '../lib/utils';
 
 interface Creator {
   id: string;
@@ -31,6 +30,26 @@ interface SearchFilters {
   contentCategory: string;
 }
 
+function normalizeChannelPayload(payload: any): Creator | null {
+  const channel = payload?.channel ?? payload;
+  if (!channel || typeof channel !== 'object') return null;
+
+  const stats = channel.statistics ?? {};
+
+  return {
+    id: String(channel.id ?? ''),
+    title: String(channel.title ?? payload?.name ?? 'Your Channel'),
+    description: String(channel.description ?? ''),
+    customUrl: channel.customUrl ? String(channel.customUrl) : undefined,
+    thumbnails: channel.thumbnails ?? {},
+    statistics: {
+      subscriberCount: String(stats.subscriberCount ?? '0'),
+      videoCount: String(stats.videoCount ?? '0'),
+      viewCount: String(stats.viewCount ?? '0'),
+    },
+  };
+}
+
 export default function CollaborationEngine() {
   const [loading, setLoading] = useState(false);
   const [searching, setSearching] = useState(false);
@@ -52,16 +71,29 @@ export default function CollaborationEngine() {
         const response = await fetch('/api/user/channel');
         if (response.ok) {
           const data = await response.json();
-          setUserChannel(data);
+          const normalized = normalizeChannelPayload(data);
+          if (!normalized?.id) {
+            setError('Unable to load your channel info. Please reconnect your account.');
+            setUserChannel(null);
+            return;
+          }
+
+          setUserChannel(normalized);
           
           // Extract category from channel description if available
-          const categoryMatch = data.description?.match(/(?:channel|niche|category)[:—\s]*([^,.\n]+)/i);
+          const categoryMatch = normalized.description?.match(/(?:channel|niche|category)[:—\s]*([^,.\n]+)/i);
           if (categoryMatch) {
             setFilters(prev => ({ ...prev, contentCategory: categoryMatch[1].trim() }));
           }
+        } else if (response.status === 401) {
+          setError('Please connect your YouTube account to use Collaboration Engine.');
+          setUserChannel(null);
+        } else {
+          setError('Failed to load your channel info. Please try again.');
         }
       } catch (err) {
         console.error('Failed to load user channel:', err);
+        setError('Failed to load your channel info. Please try again.');
       } finally {
         setLoading(false);
       }
@@ -292,7 +324,7 @@ Return ONLY valid JSON matching the schema.`;
             {userChannel ? (
               <div className="bg-zinc-800 border border-zinc-700 rounded-lg p-4 flex items-center gap-4">
                 <img
-                  src={userChannel.thumbnails?.default?.url}
+                  src={userChannel.thumbnails?.default?.url || '/favicon.svg'}
                   alt={userChannel.title}
                   className="w-16 h-16 rounded-lg object-cover"
                 />

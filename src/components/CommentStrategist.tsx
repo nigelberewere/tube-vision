@@ -51,13 +51,27 @@ export default function CommentStrategist({ videoId }: CommentStrategistProps) {
         const response = await fetch('/api/user/videos?maxResults=10');
         if (response.ok) {
           const data = await response.json();
-          setVideos(data.items || []);
-          if (!selectedVideoId && data.items?.[0]) {
-            setSelectedVideoId(data.items[0].id);
+          const rawVideos = Array.isArray(data) ? data : data.items || [];
+          const normalizedVideos = rawVideos
+            .map((video: any) => {
+              const id = typeof video.id === 'string' ? video.id : video.id?.videoId;
+              const title = video.title || video.snippet?.title;
+              return id && title ? { id, title } : null;
+            })
+            .filter((video: { id: string; title: string } | null): video is { id: string; title: string } => Boolean(video));
+
+          setVideos(normalizedVideos);
+          if (!selectedVideoId && normalizedVideos[0]) {
+            setSelectedVideoId(normalizedVideos[0].id);
           }
+        } else if (response.status === 401) {
+          setError('Please connect your YouTube account to load videos.');
+        } else {
+          setError('Failed to load videos for comment analysis.');
         }
       } catch (err) {
         console.error('Failed to load videos:', err);
+        setError('Failed to load videos for comment analysis.');
       }
     };
 

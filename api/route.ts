@@ -1209,6 +1209,65 @@ Return JSON with:
     }
   }
 
+  if (path === 'api/comments/fetch') {
+    const { accounts, activeIndex } = readAccountsFromCookies(req);
+    if (accounts.length === 0) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const videoId = Array.isArray(req.query.videoId) ? req.query.videoId[0] : req.query.videoId;
+    if (!videoId || typeof videoId !== 'string') {
+      return res.status(400).json({ error: 'videoId is required' });
+    }
+
+    try {
+      const userData = accounts[activeIndex];
+
+      if (!userData) {
+        return res.status(401).json({ error: 'No active account' });
+      }
+
+      const authHeader = await getAuthHeaderForAccount(userData);
+      const commentsResponse = await fetch(
+        `https://www.googleapis.com/youtube/v3/commentThreads?part=snippet&videoId=${encodeURIComponent(videoId)}&maxResults=100&order=relevance&textFormat=plainText`,
+        { headers: authHeader }
+      );
+
+      const commentsData = await commentsResponse.json();
+      if (!commentsResponse.ok || commentsData?.error) {
+        const statusCode = Number(commentsData?.error?.code) || commentsResponse.status || 500;
+        return res.status(statusCode).json({
+          error: commentsData?.error?.message || 'Failed to fetch comments',
+        });
+      }
+
+      const comments = (commentsData.items || [])
+        .map((item: any) => {
+          const topLevel = item?.snippet?.topLevelComment?.snippet;
+          if (!topLevel?.textDisplay) {
+            return null;
+          }
+
+          return {
+            id: item?.id,
+            textDisplay: topLevel.textDisplay,
+            authorDisplayName: topLevel.authorDisplayName,
+            likeCount: Number(topLevel.likeCount || 0),
+            publishedAt: topLevel.publishedAt,
+          };
+        })
+        .filter(Boolean);
+
+      return res.json({
+        comments,
+        totalComments: commentsData?.pageInfo?.totalResults || comments.length,
+      });
+    } catch (error) {
+      console.error('Fetch comments error:', error);
+      return res.status(500).json({ error: 'Failed to fetch comments' });
+    }
+  }
+
   // Update video title
   if (path.match(/^api\/user\/videos\/[^/]+\/title$/) && req.method === 'PUT') {
     const { accounts, activeIndex } = readAccountsFromCookies(req);
@@ -2478,18 +2537,64 @@ Return as JSON.`;
           (a: any, b: any) => parseInt(b.statistics.viewCount) - parseInt(a.statistics.viewCount)
         );
 
+        const rawCustomUrl = channel.snippet?.customUrl;
+        const normalizedCustomUrl = rawCustomUrl
+          ? String(rawCustomUrl).replace(/^https?:\/\/(www\.)?youtube\.com\//i, '')
+          : '';
+        const channelPath = normalizedCustomUrl
+          ? normalizedCustomUrl.startsWith('@') ||
+            normalizedCustomUrl.startsWith('c/') ||
+            normalizedCustomUrl.startsWith('user/') ||
+            normalizedCustomUrl.startsWith('channel/')
+            ? normalizedCustomUrl
+            : `@${normalizedCustomUrl}`
+          : channel.id
+            ? `channel/${channel.id}`
+            : '';
+        const channelUrl = channelPath ? `https://www.youtube.com/${channelPath}` : undefined;
+
         return res.json({
           channel: {
+            id: channel.id,
             title: channel.snippet.title,
             description: channel.snippet.description,
             thumbnails: channel.snippet.thumbnails,
+            customUrl: rawCustomUrl,
+            channelUrl,
             statistics: channel.statistics,
           },
           videos: sortedVideos,
         });
       }
 
-      return res.json({ channel: channel.snippet, videos: [] });
+      const rawCustomUrl = channel.snippet?.customUrl;
+      const normalizedCustomUrl = rawCustomUrl
+        ? String(rawCustomUrl).replace(/^https?:\/\/(www\.)?youtube\.com\//i, '')
+        : '';
+      const channelPath = normalizedCustomUrl
+        ? normalizedCustomUrl.startsWith('@') ||
+          normalizedCustomUrl.startsWith('c/') ||
+          normalizedCustomUrl.startsWith('user/') ||
+          normalizedCustomUrl.startsWith('channel/')
+          ? normalizedCustomUrl
+          : `@${normalizedCustomUrl}`
+        : channel.id
+          ? `channel/${channel.id}`
+          : '';
+      const channelUrl = channelPath ? `https://www.youtube.com/${channelPath}` : undefined;
+
+      return res.json({
+        channel: {
+          id: channel.id,
+          title: channel.snippet.title,
+          description: channel.snippet.description,
+          thumbnails: channel.snippet.thumbnails,
+          customUrl: rawCustomUrl,
+          channelUrl,
+          statistics: channel.statistics,
+        },
+        videos: [],
+      });
     } catch (error) {
       console.error('Fetch competitor videos error:', error);
       return res.status(500).json({ error: 'Failed to fetch competitor videos' });
