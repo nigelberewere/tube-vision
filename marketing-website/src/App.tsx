@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
 import { CTASection } from "@/src/components/CTASection";
+import { FAQ } from "@/src/components/FAQ";
 import { Features } from "@/src/components/Features";
 import { Footer } from "@/src/components/Footer";
 import { Hero } from "@/src/components/Hero";
@@ -84,6 +85,7 @@ export default function App() {
         <Hero isDark={isDark} onConnect={openDashboardAuth} />
         <Features isDark={isDark} />
         <Pricing isDark={isDark} onConnect={openDashboardAuth} />
+        <FAQ isDark={isDark} />
         <CTASection isDark={isDark} onConnect={openDashboardAuth} />
       </main>
 

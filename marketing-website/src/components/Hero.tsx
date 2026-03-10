@@ -34,11 +34,10 @@ export function Hero({ isDark, onConnect }: HeroProps) {
 
           <div className="space-y-4">
             <h1 className="text-balance text-4xl font-semibold tracking-tight md:text-6xl">
-              AI-Powered Tools for YouTube Creators
+              AI-Powered YouTube Analytics & Optimization Platform
             </h1>
             <p className={cn("max-w-2xl text-base md:text-lg", isDark ? "text-slate-300" : "text-slate-700")}> 
-              Grow your channel with SEO optimization, AI coaching, viral clip extraction, and content systems
-              built for teams that ship weekly.
+              AI YouTube script generator, viral clip extractor, and SEO optimizer built for content creators who want to grow faster.
             </p>
           </div>
 

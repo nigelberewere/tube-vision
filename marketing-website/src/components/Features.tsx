@@ -25,49 +25,49 @@ type FeatureItem = {
 
 const features: FeatureItem[] = [
   {
-    title: "Neural Voice Studio",
+    title: "AI YouTube Script Generator for Creators",
     description: "Generate expressive AI voiceovers with tone controls, pacing, and emotion profiles tuned for audience retention.",
     icon: Mic,
     accentClass: "from-blue-500 to-indigo-500"
   },
   {
-    title: "YouTube Shorts Studio",
+    title: "YouTube Viral Clip Extractor AI Tool",
     description: "Extract viral-ready short clips from long-form videos using scene understanding and hook detection.",
     icon: Play,
     accentClass: "from-red-500 to-orange-500"
   },
   {
-    title: "Thumbnail Studio",
+    title: "YouTube Thumbnail Idea Generator AI",
     description: "Run heatmap analysis and A/B test thumbnail concepts before publishing your next high-stakes upload.",
     icon: ImageIcon,
     accentClass: "from-pink-500 to-red-500"
   },
   {
-    title: "SEO Optimizer",
+    title: "YouTube SEO Optimizer for Video Titles",
     description: "Improve discoverability with optimized titles, descriptions, tags, and semantic keyword coverage.",
     icon: Search,
     accentClass: "from-indigo-500 to-purple-500"
   },
   {
-    title: "Channel Analytics",
+    title: "YouTube Analytics Dashboard",
     description: "Track growth trends, retention curves, and content velocity with creator-focused metrics.",
     icon: BarChart4,
     accentClass: "from-green-500 to-emerald-500"
   },
   {
-    title: "AI YouTube Coach",
+    title: "AI YouTube Growth Coach",
     description: "Get personalized growth advice, upload strategy, and experiments tailored to your channel goals.",
     icon: GraduationCap,
     accentClass: "from-violet-500 to-indigo-500"
   },
   {
-    title: "Script Architect",
+    title: "YouTube Keyword Research Tool for Small Channels",
     description: "Build high-retention scripts with hook generators, structure templates, and narrative pacing guidance.",
     icon: FileText,
     accentClass: "from-sky-500 to-blue-600"
   },
   {
-    title: "Competition & Network",
+    title: "YouTube Competitor Channel Analysis Tool",
     description: "Analyze competitors, identify collab opportunities, and map audience overlap for faster expansion.",
     icon: Users,
     accentClass: "from-teal-500 to-cyan-500"
