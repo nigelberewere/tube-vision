@@ -7,7 +7,9 @@ import youtubedl from 'youtube-dl-exec';
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
-const APP_URL = process.env.APP_URL || 'http://localhost:3000';
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
+const DEFAULT_PRODUCTION_APP_URL = 'https://app.janso.studio';
+const APP_URL = process.env.APP_URL?.trim() || (IS_PRODUCTION ? DEFAULT_PRODUCTION_APP_URL : 'http://localhost:3000');
 const REDIRECT_URI = `${APP_URL}/auth/google/callback`;
 const SHORTS_MAX_SECONDS = 61;
 const LONG_FORM_MIN_SECONDS = 120;

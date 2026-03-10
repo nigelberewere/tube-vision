@@ -27,6 +27,13 @@ const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
 const SHORTS_MAX_SECONDS = 61;
 const LONG_FORM_MIN_SECONDS = 120;
 const IS_PRODUCTION = process.env.NODE_ENV === "production";
+const DEFAULT_PRODUCTION_APP_URL = "https://app.janso.studio";
+
+function resolveAppUrl(port: number): string {
+  const configuredAppUrl = process.env.APP_URL?.trim();
+  if (configuredAppUrl) return configuredAppUrl;
+  return IS_PRODUCTION ? DEFAULT_PRODUCTION_APP_URL : `http://localhost:${port}`;
+}
 
 function isMissingConfigValue(value?: string): boolean {
   if (!value || !value.trim()) return true;
@@ -294,7 +301,7 @@ function setSessionAccountsAndActiveIndex(req: express.Request, accounts: any[],
 export async function createApp(options: CreateAppOptions = {}) {
   const { includeFrontend = true, port = DEFAULT_PORT } = options;
   const app = express();
-  const appUrl = process.env.APP_URL || `http://localhost:${port}`;
+  const appUrl = resolveAppUrl(port);
   const redirectUri = `${appUrl}/auth/google/callback`;
 
   if (OAUTH_MISSING_VARS.length > 0) {

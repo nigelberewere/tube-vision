@@ -4,11 +4,18 @@
  */
 
 /**
- * Get the dashboard URL with fallback to localhost
+ * Get the dashboard URL with environment-aware fallback
  * Used for OAuth redirects and internal navigation
  */
 export function getDashboardUrl(): string {
-  return import.meta.env.VITE_DASHBOARD_URL || "http://localhost:3000";
+  const configuredUrl = import.meta.env.VITE_DASHBOARD_URL?.trim();
+  if (configuredUrl) return configuredUrl;
+
+  const isLocalHost =
+    typeof window !== "undefined" &&
+    (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
+
+  return isLocalHost ? "http://localhost:3000" : "https://app.janso.studio";
 }
 
 /**

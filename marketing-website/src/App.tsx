@@ -8,10 +8,10 @@ import { Hero } from "@/src/components/Hero";
 import { LegalViewer } from "@/src/components/LegalViewer";
 import { Navigation } from "@/src/components/Navigation";
 import { Pricing } from "@/src/components/Pricing";
+import { getDashboardUrl } from "@/src/lib/config";
 import { cn } from "@/src/lib/utils";
 
 const THEME_STORAGE_KEY = "tube_vision_theme";
-const DASHBOARD_URL = import.meta.env.VITE_DASHBOARD_URL || "http://localhost:3000";
 
 type Theme = "dark" | "light";
 type Page = "home" | "privacy" | "terms";
@@ -44,7 +44,8 @@ export default function App() {
   const isDark = theme === "dark";
 
   const openDashboardAuth = () => {
-    window.location.href = `${DASHBOARD_URL}/auth/youtube`;
+    const dashboardUrl = getDashboardUrl();
+    window.location.href = `${dashboardUrl}/auth/youtube`;
   };
 
   const goHome = () => {
