@@ -632,18 +632,14 @@ export default function App() {
       return (
         <div className="mb-8 rounded-2xl border border-red-400/20 bg-red-500/5 backdrop-blur-xl p-5">
           <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-red-300">YouTube Shorts Workflow</p>
-          <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
             <div className="rounded-xl border border-white/10 bg-black/20 p-4">
               <p className="text-xs font-semibold text-white">Start From My Channel</p>
-              <p className="text-xs text-slate-400 mt-1">Pick any long-form upload and auto-generate Shorts candidates.</p>
+              <p className="text-xs text-slate-400 mt-1">Pick any long-form upload, auto-generate Shorts candidates, and render 9:16 cuts with hook text and social copy included.</p>
             </div>
             <div className="rounded-xl border border-white/10 bg-black/20 p-4">
               <p className="text-xs font-semibold text-white">Study Niche Winners</p>
               <p className="text-xs text-slate-400 mt-1">Pull high-performing Shorts and extract remix-ready patterns.</p>
-            </div>
-            <div className="rounded-xl border border-white/10 bg-black/20 p-4">
-              <p className="text-xs font-semibold text-white">Render 9:16 Cuts</p>
-              <p className="text-xs text-slate-400 mt-1">Generate vertical clips with hook text and social copy included.</p>
             </div>
           </div>
         </div>
@@ -947,7 +943,7 @@ export default function App() {
 
         <div
           className={cn(
-            'p-4 border-t shrink-0',
+            'p-4 border-t shrink-0 mb-2',
             theme === 'light' ? 'border-slate-200 bg-slate-50' : 'border-white/10 bg-[#0a0a0a]'
           )}
         >

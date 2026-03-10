@@ -5,14 +5,14 @@ import {
   ThumbsUp, 
   MessageSquare, 
   Clock, 
-  Loader2, 
   ExternalLink,
   Search,
-  Filter,
   Sparkles
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { ShimmerVideoCard } from './Shimmer';
+
+const SHORTS_MAX_SECONDS = 60;
 
 interface VideoListProps {
   onOptimizeSEO?: (videoTitle: string) => void;
@@ -74,6 +74,21 @@ export default function VideoList({ onOptimizeSEO }: VideoListProps = {}) {
     v.snippet.title.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const durationToSeconds = (pt: string) => {
+    const match = pt.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+    if (!match) return 0;
+    const [, h, m, s] = match;
+    return (Number(h || 0) * 3600) + (Number(m || 0) * 60) + Number(s || 0);
+  };
+
+  const isShortVideo = (video: Video) => {
+    const durationSeconds = durationToSeconds(video.contentDetails.duration);
+    return durationSeconds <= SHORTS_MAX_SECONDS || /#shorts\b/i.test(video.snippet.title);
+  };
+
+  const shortsVideos = filteredVideos.filter(isShortVideo);
+  const longFormVideos = filteredVideos.filter((video) => !isShortVideo(video));
+
   const formatDuration = (pt: string) => {
     // Basic ISO 8601 duration parser (e.g., PT5M30S -> 5:30)
     const match = pt.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
@@ -85,6 +100,89 @@ export default function VideoList({ onOptimizeSEO }: VideoListProps = {}) {
     parts.push(s ? s.padStart(2, '0') : '00');
     return parts.join(':');
   };
+
+  const renderVideoCard = (video: Video) => (
+    <div
+      key={video.id}
+      className="group bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden hover:border-indigo-500/50 transition-all hover:shadow-xl hover:shadow-indigo-500/5"
+    >
+      <div className="relative aspect-video">
+        <img
+          src={video.snippet.thumbnails.high.url}
+          alt={video.snippet.title}
+          className="w-full h-full object-cover"
+          referrerPolicy="no-referrer"
+        />
+        <div className="absolute bottom-2 right-2 bg-black/80 px-1.5 py-0.5 rounded text-[10px] font-bold text-white">
+          {formatDuration(video.contentDetails.duration)}
+        </div>
+        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+          <a
+            href={`https://youtube.com/watch?v=${video.id}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="p-3 bg-white rounded-full text-black hover:scale-110 transition-transform"
+          >
+            <Play fill="currentColor" size={24} />
+          </a>
+        </div>
+      </div>
+
+      <div className="p-4 space-y-4">
+        <div>
+          <h3 className="font-bold text-zinc-100 line-clamp-2 text-sm group-hover:text-indigo-400 transition-colors">
+            {video.snippet.title}
+          </h3>
+          <p className="text-[10px] text-zinc-500 mt-1 flex items-center gap-1">
+            <Clock size={10} />
+            {new Date(video.snippet.publishedAt).toLocaleDateString()}
+          </p>
+        </div>
+
+        <div className="grid grid-cols-3 gap-2 pt-2 border-t border-zinc-800">
+          <div className="text-center">
+            <div className="flex items-center justify-center gap-1 text-zinc-400 mb-0.5">
+              <Eye size={12} />
+              <span className="text-[10px] font-bold uppercase tracking-wider">Views</span>
+            </div>
+            <p className="text-xs font-bold text-zinc-200">{Number(video.statistics.viewCount).toLocaleString()}</p>
+          </div>
+          <div className="text-center">
+            <div className="flex items-center justify-center gap-1 text-zinc-400 mb-0.5">
+              <ThumbsUp size={12} />
+              <span className="text-[10px] font-bold uppercase tracking-wider">Likes</span>
+            </div>
+            <p className="text-xs font-bold text-zinc-200">{Number(video.statistics.likeCount).toLocaleString()}</p>
+          </div>
+          <div className="text-center">
+            <div className="flex items-center justify-center gap-1 text-zinc-400 mb-0.5">
+              <MessageSquare size={12} />
+              <span className="text-[10px] font-bold uppercase tracking-wider">Comments</span>
+            </div>
+            <p className="text-xs font-bold text-zinc-200">{Number(video.statistics.commentCount).toLocaleString()}</p>
+          </div>
+        </div>
+
+        <div className="flex gap-2">
+          <button
+            onClick={() => onOptimizeSEO?.(video.snippet.title)}
+            className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors flex items-center justify-center gap-1"
+          >
+            <Sparkles size={12} />
+            Optimize SEO
+          </button>
+          <a
+            href={`https://youtube.com/watch?v=${video.id}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="p-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-100 rounded-lg transition-colors"
+          >
+            <ExternalLink size={14} />
+          </a>
+        </div>
+      </div>
+    </div>
+  );
 
   if (loading) {
     return (
@@ -147,89 +245,44 @@ export default function VideoList({ onOptimizeSEO }: VideoListProps = {}) {
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredVideos.map((video) => (
-            <div 
-              key={video.id} 
-              className="group bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden hover:border-indigo-500/50 transition-all hover:shadow-xl hover:shadow-indigo-500/5"
-            >
-              <div className="relative aspect-video">
-                <img 
-                  src={video.snippet.thumbnails.high.url} 
-                  alt={video.snippet.title} 
-                  className="w-full h-full object-cover"
-                  referrerPolicy="no-referrer"
-                />
-                <div className="absolute bottom-2 right-2 bg-black/80 px-1.5 py-0.5 rounded text-[10px] font-bold text-white">
-                  {formatDuration(video.contentDetails.duration)}
-                </div>
-                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                  <a 
-                    href={`https://youtube.com/watch?v=${video.id}`} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="p-3 bg-white rounded-full text-black hover:scale-110 transition-transform"
-                  >
-                    <Play fill="currentColor" size={24} />
-                  </a>
-                </div>
-              </div>
-              
-              <div className="p-4 space-y-4">
-                <div>
-                  <h3 className="font-bold text-zinc-100 line-clamp-2 text-sm group-hover:text-indigo-400 transition-colors">
-                    {video.snippet.title}
-                  </h3>
-                  <p className="text-[10px] text-zinc-500 mt-1 flex items-center gap-1">
-                    <Clock size={10} />
-                    {new Date(video.snippet.publishedAt).toLocaleDateString()}
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-3 gap-2 pt-2 border-t border-zinc-800">
-                  <div className="text-center">
-                    <div className="flex items-center justify-center gap-1 text-zinc-400 mb-0.5">
-                      <Eye size={12} />
-                      <span className="text-[10px] font-bold uppercase tracking-wider">Views</span>
-                    </div>
-                    <p className="text-xs font-bold text-zinc-200">{Number(video.statistics.viewCount).toLocaleString()}</p>
-                  </div>
-                  <div className="text-center">
-                    <div className="flex items-center justify-center gap-1 text-zinc-400 mb-0.5">
-                      <ThumbsUp size={12} />
-                      <span className="text-[10px] font-bold uppercase tracking-wider">Likes</span>
-                    </div>
-                    <p className="text-xs font-bold text-zinc-200">{Number(video.statistics.likeCount).toLocaleString()}</p>
-                  </div>
-                  <div className="text-center">
-                    <div className="flex items-center justify-center gap-1 text-zinc-400 mb-0.5">
-                      <MessageSquare size={12} />
-                      <span className="text-[10px] font-bold uppercase tracking-wider">Comments</span>
-                    </div>
-                    <p className="text-xs font-bold text-zinc-200">{Number(video.statistics.commentCount).toLocaleString()}</p>
-                  </div>
-                </div>
-
-                <div className="flex gap-2">
-                  <button 
-                    onClick={() => onOptimizeSEO?.(video.snippet.title)}
-                    className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors flex items-center justify-center gap-1"
-                  >
-                    <Sparkles size={12} />
-                    Optimize SEO
-                  </button>
-                  <a 
-                    href={`https://youtube.com/watch?v=${video.id}`} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="p-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-100 rounded-lg transition-colors"
-                  >
-                    <ExternalLink size={14} />
-                  </a>
-                </div>
-              </div>
+        <div className="space-y-8">
+          <section className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-zinc-100">Long-Form Videos</h2>
+              <span className="rounded-full border border-zinc-700 bg-zinc-900 px-3 py-1 text-xs font-semibold text-zinc-300">
+                {longFormVideos.length}
+              </span>
             </div>
-          ))}
+
+            {longFormVideos.length === 0 ? (
+              <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-6 text-sm text-zinc-400">
+                No long-form videos in this view.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {longFormVideos.map(renderVideoCard)}
+              </div>
+            )}
+          </section>
+
+          <section className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-zinc-100">Shorts</h2>
+              <span className="rounded-full border border-zinc-700 bg-zinc-900 px-3 py-1 text-xs font-semibold text-zinc-300">
+                {shortsVideos.length}
+              </span>
+            </div>
+
+            {shortsVideos.length === 0 ? (
+              <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-6 text-sm text-zinc-400">
+                No Shorts in this view.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {shortsVideos.map(renderVideoCard)}
+              </div>
+            )}
+          </section>
         </div>
       )}
     </div>
