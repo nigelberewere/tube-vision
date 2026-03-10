@@ -1,4 +1,4 @@
-# Cloudflare Pages configuration for VidVision
+# Cloudflare Pages configuration for Janso Studio
 # Deploy with: npm run deploy (or via Cloudflare Dashboard)
 
 name = "vid-vision"

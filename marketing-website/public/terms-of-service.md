@@ -4,11 +4,11 @@
 
 ## 1. Acceptance of Terms
 
-By accessing and using VidVision ("the Service"), you accept and agree to be bound by these Terms of Service ("Terms"). If you do not agree to these Terms, please do not use the Service.
+By accessing and using Janso Studio ("the Service"), you accept and agree to be bound by these Terms of Service ("Terms"). If you do not agree to these Terms, please do not use the Service.
 
 ## 2. Description of Service
 
-VidVision is a YouTube channel analytics and optimization platform that helps content creators:
+Janso Studio is a YouTube channel analytics and optimization platform that helps content creators:
 - Analyze channel performance
 - Generate content ideas and scripts
 - Optimize SEO and thumbnails
@@ -57,7 +57,7 @@ You agree NOT to:
 ## 6. Intellectual Property
 
 ### 6.1 Service Content
-- The Service interface, design, and functionality are owned by VidVision
+- The Service interface, design, and functionality are owned by Janso Studio
 - You may not copy, modify, or reverse engineer the Service
 
 ### 6.2 User Content
@@ -101,7 +101,7 @@ TO THE MAXIMUM EXTENT PERMITTED BY LAW:
 
 ## 11. Indemnification
 
-You agree to indemnify and hold harmless VidVision from any claims, damages, or expenses arising from:
+You agree to indemnify and hold harmless Janso Studio from any claims, damages, or expenses arising from:
 - Your use of the Service
 - Your violation of these Terms
 - Your violation of third-party rights or terms
@@ -109,7 +109,7 @@ You agree to indemnify and hold harmless VidVision from any claims, damages, or 
 
 ## 12. Privacy
 
-Your use of the Service is also governed by our [Privacy Policy](/privacy), which is incorporated into these Terms by reference.
+Your use of the Service is also governed by our [Privacy Policy](https://janso.studio/privacy), which is incorporated into these Terms by reference.
 
 ## 13. Modifications to Service
 
@@ -151,7 +151,7 @@ Any disputes shall be resolved through:
 
 ## 17. Entire Agreement
 
-These Terms, together with our Privacy Policy, constitute the entire agreement between you and VidVision regarding the Service.
+These Terms, together with our Privacy Policy, constitute the entire agreement between you and Janso Studio regarding the Service.
 
 ## 18. Severability
 
@@ -185,4 +185,5 @@ You can revoke these permissions at any time via [Google Account Permissions](ht
 
 ---
 
-**By using VidVision, you acknowledge that you have read, understood, and agree to be bound by these Terms of Service.**
+**By using Janso Studio, you acknowledge that you have read, understood, and agree to be bound by these Terms of Service.**
+

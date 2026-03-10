@@ -1,4 +1,4 @@
-# 🚀 VidVision - Quick Deployment Reference
+# 🚀 Janso Studio - Quick Deployment Reference
 
 ## One-Page Production Deployment Guide
 
@@ -254,3 +254,4 @@ Last Updated: **March 10, 2026**
 ---
 
 **Need help?** Check [PRODUCTION_DEPLOYMENT_SUMMARY.md](./PRODUCTION_DEPLOYMENT_SUMMARY.md) for detailed information.
+

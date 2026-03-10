@@ -1,6 +1,6 @@
 # Cloudflare Pages Functions
 
-This directory contains Cloudflare Pages Functions for VidVision's API endpoints.
+This directory contains Cloudflare Pages Functions for Janso Studio's API endpoints.
 
 ## Overview
 
@@ -87,7 +87,7 @@ export async function onRequest(context) {
 ```
 
 Set environment variables in Cloudflare Dashboard:
-- Pages > [Your Project] > Settings > Environment Variables
+- Pages > `janso-app` (or your chosen Pages project) > Settings > Environment Variables
 
 ## Middleware
 
@@ -298,3 +298,4 @@ export async function onRequest(context: EventContext<Env, any, any>) {
 ---
 
 **Note**: The actual API implementation (`api/[[path]].ts`) requires significant refactoring from the Express-based `server.ts`. This is a complex migration best done in phases. For initial deployment, you can use the existing `server.ts` locally and gradually migrate endpoints to Cloudflare Functions.
+

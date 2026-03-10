@@ -65,13 +65,13 @@ VITE_DASHBOARD_URL=http://localhost:3000
 
 ### Marketing Site
 - **Deploy from**: `marketing-website/` folder
-- **Domain**: `tubevision.com` (or subdomain)
-- **Environment**: `VITE_DASHBOARD_URL=https://app.tubevision.com`
+- **Domain**: `janso.studio` (or subdomain)
+- **Environment**: `VITE_DASHBOARD_URL=https://app.janso.studio`
 - **Type**: Static site (no backend needed)
 
 ### Dashboard
 - **Deploy from**: Root folder
-- **Domain**: `app.tubevision.com` (or separate domain)
+- **Domain**: `app.janso.studio` (or separate domain)
 - **Environment**: Google OAuth credentials + other config
 - **Type**: Dynamic with serverless backend (`api/route.ts`)
 
@@ -141,3 +141,4 @@ npm run dev -C marketing-website  # Terminal 2: marketing site on :5173
 ---
 
 That's it! The marketing site and dashboard are fully integrated and ready to use.
+

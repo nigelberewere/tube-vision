@@ -4,7 +4,7 @@
 
 ## Introduction
 
-VidVision ("we," "our," or "the Service") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our Service.
+Janso Studio ("we," "our," or "the Service") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our Service.
 
 **Please read this Privacy Policy carefully.** If you do not agree with the terms, please do not use the Service.
 
@@ -168,7 +168,7 @@ Disconnect YouTube and Google account access via:
 ### 6. Object to Processing
 Opt out of certain data processing activities.
 
-To exercise these rights, use the Settings panel in the Service or contact us at support@janso.studio.
+To exercise these rights, use the Settings panel in the Service or contact us at admin@janso.studio.
 
 ## Cookies and Tracking
 
@@ -194,7 +194,7 @@ Our use of information received from Google APIs adheres to the [Google API Serv
 
 ### Limited Use Disclosure
 
-VidVision's use and transfer to any other app of information received from Google APIs will adhere to Google's Limited Use requirements, meaning:
+Janso Studio's use and transfer to any other app of information received from Google APIs will adhere to Google's Limited Use requirements, meaning:
 
 1. **Limited to Disclosed Uses**: We only use YouTube data to provide and improve features explicitly disclosed to you
 2. **No Human Access**: No humans review your YouTube data except:
@@ -219,7 +219,7 @@ We ensure appropriate safeguards are in place, including:
 
 The Service is not intended for users under 13 (or 16 in the EU). We do not knowingly collect information from children. If we learn we have collected data from a child, we will delete it promptly.
 
-If you believe a child has provided us with personal information, contact us immediately at [Your Contact Email].
+If you believe a child has provided us with personal information, contact us immediately at admin@janso.studio.
 
 ## Security
 
@@ -252,7 +252,7 @@ If you are a California resident, you have additional rights under the Californi
 3. **Right to Opt-Out**: Opt out of sale of personal information (we don't sell data)
 4. **Right to Non-Discrimination**: Equal service regardless of privacy choices
 
-To exercise these rights, contact us at [Your Contact Email].
+To exercise these rights, contact us at admin@janso.studio.
 
 ## European Privacy Rights (GDPR)
 
@@ -263,7 +263,7 @@ If you are in the European Economic Area (EEA), UK, or Switzerland, you have rig
    - **Legitimate Interest**: For Service improvement and security
    - **Contract**: To provide the Service you requested
 
-2. **Data Protection Officer**: [Your DPO Contact] (if applicable)
+2. **Data Protection Officer**: admin@janso.studio (if applicable)
 
 3. **Right to Lodge a Complaint**: You may file a complaint with your local data protection authority
 
@@ -279,24 +279,27 @@ In the event of a data breach that affects your personal information, we will:
 
 If you have questions or concerns about this Privacy Policy or our data practices:
 
-- **Email**: [Your Contact Email]
+- **Email**: feedback@janso.studio
 - **Website**: https://janso.studio
 - **Support**: Use the in-app feedback feature
 
 For data protection inquiries from the EU:
-- **Data Protection Officer**: [DPO Contact] (if applicable)
+- **Data Protection Officer**: admin@janso.studio (if applicable)
 
 ---
 
 ## Summary of Key Points
 
-✅ **What we collect**: Google account info, YouTube analytics, usage data  
-✅ **What we DON'T collect**: Your Gemini API keys (browser-only storage)  
-✅ **What we DON'T do**: Sell data, share with advertisers, store videos permanently  
-✅ **Your control**: Delete account, revoke access, export data anytime  
-✅ **Security**: Industry-standard encryption and access controls  
-✅ **Compliance**: GDPR, CCPA, Google API Services User Data Policy  
+- **What we collect**: Google account info, YouTube analytics, usage data
+- **What we DON'T collect**: Your Gemini API keys (browser-only storage)
+- **What we DON'T do**: Sell data, share with advertisers, store videos permanently
+- **Your control**: Delete account, revoke access, export data anytime
+- **Security**: Industry-standard encryption and access controls
+- **Compliance**: GDPR, CCPA, Google API Services User Data Policy
 
 ---
 
-**By using VidVision, you acknowledge that you have read and understood this Privacy Policy and consent to the collection and use of your information as described.**
+**By using Janso Studio, you acknowledge that you have read and understood this Privacy Policy and consent to the collection and use of your information as described.**
+
+
+

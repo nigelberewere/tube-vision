@@ -65,7 +65,7 @@ Before going live, verify:
 - [ ] Visit `https://app.janso.studio/terms` → Legal Viewer loads Terms of Service markdown
 - [ ] Both pages have readable styling and back button
 - [ ] Marketing site footer links point to correct URLs
-- [ ] All old references (tubevision.ai, hello@tubevision.ai) are removed
+- [ ] All legacy branding references are removed
 - [ ] Markdown files are cached properly (1 hour per `_headers`)
 
 ## Implementation Details
@@ -141,3 +141,4 @@ Once deployed to Cloudflare Pages:
 2. Test legal page routing on `*.pages.dev` domains before DNS cutover
 3. Verify all links work and styling renders correctly
 4. Address any user feedback and update markdown files as needed
+

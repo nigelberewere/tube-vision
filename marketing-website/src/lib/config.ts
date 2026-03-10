@@ -37,12 +37,13 @@ export function normalizeUrl(url: string): string {
  */
 export const config = {
   dashboardUrl: getDashboardUrl(),
-  docsUrl: "https://docs.tubevision.ai",
-  contactEmail: "hello@tubevision.ai",
+  docsUrl: "https://docs.janso.studio",
+  contactEmail: "support@janso.studio",
   companyName: "Janso Studio",
   socialLinks: {
-    youtube: "https://youtube.com/@tubevision",
-    github: "https://github.com/tubevision",
-    x: "https://x.com/tubevision"
+    youtube: "https://youtube.com/@jansostudio",
+    github: "https://github.com/jansostudio",
+    x: "https://x.com/jansostudio"
   }
 };
+

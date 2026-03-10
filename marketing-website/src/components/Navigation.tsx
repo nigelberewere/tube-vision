@@ -11,7 +11,7 @@ type NavigationProps = {
   onPrimaryAction: () => void;
 };
 
-const DOCS_URL = "https://docs.tubevision.ai";
+const DOCS_URL = "https://docs.janso.studio";
 
 const links = [
   { label: "Features", href: "#features" },
@@ -85,3 +85,4 @@ export function Navigation({
     </header>
   );
 }
+

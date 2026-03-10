@@ -39,8 +39,8 @@ if (!supabaseUrl || !supabaseAnonKey) {
  * - PKCE flow for OAuth (enhanced security)
  */
 export const supabase = createClient(
-  supabaseUrl || 'https://placeholder.supabase.co',
-  supabaseAnonKey || 'placeholder-key',
+  supabaseUrl || 'https://invalid.supabase.co',
+  supabaseAnonKey || 'missing-supabase-anon-key',
   {
     auth: {
       autoRefreshToken: true,

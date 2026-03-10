@@ -1,4 +1,4 @@
-export const GEMINI_USER_ERROR_EVENT = 'vidvision:gemini-user-error';
+export const GEMINI_USER_ERROR_EVENT = 'janso:gemini-user-error';
 
 export interface GeminiUserErrorDetail {
   message: string;

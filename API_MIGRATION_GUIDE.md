@@ -2,7 +2,7 @@
 
 ## Overview
 
-Your VidVision app currently uses an Express.js server (`server.ts`) for API endpoints. For full Cloudflare Pages edge deployment, you have two options:
+Your Janso Studio app currently uses an Express.js server (`server.ts`) for API endpoints. For full Cloudflare Pages edge deployment, you have two options:
 
 ### Option 1: Keep Express (Simpler, Works Now) ✅ RECOMMENDED FOR INITIAL LAUNCH
 
@@ -379,3 +379,4 @@ See:
 - [CLOUDFLARE_FUNCTIONS.md](./CLOUDFLARE_FUNCTIONS.md) - Full Functions guide
 - [Cloudflare Workers Docs](https://developers.cloudflare.com/workers/)
 - [Pages Functions Docs](https://developers.cloudflare.com/pages/functions/)
+

@@ -1,8 +1,8 @@
-# VidVision - Production Deployment Summary
+# Janso Studio - Production Deployment Summary
 
 ## 🎉 Production Readiness Complete
 
-Your VidVision app is now ready for commercial production deployment on Cloudflare Pages at **https://janso.studio**
+Your Janso Studio app is now ready for commercial production deployment on Cloudflare Pages at **https://janso.studio**
 
 ---
 
@@ -368,3 +368,4 @@ For questions or issues, refer to the documentation or create an issue in the re
 ---
 
 **Made with ❤️ for Janso Studio**
+

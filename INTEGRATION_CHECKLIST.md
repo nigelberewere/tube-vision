@@ -45,8 +45,8 @@
 - [ ] Click CTA in marketing site → redirects to dashboard /auth/youtube
 
 ## Production Validation Required (Before Deploy)
-- [ ] Dashboard deployed to https://app.tubevision.com
-- [ ] Marketing site deployed to https://tubevision.com
+- [ ] Dashboard deployed to https://app.janso.studio
+- [ ] Marketing site deployed to https://janso.studio
 - [ ] VITE_DASHBOARD_URL env var set in marketing site deployment
 - [ ] Google OAuth redirect URI accepts both domains
 - [ ] Test CTA redirect works in production
@@ -61,3 +61,4 @@
 - [ ] Create privacy policy page
 - [ ] Create terms of service page
 - [ ] Set up status page
+

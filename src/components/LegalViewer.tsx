@@ -74,7 +74,7 @@ export function LegalViewer({ type, onBack }: LegalViewerProps) {
             <h1 className="text-3xl font-bold text-white">{title}</h1>
           </div>
           <p className="text-gray-400 text-sm">
-            Please read these terms carefully before using VidVision.
+            Please read these terms carefully before using Janso Studio.
           </p>
         </div>
 
@@ -174,3 +174,4 @@ export function LegalViewer({ type, onBack }: LegalViewerProps) {
 }
 
 export default LegalViewer;
+

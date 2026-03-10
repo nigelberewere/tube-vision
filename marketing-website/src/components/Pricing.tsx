@@ -73,7 +73,7 @@ export function Pricing({ isDark, onConnect }: PricingProps) {
               ))}
             </ul>
             <a
-              href="mailto:hello@tubevision.ai"
+              href="mailto:support@janso.studio"
               className={cn(
                 "mt-6 inline-flex rounded-xl border px-5 py-2.5 text-sm font-semibold transition",
                 isDark
@@ -89,3 +89,4 @@ export function Pricing({ isDark, onConnect }: PricingProps) {
     </section>
   );
 }
+

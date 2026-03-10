@@ -42,8 +42,8 @@ if (!supabaseUrl || !supabaseServiceKey) {
  * Only use this in server-side code, never expose to the client.
  */
 export const supabaseServer = createClient(
-  supabaseUrl || 'https://placeholder.supabase.co',
-  supabaseServiceKey || 'placeholder-key',
+  supabaseUrl || 'https://invalid.supabase.co',
+  supabaseServiceKey || 'missing-supabase-service-key',
   {
     auth: {
       autoRefreshToken: false,
@@ -62,8 +62,8 @@ export const supabaseServer = createClient(
  */
 export function createUserClient(accessToken: string) {
   return createClient(
-    supabaseUrl || 'https://placeholder.supabase.co',
-    supabaseServiceKey || 'placeholder-key',
+    supabaseUrl || 'https://invalid.supabase.co',
+    supabaseServiceKey || 'missing-supabase-service-key',
     {
       global: {
         headers: {

@@ -10,7 +10,7 @@
 
 The Janso Studio marketing website has been seamlessly integrated with the main dashboard. Users can now:
 
-1. **Land on the marketing site** (`tubevision.com`)
+1. **Land on the marketing site** (`janso.studio`)
 2. **Click "Get Started"** or **"Connect YouTube"**
 3. **Get redirected to the dashboard** with a complete OAuth flow
 4. **Access all AI creator tools** after authentication
@@ -60,7 +60,7 @@ All components are configured, tested, and ready for deployment.
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │              USER CLICKS "GET STARTED"                       │
-│           (on marketing site at tubevision.com)              │
+│           (on marketing site at janso.studio)              │
 └──────────────────────┬────────────────────────────────────────┘
                        │
                        ↓
@@ -110,7 +110,7 @@ Every call-to-action in the marketing website uses the unified dashboard auth fl
 | Hero | Connect YouTube | Opens Auth | `/auth/youtube` |
 | Hero | View Features | Scrolls (internal) | `#features` |
 | Pricing Creator | Get Started Free | Opens Auth | `/auth/youtube` |
-| Pricing Team | Contact Sales | Email link | `mailto:hello@tubevision.ai` |
+| Pricing Team | Contact Sales | Email link | `mailto:support@janso.studio` |
 | CTA Section | Get Started Free | Opens Auth | `/auth/youtube` |
 
 **Code Pattern** (consistent across all components):
@@ -208,12 +208,12 @@ VITE_DASHBOARD_URL=http://localhost:3000
 
 ### For Production
 ```bash
-# Dashboard deployment (e.g., app.tubevision.com)
-APP_URL=https://app.tubevision.com
+# Dashboard deployment (e.g., app.janso.studio)
+APP_URL=https://app.janso.studio
 
-# Marketing site deployment (e.g., tubevision.com)
+# Marketing site deployment (e.g., janso.studio)
 # vercel.json environment variables:
-VITE_DASHBOARD_URL=https://app.tubevision.com
+VITE_DASHBOARD_URL=https://app.janso.studio
 ```
 
 ---
@@ -223,14 +223,14 @@ VITE_DASHBOARD_URL=https://app.tubevision.com
 ### Recommended: Separate Vercel Projects
 
 **Marketing Site Project**
-- Repository: `tubevision/marketing-website` folder
-- Domain: `tubevision.com` or `marketing.tubevision.com`
-- Environment: `VITE_DASHBOARD_URL=https://app.tubevision.com`
+- Repository: `vid-vision/marketing-website` folder
+- Domain: `janso.studio` or `janso.studio`
+- Environment: `VITE_DASHBOARD_URL=https://app.janso.studio`
 - Type: Static (no backend)
 
 **Dashboard Project**
-- Repository: Root folder (`tubevision/`)
-- Domain: `app.tubevision.com` or `tubevision-app.vercel.app`
+- Repository: Root folder (`vid-vision/`)
+- Domain: `app.janso.studio` or `app.janso.studio`
 - Environment: `GOOGLE_CLIENT_ID=...`, `GOOGLE_CLIENT_SECRET=...`, etc.
 - Type: Dynamic (with `api/route.ts` backend)
 
@@ -240,7 +240,7 @@ Update redirect URI in Google Cloud Console:
 ```
 Authorized redirect URIs:
 - http://localhost:3000/auth/google/callback  (dev)
-- https://app.tubevision.com/auth/google/callback (prod)
+- https://app.janso.studio/auth/google/callback (prod)
 ```
 
 ---
@@ -381,3 +381,4 @@ The Janso Studio marketing website and dashboard are now **fully integrated and 
 Users can now seamlessly move from learning about Janso Studio on the marketing site to using all features in the dashboard.
 
 **Next Step**: Deploy both projects to production and monitor the user journey from marketing site → dashboard authentication → feature usage.
+

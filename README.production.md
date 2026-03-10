@@ -1,8 +1,8 @@
-# 🎬 VidVision
+# 🎬 Janso Studio
 
 **Production-Ready YouTube Channel Analytics & Optimization Platform**
 
-VidVision is a comprehensive tool for YouTube content creators to analyze channel performance, generate content ideas, optimize SEO, and extract viral clips using AI.
+Janso Studio is a comprehensive tool for YouTube content creators to analyze channel performance, generate content ideas, optimize SEO, and extract viral clips using AI.
 
 🌐 **Marketing**: [https://janso.studio](https://janso.studio)  
 🌐 **App**: [https://app.janso.studio](https://app.janso.studio)
@@ -88,7 +88,7 @@ Deploy as two Cloudflare Pages projects:
 - `janso-marketing` from `marketing-website/` -> `https://janso.studio`
 - `janso-app` from root `./` -> `https://app.janso.studio`
 
-VidVision is optimized for this split deployment model.
+Janso Studio is optimized for this split deployment model.
 
 #### Prerequisites
 - Cloudflare account
@@ -344,3 +344,4 @@ Built with:
 ---
 
 **Made with ❤️ by Janso Studio**
+
