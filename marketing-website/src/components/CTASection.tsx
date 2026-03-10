@@ -10,8 +10,8 @@ type CTASectionProps = {
 
 const steps = [
   {
-    title: "Connect your YouTube channel",
-    description: "Authorize Janso Studio with secure OAuth and import your channels in minutes.",
+    title: "Sign in with Google",
+    description: "Authenticate with Google, grant read-only YouTube access, and land in your Janso Studio dashboard.",
     icon: Link2,
     color: "text-red-500"
   },
@@ -90,7 +90,7 @@ export function CTASection({ isDark, onConnect }: CTASectionProps) {
             onClick={onConnect}
             className="mt-6 rounded-xl bg-white px-7 py-3 text-sm font-bold text-black transition hover:bg-slate-200"
           >
-            Get Started Free
+            Sign in with Google
           </button>
         </motion.div>
       </div>

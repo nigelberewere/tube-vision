@@ -8,7 +8,7 @@ import { Hero } from "@/src/components/Hero";
 import { LegalViewer } from "@/src/components/LegalViewer";
 import { Navigation } from "@/src/components/Navigation";
 import { Pricing } from "@/src/components/Pricing";
-import { getDashboardUrl } from "@/src/lib/config";
+import { getAuthUrl } from "@/src/lib/config";
 import { cn } from "@/src/lib/utils";
 
 const THEME_STORAGE_KEY = "tube_vision_theme";
@@ -44,8 +44,7 @@ export default function App() {
   const isDark = theme === "dark";
 
   const openDashboardAuth = () => {
-    const dashboardUrl = getDashboardUrl();
-    window.location.href = `${dashboardUrl}/auth/youtube`;
+    window.location.assign(getAuthUrl("youtube", "/"));
   };
 
   const goHome = () => {

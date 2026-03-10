@@ -51,7 +51,7 @@ export function Pricing({ isDark, onConnect }: PricingProps) {
               onClick={onConnect}
               className="mt-6 rounded-xl bg-white px-5 py-2.5 text-sm font-semibold text-black transition hover:bg-slate-200"
             >
-              Get Started Free
+              Sign in with Google
             </button>
           </article>
 

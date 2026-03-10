@@ -1,7 +1,8 @@
-import { ArrowRight, CirclePlay, Sparkles, TrendingUp, Youtube } from "lucide-react";
+import { ArrowRight, CirclePlay, Sparkles, TrendingUp } from "lucide-react";
 import { motion } from "motion/react";
 
 import { cn } from "@/src/lib/utils";
+import YouTubeLogoIcon from "@/src/components/icons/YouTubeLogoIcon";
 
 type HeroProps = {
   isDark: boolean;
@@ -47,7 +48,7 @@ export function Hero({ isDark, onConnect }: HeroProps) {
               onClick={onConnect}
               className="inline-flex items-center gap-2 rounded-xl bg-white px-6 py-3 text-sm font-bold text-black transition hover:bg-slate-200"
             >
-              <Youtube className="h-4 w-4 text-red-500" />
+              <YouTubeLogoIcon size={16} />
               Connect YouTube
             </button>
             <button

@@ -22,9 +22,10 @@ export function getDashboardUrl(): string {
  * Build an auth URL that redirects users to the dashboard OAuth flow
  * The dashboard handles the rest of the authentication
  */
-export function getAuthUrl(provider: "youtube" = "youtube"): string {
-  const baseUrl = getDashboardUrl();
-  return `${baseUrl}/auth/${provider}`;
+export function getAuthUrl(provider: "youtube" = "youtube", nextPath = "/"): string {
+  const authUrl = new URL(`/auth/${provider}`, getDashboardUrl());
+  authUrl.searchParams.set("next", nextPath);
+  return authUrl.toString();
 }
 
 /**

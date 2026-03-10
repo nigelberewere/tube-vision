@@ -22,5 +22,19 @@
     },
     "allowImportingTsExtensions": true,
     "noEmit": true
-  }
+  },
+  "include": [
+    "src",
+    "server.ts",
+    "supabaseServer.ts",
+    "api/**/*.ts",
+    "vite.config.ts"
+  ],
+  "exclude": [
+    "marketing-website",
+    "viral-clip-extractor",
+    "_archived-apps",
+    "dist",
+    "node_modules"
+  ]
 }

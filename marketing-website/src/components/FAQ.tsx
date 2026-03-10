@@ -36,7 +36,7 @@ const faqs: FAQItem[] = [
   },
   {
     question: "How do I connect my YouTube channel?",
-    answer: "Click 'Connect YouTube' and sign in with Google OAuth. We'll request read-only access to your YouTube analytics data. You can revoke access anytime from your Google Account settings."
+    answer: "Click 'Sign in with Google' and approve read-only YouTube access. After authentication, you'll land in your Janso Studio dashboard with your channel ready to analyze."
   }
 ];
 

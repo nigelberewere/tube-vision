@@ -304,6 +304,40 @@ export async function createApp(options: CreateAppOptions = {}) {
   const appUrl = resolveAppUrl(port);
   const redirectUri = `${appUrl}/auth/google/callback`;
 
+  function normalizePostAuthRedirect(rawValue: unknown): string {
+    if (typeof rawValue !== "string" || !rawValue.trim()) {
+      return appUrl;
+    }
+
+    try {
+      const appOrigin = new URL(appUrl).origin;
+      const candidate = new URL(rawValue.trim(), appOrigin);
+      if (candidate.origin !== appOrigin) {
+        return appUrl;
+      }
+      return `${candidate.origin}${candidate.pathname}${candidate.search}${candidate.hash}`;
+    } catch {
+      return appUrl;
+    }
+  }
+
+  function encodeOAuthState(redirectTo: string): string {
+    return Buffer.from(JSON.stringify({ redirectTo }), "utf8").toString("base64url");
+  }
+
+  function decodeOAuthState(rawState: unknown): string {
+    if (typeof rawState !== "string" || !rawState.trim()) {
+      return appUrl;
+    }
+
+    try {
+      const parsed = JSON.parse(Buffer.from(rawState, "base64url").toString("utf8"));
+      return normalizePostAuthRedirect(parsed?.redirectTo);
+    } catch {
+      return appUrl;
+    }
+  }
+
   if (OAUTH_MISSING_VARS.length > 0) {
     console.warn(`Missing OAuth env vars: ${OAUTH_MISSING_VARS.join(", ")}. Update .env.local before connecting YouTube.`);
   }
@@ -531,6 +565,7 @@ For every video provided, evaluate segments based on:
 
   app.get("/api/auth/google/url", (req, res) => {
     console.log(`[Auth URL Request] REDIRECT_URI: ${redirectUri}`);
+    const postAuthRedirect = normalizePostAuthRedirect(Array.isArray(req.query.next) ? req.query.next[0] : req.query.next);
     
     if (OAUTH_MISSING_VARS.length > 0) {
       console.error(`[Auth Error] Missing OAuth vars: ${OAUTH_MISSING_VARS.join(", ")}`);
@@ -552,6 +587,7 @@ For every video provided, evaluate segments based on:
         "https://www.googleapis.com/auth/userinfo.profile",
       ],
       prompt: "consent",
+      state: encodeOAuthState(postAuthRedirect),
     });
     console.log(`[Auth URL Generated] URL contains redirect_uri: ${url.includes(redirectUri)}`);
     res.json({ url });
@@ -560,6 +596,7 @@ For every video provided, evaluate segments based on:
   // OAuth entry point for marketing site and direct YouTube auth flow
   app.get("/auth/youtube", (req, res) => {
     console.log(`[YouTube Auth Entry] Initiating OAuth flow`);
+    const postAuthRedirect = normalizePostAuthRedirect(Array.isArray(req.query.next) ? req.query.next[0] : req.query.next);
     
     if (OAUTH_MISSING_VARS.length > 0) {
       console.error(`[Auth Error] Missing OAuth vars: ${OAUTH_MISSING_VARS.join(", ")}`);
@@ -608,6 +645,7 @@ For every video provided, evaluate segments based on:
         "https://www.googleapis.com/auth/userinfo.profile",
       ],
       prompt: "consent",
+      state: encodeOAuthState(postAuthRedirect),
     });
     
     console.log(`[YouTube Auth Entry] Redirecting to Google OAuth`);
@@ -616,6 +654,7 @@ For every video provided, evaluate segments based on:
 
   app.get(["/auth/google/callback", "/api/auth/google/callback"], async (req, res) => {
     const { code } = req.query;
+    const postAuthRedirect = decodeOAuthState(Array.isArray(req.query.state) ? req.query.state[0] : req.query.state);
 
     if (!code) {
       return res.status(400).send("No code provided");
@@ -727,12 +766,12 @@ For every video provided, evaluate segments based on:
                     // If still open after 1 second, redirect to main page
                     setTimeout(function() {
                       if (!window.closed) {
-                        window.location.href = '/';
+                        window.location.href = ${JSON.stringify(postAuthRedirect)};
                       }
                     }, 1000);
                   } else {
                     // No opener, just redirect to main page
-                    window.location.href = '/';
+                    window.location.href = ${JSON.stringify(postAuthRedirect)};
                   }
                 }
                 

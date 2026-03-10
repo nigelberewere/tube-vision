@@ -38,6 +38,40 @@ const COOKIE_BASE_OPTIONS = APP_URL.startsWith('https://')
   ? `Path=/; HttpOnly; SameSite=None; Secure; Max-Age=${COOKIE_MAX_AGE_SECONDS}`
   : `Path=/; HttpOnly; SameSite=Lax; Max-Age=${COOKIE_MAX_AGE_SECONDS}`;
 
+function normalizePostAuthRedirect(rawValue: unknown): string {
+  if (typeof rawValue !== 'string' || !rawValue.trim()) {
+    return APP_URL;
+  }
+
+  try {
+    const appOrigin = new URL(APP_URL).origin;
+    const candidate = new URL(rawValue.trim(), appOrigin);
+    if (candidate.origin !== appOrigin) {
+      return APP_URL;
+    }
+    return `${candidate.origin}${candidate.pathname}${candidate.search}${candidate.hash}`;
+  } catch {
+    return APP_URL;
+  }
+}
+
+function encodeOAuthState(redirectTo: string): string {
+  return Buffer.from(JSON.stringify({ redirectTo }), 'utf8').toString('base64url');
+}
+
+function decodeOAuthState(rawState: unknown): string {
+  if (typeof rawState !== 'string' || !rawState.trim()) {
+    return APP_URL;
+  }
+
+  try {
+    const parsed = JSON.parse(Buffer.from(rawState, 'base64url').toString('utf8'));
+    return normalizePostAuthRedirect(parsed?.redirectTo);
+  } catch {
+    return APP_URL;
+  }
+}
+
 function createOAuthClient() {
   return new OAuth2Client(GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, REDIRECT_URI);
 }
@@ -385,6 +419,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // OAuth URL generator
   if (path === 'api/auth/google/url') {
     console.log(`[Auth URL Request] REDIRECT_URI: ${REDIRECT_URI}`);
+    const postAuthRedirect = normalizePostAuthRedirect(Array.isArray(req.query.next) ? req.query.next[0] : req.query.next);
 
     if (OAUTH_MISSING_VARS.length > 0) {
       console.error(`[Auth Error] Missing OAuth vars: ${OAUTH_MISSING_VARS.join(', ')}`);
@@ -402,6 +437,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         'https://www.googleapis.com/auth/userinfo.profile',
       ],
       prompt: 'consent',
+      state: encodeOAuthState(postAuthRedirect),
     });
     console.log(`[Auth URL Generated] URL contains redirect_uri: ${url.includes(REDIRECT_URI)}`);
     return res.json({ url });
@@ -410,6 +446,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // OAuth entry point for marketing site and direct YouTube auth flow
   if (path === 'auth/youtube') {
     console.log(`[YouTube Auth Entry] Initiating OAuth flow`);
+    const postAuthRedirect = normalizePostAuthRedirect(Array.isArray(req.query.next) ? req.query.next[0] : req.query.next);
     
     if (OAUTH_MISSING_VARS.length > 0) {
       console.error(`[Auth Error] Missing OAuth vars: ${OAUTH_MISSING_VARS.join(', ')}`);
@@ -458,6 +495,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         'https://www.googleapis.com/auth/userinfo.profile',
       ],
       prompt: 'consent',
+      state: encodeOAuthState(postAuthRedirect),
     });
     
     console.log(`[YouTube Auth Entry] Redirecting to Google OAuth`);
@@ -467,6 +505,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // OAuth callback
   if (path === 'auth/google/callback' || path === 'api/auth/google/callback') {
     const { code } = req.query;
+    const postAuthRedirect = decodeOAuthState(Array.isArray(req.query.state) ? req.query.state[0] : req.query.state);
 
     if (!code) {
       return res.status(400).send('No code provided');
@@ -622,11 +661,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     setTimeout(function() { window.close(); }, 100);
                     setTimeout(function() {
                       if (!window.closed) {
-                        window.location.href = '/';
+                        window.location.href = ${JSON.stringify(postAuthRedirect)};
                       }
                     }, 1000);
                   } else {
-                    window.location.href = '/';
+                    window.location.href = ${JSON.stringify(postAuthRedirect)};
                   }
                 }
                 closeWindow();
