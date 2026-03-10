@@ -179,6 +179,9 @@ Phase 2 kickoff status:
 - `AuthProvider` is now mounted in `src/main.tsx`.
 - `/auth/callback` is now routed to `AuthCallback` in `src/App.tsx`.
 - `src/App.tsx` now uses `useAuth()` for hybrid auth gating during migration.
+- `src/App.tsx` now sends Supabase bearer tokens on `/api/user/accounts`, `/api/user/channel`, `/api/user/switch`, and `/api/user/remove`.
+- `server.ts` and `api/route.ts` now resolve `/api/user/accounts` and `/api/user/channel` with Supabase-first lookup and cookie/session fallback.
+- `server.ts` and `api/route.ts` now support Supabase-backed account switch/remove with legacy cookie/session fallback.
 
 ### Phase 3: Data Migration
 - [ ] Replace YouTube account cookie storage with Supabase `youtube_accounts` table

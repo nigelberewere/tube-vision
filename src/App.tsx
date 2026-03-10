@@ -132,6 +132,7 @@ const ONBOARDING_STEPS: TourStep[] = [
 export default function App() {
   const {
     user: supabaseUser,
+    session: supabaseSession,
     loading: supabaseLoading,
     signInWithGoogle,
     signOut: signOutSupabase,
@@ -307,10 +308,25 @@ export default function App() {
   const requiresChannelConnection = CHANNEL_REQUIRED_TABS.includes(activeTab);
   const showMyVideosConnectIcon = activeTab === 'videos';
 
+  const getSupabaseAuthHeaders = () => {
+    const token = supabaseSession?.access_token;
+    if (!token) {
+      return {};
+    }
+
+    return {
+      Authorization: `Bearer ${token}`,
+    };
+  };
+
   const fetchUser = async () => {
     try {
+      const authHeaders = getSupabaseAuthHeaders();
+
       // Fetch all accounts
-      const accountsResponse = await fetch('/api/user/accounts');
+      const accountsResponse = await fetch('/api/user/accounts', {
+        headers: authHeaders,
+      });
       if (accountsResponse.ok) {
         const accountsData = await accountsResponse.json();
         setAccounts(accountsData.accounts || []);
@@ -318,7 +334,9 @@ export default function App() {
         
         // Fetch active account details
         if (accountsData.accounts && accountsData.accounts.length > 0) {
-          const channelResponse = await fetch('/api/user/channel');
+          const channelResponse = await fetch('/api/user/channel', {
+            headers: authHeaders,
+          });
           if (channelResponse.ok) {
             const channelData = await channelResponse.json();
             setUser(channelData);
@@ -359,6 +377,15 @@ export default function App() {
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
   }, []);
+
+  useEffect(() => {
+    if (supabaseLoading) {
+      return;
+    }
+
+    fetchUser();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [supabaseLoading, supabaseSession?.access_token]);
 
   // Redirect unauthenticated users to marketing site (unless viewing legal pages)
   useEffect(() => {
@@ -541,7 +568,9 @@ export default function App() {
       // Poll account state instead of popup.closed to avoid COOP warnings in modern browsers.
       const checkInterval = window.setInterval(async () => {
         try {
-          const accountsResponse = await fetch('/api/user/accounts');
+          const accountsResponse = await fetch('/api/user/accounts', {
+            headers: getSupabaseAuthHeaders(),
+          });
           if (!accountsResponse.ok) {
             return;
           }
@@ -591,9 +620,13 @@ export default function App() {
 
   const handleSwitchAccount = async (index: number) => {
     try {
+      const authHeaders = getSupabaseAuthHeaders();
       const response = await fetch('/api/user/switch', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...authHeaders,
+        },
         body: JSON.stringify({ index }),
       });
       
@@ -610,9 +643,13 @@ export default function App() {
     if (!confirm('Remove this account?')) return;
     
     try {
+      const authHeaders = getSupabaseAuthHeaders();
       const response = await fetch('/api/user/remove', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...authHeaders,
+        },
         body: JSON.stringify({ index }),
       });
       

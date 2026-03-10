@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import fs from 'node:fs';
 import * as pathModule from 'node:path';
+import { createClient } from '@supabase/supabase-js';
 import { OAuth2Client } from 'google-auth-library';
 import { GoogleGenAI, Type } from '@google/genai';
 import youtubedl from 'youtube-dl-exec';
@@ -15,6 +16,17 @@ const SHORTS_MAX_SECONDS = 61;
 const LONG_FORM_MIN_SECONDS = 120;
 const THUMBNAIL_AUTH_COOKIE = 'tube_vision_thumbnail_authorizations';
 const THUMBNAIL_AUTH_MAX_ITEMS = 40;
+const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+
+const supabaseServer = SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY
+  ? createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    })
+  : null;
 
 function isMissingConfigValue(value?: string): boolean {
   if (!value || !value.trim()) return true;
@@ -95,6 +107,101 @@ function getGeminiKeyFromRequest(req: VercelRequest): string {
 function toNumber(value: unknown): number {
   const parsed = Number(value ?? 0);
   return Number.isFinite(parsed) ? parsed : 0;
+}
+
+type SupabaseProfileRow = {
+  id: string;
+  full_name: string | null;
+  avatar_url: string | null;
+  channel_id: string | null;
+};
+
+type SupabaseYouTubeAccountRow = {
+  id: string;
+  user_id: string;
+  google_id: string;
+  channel_id: string;
+  channel_title: string;
+  channel_description: string | null;
+  channel_thumbnail: string | null;
+  statistics: Record<string, unknown> | null;
+};
+
+type UnifiedAccountState = {
+  accounts: any[];
+  activeIndex: number;
+  source: 'supabase' | 'cookie';
+};
+
+function normalizeChannelStatistics(rawStatistics: unknown) {
+  const stats =
+    rawStatistics && typeof rawStatistics === 'object'
+      ? (rawStatistics as Record<string, unknown>)
+      : {};
+
+  return {
+    subscriberCount: String(toNumber(stats.subscriberCount ?? stats.subscribers ?? 0)),
+    videoCount: String(toNumber(stats.videoCount ?? stats.videos ?? 0)),
+    viewCount: String(toNumber(stats.viewCount ?? stats.totalViews ?? 0)),
+  };
+}
+
+function mapSupabaseAccountToLegacyUser(
+  profile: SupabaseProfileRow | null,
+  account: SupabaseYouTubeAccountRow,
+) {
+  const thumbnailUrl = account.channel_thumbnail || profile?.avatar_url || '';
+
+  return {
+    id: account.google_id || profile?.id || account.channel_id,
+    name: profile?.full_name || account.channel_title || 'Creator',
+    picture: profile?.avatar_url || thumbnailUrl,
+    channel: {
+      id: account.channel_id,
+      title: account.channel_title,
+      description: account.channel_description || '',
+      thumbnails: thumbnailUrl ? { default: { url: thumbnailUrl } } : {},
+      statistics: normalizeChannelStatistics(account.statistics),
+    },
+  };
+}
+
+function getTokenFromRequest(req: VercelRequest): string | null {
+  const authHeader = req.headers.authorization;
+  const authValue = Array.isArray(authHeader) ? authHeader[0] : authHeader;
+  if (authValue?.startsWith('Bearer ')) {
+    return authValue.slice(7);
+  }
+
+  const supabaseAuthHeader = req.headers['x-supabase-auth'];
+  const supabaseAuthValue = Array.isArray(supabaseAuthHeader)
+    ? supabaseAuthHeader[0]
+    : supabaseAuthHeader;
+
+  return typeof supabaseAuthValue === 'string' && supabaseAuthValue.trim()
+    ? supabaseAuthValue.trim()
+    : null;
+}
+
+async function verifySupabaseUser(req: VercelRequest) {
+  if (!supabaseServer) {
+    return null;
+  }
+
+  const token = getTokenFromRequest(req);
+  if (!token) {
+    return null;
+  }
+
+  try {
+    const { data: { user }, error } = await supabaseServer.auth.getUser(token);
+    if (error || !user) {
+      return null;
+    }
+    return user;
+  } catch {
+    return null;
+  }
 }
 
 const COACH_ALERT_CACHE_TTL_MS = 20 * 60 * 1000;
@@ -378,6 +485,72 @@ function readAccountsFromCookies(req: VercelRequest) {
     return { accounts, activeIndex };
   } catch {
     return { accounts: [] as any[], activeIndex: 0 };
+  }
+}
+
+async function getUnifiedAccountsAndActiveIndex(req: VercelRequest): Promise<UnifiedAccountState> {
+  const cookieState = readAccountsFromCookies(req);
+  const fallbackState: UnifiedAccountState = {
+    accounts: cookieState.accounts,
+    activeIndex: cookieState.activeIndex,
+    source: 'cookie',
+  };
+
+  const authUser = await verifySupabaseUser(req);
+  if (!authUser || !supabaseServer) {
+    return fallbackState;
+  }
+
+  try {
+    const [{ data: profile, error: profileError }, { data: rawAccounts, error: accountsError }] = await Promise.all([
+      supabaseServer
+        .from('profiles')
+        .select('id, full_name, avatar_url, channel_id')
+        .eq('id', authUser.id)
+        .maybeSingle(),
+      supabaseServer
+        .from('youtube_accounts')
+        .select('id, user_id, google_id, channel_id, channel_title, channel_description, channel_thumbnail, statistics')
+        .eq('user_id', authUser.id)
+        .order('created_at', { ascending: false }),
+    ]);
+
+    if (profileError && profileError.code !== 'PGRST116') {
+      console.error('Supabase profile fetch error:', profileError);
+    }
+
+    if (accountsError) {
+      console.error('Supabase accounts fetch error:', accountsError);
+      return fallbackState;
+    }
+
+    const accounts = (rawAccounts || []).map((account) =>
+      mapSupabaseAccountToLegacyUser(
+        (profile as SupabaseProfileRow | null) || null,
+        account as SupabaseYouTubeAccountRow,
+      ),
+    );
+
+    if (accounts.length === 0) {
+      return fallbackState;
+    }
+
+    let activeIndex = 0;
+    if (profile?.channel_id) {
+      const matchedIndex = accounts.findIndex((account) => account.channel?.id === profile.channel_id);
+      if (matchedIndex >= 0) {
+        activeIndex = matchedIndex;
+      }
+    }
+
+    return {
+      accounts,
+      activeIndex,
+      source: 'supabase',
+    };
+  } catch (error) {
+    console.error('Supabase account state error:', error);
+    return fallbackState;
   }
 }
 
@@ -685,18 +858,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   // Get user channel data
   if (path === 'api/user/channel') {
-    const { accounts, activeIndex } = readAccountsFromCookies(req);
-    if (accounts.length === 0) {
+    const { accounts, activeIndex } = await getUnifiedAccountsAndActiveIndex(req);
+    const userData = accounts[activeIndex];
+    if (!userData) {
       return res.status(401).json({ error: 'Not authenticated' });
     }
 
     try {
-      const userData = accounts[activeIndex];
-      
-      if (!userData) {
-        return res.status(401).json({ error: 'No active account' });
-      }
-      
       const { tokens, ...safeUser } = userData;
       return res.json(safeUser);
     } catch (error) {
@@ -1069,10 +1237,7 @@ Return JSON with:
 
   // Get all accounts
   if (path === 'api/user/accounts') {
-    const { accounts, activeIndex } = readAccountsFromCookies(req);
-    if (accounts.length === 0) {
-      return res.json({ accounts: [], activeIndex: 0 });
-    }
+    const { accounts, activeIndex } = await getUnifiedAccountsAndActiveIndex(req);
 
     try {
       // Send accounts without tokens for security
@@ -1089,6 +1254,46 @@ Return JSON with:
 
   // Switch active account
   if (path === 'api/user/switch' && req.method === 'POST') {
+    const authUser = await verifySupabaseUser(req);
+    if (authUser && supabaseServer) {
+      try {
+        const { data: supabaseAccounts, error: fetchError } = await supabaseServer
+          .from('youtube_accounts')
+          .select('id, channel_id')
+          .eq('user_id', authUser.id)
+          .order('created_at', { ascending: false });
+
+        if (fetchError) {
+          console.error('Supabase switch fetch error:', fetchError);
+        } else if ((supabaseAccounts || []).length > 0) {
+          const body = readJsonBody(req);
+          const newIndex = Number(body.index);
+
+          if (!Number.isInteger(newIndex)) {
+            return res.status(400).json({ error: 'Invalid index' });
+          }
+
+          if (newIndex < 0 || newIndex >= supabaseAccounts.length) {
+            return res.status(400).json({ error: 'Index out of range' });
+          }
+
+          const selectedAccount = supabaseAccounts[newIndex];
+          const { error: updateError } = await supabaseServer
+            .from('profiles')
+            .upsert({ id: authUser.id, channel_id: selectedAccount.channel_id }, { onConflict: 'id' });
+
+          if (updateError) {
+            console.error('Supabase switch profile update error:', updateError);
+            return res.status(500).json({ error: 'Failed to switch account' });
+          }
+
+          return res.json({ success: true, activeIndex: newIndex });
+        }
+      } catch (error) {
+        console.error('Supabase switch error:', error);
+      }
+    }
+
     const { accounts } = readAccountsFromCookies(req);
     if (accounts.length === 0) {
       return res.status(401).json({ error: 'Not authenticated' });
@@ -1116,6 +1321,80 @@ Return JSON with:
 
   // Remove an account
   if (path === 'api/user/remove' && req.method === 'POST') {
+    const authUser = await verifySupabaseUser(req);
+    if (authUser && supabaseServer) {
+      try {
+        const [{ data: profile }, { data: supabaseAccounts, error: fetchError }] = await Promise.all([
+          supabaseServer
+            .from('profiles')
+            .select('channel_id')
+            .eq('id', authUser.id)
+            .maybeSingle(),
+          supabaseServer
+            .from('youtube_accounts')
+            .select('id, channel_id')
+            .eq('user_id', authUser.id)
+            .order('created_at', { ascending: false }),
+        ]);
+
+        if (fetchError) {
+          console.error('Supabase remove fetch error:', fetchError);
+        } else if ((supabaseAccounts || []).length > 0) {
+          const body = readJsonBody(req);
+          const removeIndex = Number(body.index);
+
+          if (!Number.isInteger(removeIndex)) {
+            return res.status(400).json({ error: 'Invalid index' });
+          }
+
+          if (removeIndex < 0 || removeIndex >= supabaseAccounts.length) {
+            return res.status(400).json({ error: 'Index out of range' });
+          }
+
+          const accountToRemove = supabaseAccounts[removeIndex];
+          const { error: deleteError } = await supabaseServer
+            .from('youtube_accounts')
+            .delete()
+            .eq('id', accountToRemove.id)
+            .eq('user_id', authUser.id);
+
+          if (deleteError) {
+            console.error('Supabase remove delete error:', deleteError);
+            return res.status(500).json({ error: 'Failed to remove account' });
+          }
+
+          const previousActiveIndex = profile?.channel_id
+            ? supabaseAccounts.findIndex((account) => account.channel_id === profile.channel_id)
+            : 0;
+          const activeIndex = previousActiveIndex >= 0 ? previousActiveIndex : 0;
+          const remainingAccounts = supabaseAccounts.filter((_, idx) => idx !== removeIndex);
+
+          let nextActiveIndex = activeIndex;
+          if (remainingAccounts.length === 0) {
+            nextActiveIndex = 0;
+          } else if (activeIndex === removeIndex) {
+            nextActiveIndex = Math.max(0, removeIndex - 1);
+          } else if (activeIndex > removeIndex) {
+            nextActiveIndex = activeIndex - 1;
+          }
+
+          const nextChannelId = remainingAccounts[nextActiveIndex]?.channel_id || null;
+          const { error: profileUpdateError } = await supabaseServer
+            .from('profiles')
+            .upsert({ id: authUser.id, channel_id: nextChannelId }, { onConflict: 'id' });
+
+          if (profileUpdateError) {
+            console.error('Supabase remove profile update error:', profileUpdateError);
+            return res.status(500).json({ error: 'Failed to remove account' });
+          }
+
+          return res.json({ success: true, activeIndex: nextActiveIndex });
+        }
+      } catch (error) {
+        console.error('Supabase remove error:', error);
+      }
+    }
+
     const state = readAccountsFromCookies(req);
     let accounts = state.accounts;
     let activeIndex = state.activeIndex;

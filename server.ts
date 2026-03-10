@@ -10,6 +10,7 @@ import multer from "multer";
 import { GoogleGenAI, Type } from "@google/genai";
 import fs from "fs";
 import youtubedl from "youtube-dl-exec";
+import { supabaseServer, verifyUser } from "./supabaseServer.ts";
 import { initializeSnapshotTable, saveChannelSnapshot, getChannelSnapshots, getLatestSnapshot } from "./src/services/snapshotService.ts";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -265,6 +266,63 @@ type CreateAppOptions = {
   port?: number;
 };
 
+type SupabaseProfileRow = {
+  id: string;
+  full_name: string | null;
+  avatar_url: string | null;
+  channel_id: string | null;
+};
+
+type SupabaseYouTubeAccountRow = {
+  id: string;
+  user_id: string;
+  google_id: string;
+  channel_id: string;
+  channel_title: string;
+  channel_description: string | null;
+  channel_thumbnail: string | null;
+  statistics: Record<string, unknown> | null;
+};
+
+type UnifiedAccountState = {
+  accounts: any[];
+  activeIndex: number;
+  source: "supabase" | "session";
+};
+
+function normalizeChannelStatistics(rawStatistics: unknown) {
+  const stats =
+    rawStatistics && typeof rawStatistics === "object"
+      ? (rawStatistics as Record<string, unknown>)
+      : {};
+
+  return {
+    subscriberCount: String(toNumber(stats.subscriberCount ?? stats.subscribers ?? 0)),
+    videoCount: String(toNumber(stats.videoCount ?? stats.videos ?? 0)),
+    viewCount: String(toNumber(stats.viewCount ?? stats.totalViews ?? 0)),
+  };
+}
+
+function mapSupabaseAccountToLegacyUser(
+  profile: SupabaseProfileRow | null,
+  account: SupabaseYouTubeAccountRow,
+) {
+  const thumbnailUrl = account.channel_thumbnail || profile?.avatar_url || "";
+
+  return {
+    id: account.google_id || profile?.id || account.channel_id,
+    name: profile?.full_name || account.channel_title || "Creator",
+    picture: profile?.avatar_url || thumbnailUrl,
+    channel: {
+      id: account.channel_id,
+      title: account.channel_title,
+      description: account.channel_description || "",
+      thumbnails: thumbnailUrl ? { default: { url: thumbnailUrl } } : {},
+      statistics: normalizeChannelStatistics(account.statistics),
+    },
+  };
+}
+
 function getSessionAccountsAndActiveIndex(req: express.Request) {
   const session = req.session as any;
   const rawAccounts = Array.isArray(session.accounts)
@@ -389,6 +447,72 @@ export async function createApp(options: CreateAppOptions = {}) {
     GOOGLE_CLIENT_SECRET,
     redirectUri
   );
+
+  async function getUnifiedAccountsAndActiveIndex(req: express.Request): Promise<UnifiedAccountState> {
+    const sessionState = getSessionAccountsAndActiveIndex(req);
+    const fallbackState: UnifiedAccountState = {
+      accounts: sessionState.accounts,
+      activeIndex: sessionState.activeIndex,
+      source: "session",
+    };
+
+    const authUser = await verifyUser(req);
+    if (!authUser) {
+      return fallbackState;
+    }
+
+    try {
+      const [{ data: profile, error: profileError }, { data: rawAccounts, error: accountsError }] = await Promise.all([
+        supabaseServer
+          .from("profiles")
+          .select("id, full_name, avatar_url, channel_id")
+          .eq("id", authUser.id)
+          .maybeSingle(),
+        supabaseServer
+          .from("youtube_accounts")
+          .select("id, user_id, google_id, channel_id, channel_title, channel_description, channel_thumbnail, statistics")
+          .eq("user_id", authUser.id)
+          .order("created_at", { ascending: false }),
+      ]);
+
+      if (profileError && profileError.code !== "PGRST116") {
+        console.error("Supabase profile fetch error:", profileError);
+      }
+
+      if (accountsError) {
+        console.error("Supabase accounts fetch error:", accountsError);
+        return fallbackState;
+      }
+
+      const accounts = (rawAccounts || []).map((account) =>
+        mapSupabaseAccountToLegacyUser(
+          (profile as SupabaseProfileRow | null) || null,
+          account as SupabaseYouTubeAccountRow,
+        ),
+      );
+
+      if (accounts.length === 0) {
+        return fallbackState;
+      }
+
+      let activeIndex = 0;
+      if (profile?.channel_id) {
+        const matchedIndex = accounts.findIndex((account) => account.channel?.id === profile.channel_id);
+        if (matchedIndex >= 0) {
+          activeIndex = matchedIndex;
+        }
+      }
+
+      return {
+        accounts,
+        activeIndex,
+        source: "supabase",
+      };
+    } catch (error) {
+      console.error("Supabase account state error:", error);
+      return fallbackState;
+    }
+  }
 
   // Viral Clip Analyzer Endpoint
   app.post('/api/analyze', upload.single('video'), async (req, res) => {
@@ -791,8 +915,8 @@ For every video provided, evaluate segments based on:
     }
   });
 
-  app.get("/api/user/accounts", (req, res) => {
-    const { accounts, activeIndex } = getSessionAccountsAndActiveIndex(req);
+  app.get("/api/user/accounts", async (req, res) => {
+    const { accounts, activeIndex } = await getUnifiedAccountsAndActiveIndex(req);
 
     const safeAccounts = accounts.map((account: any) => {
       const { tokens, ...safe } = account;
@@ -802,7 +926,45 @@ For every video provided, evaluate segments based on:
     res.json({ accounts: safeAccounts, activeIndex });
   });
 
-  app.post("/api/user/switch", (req, res) => {
+  app.post("/api/user/switch", async (req, res) => {
+    const authUser = await verifyUser(req);
+    if (authUser) {
+      try {
+        const { data: supabaseAccounts, error: fetchError } = await supabaseServer
+          .from("youtube_accounts")
+          .select("id, channel_id")
+          .eq("user_id", authUser.id)
+          .order("created_at", { ascending: false });
+
+        if (fetchError) {
+          console.error("Supabase switch fetch error:", fetchError);
+        } else if ((supabaseAccounts || []).length > 0) {
+          const index = Number(req.body?.index);
+          if (!Number.isInteger(index)) {
+            return res.status(400).json({ error: "Invalid index" });
+          }
+
+          if (index < 0 || index >= supabaseAccounts.length) {
+            return res.status(400).json({ error: "Index out of range" });
+          }
+
+          const selectedAccount = supabaseAccounts[index];
+          const { error: updateError } = await supabaseServer
+            .from("profiles")
+            .upsert({ id: authUser.id, channel_id: selectedAccount.channel_id }, { onConflict: "id" });
+
+          if (updateError) {
+            console.error("Supabase switch profile update error:", updateError);
+            return res.status(500).json({ error: "Failed to switch account" });
+          }
+
+          return res.json({ success: true, activeIndex: index });
+        }
+      } catch (error) {
+        console.error("Supabase switch error:", error);
+      }
+    }
+
     const { accounts } = getSessionAccountsAndActiveIndex(req);
     if (accounts.length === 0) {
       return res.status(401).json({ error: "Not authenticated" });
@@ -821,7 +983,80 @@ For every video provided, evaluate segments based on:
     res.json({ success: true, activeIndex: index });
   });
 
-  app.post("/api/user/remove", (req, res) => {
+  app.post("/api/user/remove", async (req, res) => {
+    const authUser = await verifyUser(req);
+    if (authUser) {
+      try {
+        const [{ data: profile }, { data: supabaseAccounts, error: fetchError }] = await Promise.all([
+          supabaseServer
+            .from("profiles")
+            .select("channel_id")
+            .eq("id", authUser.id)
+            .maybeSingle(),
+          supabaseServer
+            .from("youtube_accounts")
+            .select("id, channel_id")
+            .eq("user_id", authUser.id)
+            .order("created_at", { ascending: false }),
+        ]);
+
+        if (fetchError) {
+          console.error("Supabase remove fetch error:", fetchError);
+        } else if ((supabaseAccounts || []).length > 0) {
+          const removeIndex = Number(req.body?.index);
+          if (!Number.isInteger(removeIndex)) {
+            return res.status(400).json({ error: "Invalid index" });
+          }
+
+          if (removeIndex < 0 || removeIndex >= supabaseAccounts.length) {
+            return res.status(400).json({ error: "Index out of range" });
+          }
+
+          const accountToRemove = supabaseAccounts[removeIndex];
+          const { error: deleteError } = await supabaseServer
+            .from("youtube_accounts")
+            .delete()
+            .eq("id", accountToRemove.id)
+            .eq("user_id", authUser.id);
+
+          if (deleteError) {
+            console.error("Supabase remove delete error:", deleteError);
+            return res.status(500).json({ error: "Failed to remove account" });
+          }
+
+          const previousActiveIndex = profile?.channel_id
+            ? supabaseAccounts.findIndex((account) => account.channel_id === profile.channel_id)
+            : 0;
+
+          const activeIndex = previousActiveIndex >= 0 ? previousActiveIndex : 0;
+          const remainingAccounts = supabaseAccounts.filter((_, idx) => idx !== removeIndex);
+
+          let nextActiveIndex = activeIndex;
+          if (remainingAccounts.length === 0) {
+            nextActiveIndex = 0;
+          } else if (activeIndex === removeIndex) {
+            nextActiveIndex = Math.max(0, removeIndex - 1);
+          } else if (activeIndex > removeIndex) {
+            nextActiveIndex = activeIndex - 1;
+          }
+
+          const nextChannelId = remainingAccounts[nextActiveIndex]?.channel_id || null;
+          const { error: profileUpdateError } = await supabaseServer
+            .from("profiles")
+            .upsert({ id: authUser.id, channel_id: nextChannelId }, { onConflict: "id" });
+
+          if (profileUpdateError) {
+            console.error("Supabase remove profile update error:", profileUpdateError);
+            return res.status(500).json({ error: "Failed to remove account" });
+          }
+
+          return res.json({ success: true, activeIndex: nextActiveIndex });
+        }
+      } catch (error) {
+        console.error("Supabase remove error:", error);
+      }
+    }
+
     const { accounts, activeIndex } = getSessionAccountsAndActiveIndex(req);
     if (accounts.length === 0) {
       return res.status(401).json({ error: "Not authenticated" });
@@ -851,8 +1086,8 @@ For every video provided, evaluate segments based on:
     res.json({ success: true, activeIndex: nextActiveIndex });
   });
 
-  app.get("/api/user/channel", (req, res) => {
-    const { accounts, activeIndex } = getSessionAccountsAndActiveIndex(req);
+  app.get("/api/user/channel", async (req, res) => {
+    const { accounts, activeIndex } = await getUnifiedAccountsAndActiveIndex(req);
     const user = accounts[activeIndex];
     if (!user) {
       return res.status(401).json({ error: "Not authenticated" });
