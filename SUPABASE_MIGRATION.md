@@ -182,6 +182,9 @@ Phase 2 kickoff status:
 - `src/App.tsx` now sends Supabase bearer tokens on `/api/user/accounts`, `/api/user/channel`, `/api/user/switch`, and `/api/user/remove`.
 - `server.ts` and `api/route.ts` now resolve `/api/user/accounts` and `/api/user/channel` with Supabase-first lookup and cookie/session fallback.
 - `server.ts` and `api/route.ts` now support Supabase-backed account switch/remove with legacy cookie/session fallback.
+- `src/App.tsx` now sends Supabase bearer auth on `/api/auth/google/url` when available so app-initiated YouTube connects can bind to the active Supabase user.
+- `server.ts` and `api/route.ts` now sign OAuth state and persist YouTube callback results into Supabase `profiles` + `youtube_accounts` when the connect flow started from an authenticated Supabase app session.
+- Core creator data routes now resolve the active YouTube account from Supabase first, with legacy fallback, including analytics, best-posting-time, videos, comments, script placeholder, and coach insight alert endpoints.
 
 ### Phase 3: Data Migration
 - [ ] Replace YouTube account cookie storage with Supabase `youtube_accounts` table

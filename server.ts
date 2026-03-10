@@ -4,6 +4,7 @@ import cookieParser from "cookie-parser";
 import session from "express-session";
 import dotenv from "dotenv";
 import path from "path";
+import { createHmac } from "node:crypto";
 import { fileURLToPath } from "url";
 import net from "net";
 import multer from "multer";
@@ -29,6 +30,8 @@ const SHORTS_MAX_SECONDS = 61;
 const LONG_FORM_MIN_SECONDS = 120;
 const IS_PRODUCTION = process.env.NODE_ENV === "production";
 const DEFAULT_PRODUCTION_APP_URL = "https://app.janso.studio";
+const OAUTH_STATE_SECRET = process.env.SESSION_SECRET || "tube-vision-secret";
+const OAUTH_STATE_MAX_AGE_MS = 10 * 60 * 1000;
 
 function resolveAppUrl(port: number): string {
   const configuredAppUrl = process.env.APP_URL?.trim();
@@ -282,6 +285,9 @@ type SupabaseYouTubeAccountRow = {
   channel_description: string | null;
   channel_thumbnail: string | null;
   statistics: Record<string, unknown> | null;
+  access_token?: string | null;
+  refresh_token?: string | null;
+  expires_at?: string | null;
 };
 
 type UnifiedAccountState = {
@@ -309,7 +315,7 @@ function mapSupabaseAccountToLegacyUser(
 ) {
   const thumbnailUrl = account.channel_thumbnail || profile?.avatar_url || "";
 
-  return {
+  const baseUser = {
     id: account.google_id || profile?.id || account.channel_id,
     name: profile?.full_name || account.channel_title || "Creator",
     picture: profile?.avatar_url || thumbnailUrl,
@@ -321,6 +327,19 @@ function mapSupabaseAccountToLegacyUser(
       statistics: normalizeChannelStatistics(account.statistics),
     },
   };
+
+  if (account.access_token || account.refresh_token) {
+    return {
+      ...baseUser,
+      tokens: {
+        access_token: account.access_token || undefined,
+        refresh_token: account.refresh_token || undefined,
+        expiry_date: account.expires_at ? new Date(account.expires_at).getTime() : undefined,
+      },
+    };
+  }
+
+  return baseUser;
 }
 
 function getSessionAccountsAndActiveIndex(req: express.Request) {
@@ -362,6 +381,12 @@ export async function createApp(options: CreateAppOptions = {}) {
   const appUrl = resolveAppUrl(port);
   const redirectUri = `${appUrl}/auth/google/callback`;
 
+  function signOAuthState(payload: { redirectTo: string; supabaseUserId: string | null; issuedAt: number }) {
+    return createHmac("sha256", OAUTH_STATE_SECRET)
+      .update(JSON.stringify(payload))
+      .digest("base64url");
+  }
+
   function normalizePostAuthRedirect(rawValue: unknown): string {
     if (typeof rawValue !== "string" || !rawValue.trim()) {
       return appUrl;
@@ -379,20 +404,50 @@ export async function createApp(options: CreateAppOptions = {}) {
     }
   }
 
-  function encodeOAuthState(redirectTo: string): string {
-    return Buffer.from(JSON.stringify({ redirectTo }), "utf8").toString("base64url");
+  function encodeOAuthState(redirectTo: string, supabaseUserId: string | null = null): string {
+    const payload = {
+      redirectTo: normalizePostAuthRedirect(redirectTo),
+      supabaseUserId,
+      issuedAt: Date.now(),
+    };
+
+    return Buffer.from(
+      JSON.stringify({
+        ...payload,
+        signature: signOAuthState(payload),
+      }),
+      "utf8",
+    ).toString("base64url");
   }
 
-  function decodeOAuthState(rawState: unknown): string {
+  function decodeOAuthState(rawState: unknown): { redirectTo: string; supabaseUserId: string | null } {
     if (typeof rawState !== "string" || !rawState.trim()) {
-      return appUrl;
+      return { redirectTo: appUrl, supabaseUserId: null };
     }
 
     try {
       const parsed = JSON.parse(Buffer.from(rawState, "base64url").toString("utf8"));
-      return normalizePostAuthRedirect(parsed?.redirectTo);
+      const redirectTo = normalizePostAuthRedirect(parsed?.redirectTo);
+      const supabaseUserId =
+        typeof parsed?.supabaseUserId === "string" && parsed.supabaseUserId.trim()
+          ? parsed.supabaseUserId.trim()
+          : null;
+      const issuedAt = Number(parsed?.issuedAt);
+      const signature = typeof parsed?.signature === "string" ? parsed.signature : "";
+
+      if (!signature || !Number.isFinite(issuedAt)) {
+        return { redirectTo, supabaseUserId: null };
+      }
+
+      const expectedSignature = signOAuthState({ redirectTo, supabaseUserId, issuedAt });
+      const isFresh = Math.abs(Date.now() - issuedAt) <= OAUTH_STATE_MAX_AGE_MS;
+
+      return {
+        redirectTo,
+        supabaseUserId: signature === expectedSignature && isFresh ? supabaseUserId : null,
+      };
     } catch {
-      return appUrl;
+      return { redirectTo: appUrl, supabaseUserId: null };
     }
   }
 
@@ -447,6 +502,92 @@ export async function createApp(options: CreateAppOptions = {}) {
     GOOGLE_CLIENT_SECRET,
     redirectUri
   );
+
+  async function persistYouTubeAccountToSupabase(
+    supabaseUserId: string | null,
+    userInfo: any,
+    channel: any,
+    tokens: any,
+  ) {
+    if (!supabaseUserId || !channel?.id) {
+      return;
+    }
+
+    try {
+      const { data: existingAccount, error: existingAccountError } = await supabaseServer
+        .from("youtube_accounts")
+        .select("id, refresh_token")
+        .eq("channel_id", channel.id)
+        .maybeSingle();
+
+      if (existingAccountError && existingAccountError.code !== "PGRST116") {
+        console.error("Supabase existing account fetch error:", existingAccountError);
+      }
+
+      const refreshToken = tokens.refresh_token || existingAccount?.refresh_token;
+      if (!tokens.access_token || !refreshToken) {
+        console.warn("Skipping Supabase YouTube account persistence because OAuth tokens are incomplete.");
+        return;
+      }
+
+      const channelThumbnail =
+        channel.snippet?.thumbnails?.default?.url ||
+        channel.snippet?.thumbnails?.medium?.url ||
+        channel.snippet?.thumbnails?.high?.url ||
+        null;
+
+      const expiresAt = tokens.expiry_date
+        ? new Date(tokens.expiry_date).toISOString()
+        : Number.isFinite(Number(tokens.expires_in))
+          ? new Date(Date.now() + Number(tokens.expires_in) * 1000).toISOString()
+          : null;
+
+      const [profileResult, accountResult] = await Promise.all([
+        supabaseServer
+          .from("profiles")
+          .upsert(
+            {
+              id: supabaseUserId,
+              full_name: userInfo?.name || null,
+              avatar_url: userInfo?.picture || null,
+              channel_id: channel.id,
+            },
+            { onConflict: "id" },
+          ),
+        supabaseServer
+          .from("youtube_accounts")
+          .upsert(
+            {
+              user_id: supabaseUserId,
+              google_id: String(userInfo?.id || supabaseUserId),
+              channel_id: channel.id,
+              channel_title: channel.snippet?.title || "Untitled Channel",
+              channel_description: channel.snippet?.description || null,
+              channel_thumbnail: channelThumbnail,
+              access_token: tokens.access_token,
+              refresh_token: refreshToken,
+              expires_at: expiresAt,
+              statistics: {
+                subscriberCount: String(channel.statistics?.subscriberCount || "0"),
+                viewCount: String(channel.statistics?.viewCount || "0"),
+                videoCount: String(channel.statistics?.videoCount || "0"),
+              },
+            },
+            { onConflict: "channel_id" },
+          ),
+      ]);
+
+      if (profileResult.error) {
+        console.error("Supabase profile upsert error:", profileResult.error);
+      }
+
+      if (accountResult.error) {
+        console.error("Supabase YouTube account upsert error:", accountResult.error);
+      }
+    } catch (error) {
+      console.error("Supabase OAuth persistence error:", error);
+    }
+  }
 
   async function getUnifiedAccountsAndActiveIndex(req: express.Request): Promise<UnifiedAccountState> {
     const sessionState = getSessionAccountsAndActiveIndex(req);
@@ -512,6 +653,51 @@ export async function createApp(options: CreateAppOptions = {}) {
       console.error("Supabase account state error:", error);
       return fallbackState;
     }
+  }
+
+  async function getActiveYouTubeUser(req: express.Request) {
+    const authUser = await verifyUser(req);
+    if (authUser) {
+      try {
+        const [{ data: profile, error: profileError }, { data: rawAccounts, error: accountsError }] = await Promise.all([
+          supabaseServer
+            .from("profiles")
+            .select("id, full_name, avatar_url, channel_id")
+            .eq("id", authUser.id)
+            .maybeSingle(),
+          supabaseServer
+            .from("youtube_accounts")
+            .select("id, user_id, google_id, channel_id, channel_title, channel_description, channel_thumbnail, statistics, access_token, refresh_token, expires_at")
+            .eq("user_id", authUser.id)
+            .order("created_at", { ascending: false }),
+        ]);
+
+        if (profileError && profileError.code !== "PGRST116") {
+          console.error("Supabase active profile fetch error:", profileError);
+        }
+
+        if (!accountsError && (rawAccounts || []).length > 0) {
+          const accounts = (rawAccounts || []) as SupabaseYouTubeAccountRow[];
+          const selectedAccount = profile?.channel_id
+            ? accounts.find((account) => account.channel_id === profile.channel_id) || accounts[0]
+            : accounts[0];
+
+          if (selectedAccount) {
+            return mapSupabaseAccountToLegacyUser(
+              (profile as SupabaseProfileRow | null) || null,
+              selectedAccount,
+            );
+          }
+        } else if (accountsError) {
+          console.error("Supabase active account fetch error:", accountsError);
+        }
+      } catch (error) {
+        console.error("Supabase active account resolution error:", error);
+      }
+    }
+
+    const { accounts, activeIndex } = getSessionAccountsAndActiveIndex(req);
+    return accounts[activeIndex] || null;
   }
 
   // Viral Clip Analyzer Endpoint
@@ -687,7 +873,7 @@ For every video provided, evaluate segments based on:
     });
   });
 
-  app.get("/api/auth/google/url", (req, res) => {
+  app.get("/api/auth/google/url", async (req, res) => {
     console.log(`[Auth URL Request] REDIRECT_URI: ${redirectUri}`);
     const postAuthRedirect = normalizePostAuthRedirect(Array.isArray(req.query.next) ? req.query.next[0] : req.query.next);
     
@@ -703,6 +889,8 @@ For every video provided, evaluate segments based on:
       console.warn(`[Auth Warning] APP_URL not properly set for production: ${appUrl}`);
     }
 
+    const authUser = await verifyUser(req);
+
     const url = oauth2Client.generateAuthUrl({
       access_type: "offline",
       scope: [
@@ -711,7 +899,7 @@ For every video provided, evaluate segments based on:
         "https://www.googleapis.com/auth/userinfo.profile",
       ],
       prompt: "consent",
-      state: encodeOAuthState(postAuthRedirect),
+      state: encodeOAuthState(postAuthRedirect, authUser?.id || null),
     });
     console.log(`[Auth URL Generated] URL contains redirect_uri: ${url.includes(redirectUri)}`);
     res.json({ url });
@@ -778,7 +966,9 @@ For every video provided, evaluate segments based on:
 
   app.get(["/auth/google/callback", "/api/auth/google/callback"], async (req, res) => {
     const { code } = req.query;
-    const postAuthRedirect = decodeOAuthState(Array.isArray(req.query.state) ? req.query.state[0] : req.query.state);
+    const { redirectTo: postAuthRedirect, supabaseUserId } = decodeOAuthState(
+      Array.isArray(req.query.state) ? req.query.state[0] : req.query.state,
+    );
 
     if (!code) {
       return res.status(400).send("No code provided");
@@ -833,6 +1023,8 @@ For every video provided, evaluate segments based on:
       });
       dedupedAccounts.unshift(newUserData);
       setSessionAccountsAndActiveIndex(req, dedupedAccounts, 0);
+
+      await persistYouTubeAccountToSupabase(supabaseUserId, userInfo, channel, tokens);
 
       res.send(`
         <!DOCTYPE html>
@@ -1098,8 +1290,7 @@ For every video provided, evaluate segments based on:
   });
 
   app.get("/api/script/daily-placeholder", async (req, res) => {
-    const { accounts, activeIndex } = getSessionAccountsAndActiveIndex(req);
-    const user = accounts[activeIndex];
+    const user = await getActiveYouTubeUser(req);
 
     if (!user || !user.tokens) {
       return res.status(401).json({ error: "Not authenticated" });
@@ -1187,8 +1378,7 @@ Recent videos: ${recentTitles.join(" | ") || "No recent titles"}`;
   });
 
   app.get("/api/coach/insight-alert", async (req, res) => {
-    const { accounts, activeIndex } = getSessionAccountsAndActiveIndex(req);
-    const user = accounts[activeIndex];
+    const user = await getActiveYouTubeUser(req);
 
     if (!user || !user.tokens) {
       return res.status(401).json({ error: "Not authenticated" });
@@ -1456,8 +1646,7 @@ Return JSON with:
   });
 
   app.get("/api/user/videos", async (req, res) => {
-    const { accounts, activeIndex } = getSessionAccountsAndActiveIndex(req);
-    const user = accounts[activeIndex];
+    const user = await getActiveYouTubeUser(req);
     if (!user || !user.tokens) {
       return res.status(401).json({ error: "Not authenticated" });
     }
@@ -1492,8 +1681,7 @@ Return JSON with:
   });
 
   app.get("/api/comments/fetch", async (req, res) => {
-    const { accounts, activeIndex } = getSessionAccountsAndActiveIndex(req);
-    const user = accounts[activeIndex];
+    const user = await getActiveYouTubeUser(req);
     if (!user || !user.tokens) {
       return res.status(401).json({ error: "Not authenticated" });
     }
@@ -2017,8 +2205,7 @@ Return JSON with:
   });
 
   app.get("/api/user/best-posting-time", async (req, res) => {
-    const { accounts, activeIndex } = getSessionAccountsAndActiveIndex(req);
-    const user = accounts[activeIndex];
+    const user = await getActiveYouTubeUser(req);
     if (!user || !user.tokens) {
       return res.status(401).json({ error: "Not authenticated" });
     }
@@ -2594,7 +2781,7 @@ Return as JSON.`;
   });
 
   app.get("/api/user/analytics", async (req, res) => {
-    const user = (req.session as any).user;
+    const user = await getActiveYouTubeUser(req);
     if (!user || !user.tokens) {
       return res.status(401).json({ error: "Not authenticated" });
     }

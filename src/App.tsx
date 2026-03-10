@@ -497,7 +497,9 @@ export default function App() {
       }
 
       console.log('[Connect] Fetching auth URL...');
-      const response = await fetch('/api/auth/google/url');
+      const response = await fetch('/api/auth/google/url', {
+        headers: getSupabaseAuthHeaders(),
+      });
 
       const raw = await response.text();
       let data: any = {};
