@@ -20,50 +20,91 @@ export function AuthCallback() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Listen for auth state changes - Supabase will emit when session is exchanged
+    // Handle OAuth callback across both code-exchange and hash-token flows.
     let mounted = true;
     let subscription: { unsubscribe: () => void } | null = null;
     let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    let completed = false;
+
+    const completeAuth = () => {
+      if (!mounted || completed) {
+        return;
+      }
+
+      completed = true;
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+
+      console.log('Authentication successful!');
+
+      const searchParams = new URLSearchParams(window.location.search);
+      const shouldResumeYouTubeConnect = searchParams.get('connect_youtube') === '1';
+      const next = searchParams.get('next');
+
+      if (shouldResumeYouTubeConnect) {
+        const redirectUrl = new URL('/', window.location.origin);
+        redirectUrl.searchParams.set('connect_youtube', '1');
+        if (next) {
+          redirectUrl.searchParams.set('next', next);
+        }
+        window.location.href = redirectUrl.toString();
+        return;
+      }
+
+      const nextUrl = next ? decodeURIComponent(next) : '/';
+      window.location.href = nextUrl;
+    };
 
     const setupAuthListener = async () => {
       try {
-        // Set a timeout in case the session exchange doesn't complete
+        // Give auth providers time to finish token exchange before failing.
         timeoutId = setTimeout(() => {
-          if (mounted) {
+          if (mounted && !completed) {
             setError('Authentication timeout - please try again');
           }
-        }, 10000); // 10 second timeout
+        }, 20000);
 
-        // Subscribe to auth state changes
+        // Subscribe before checking session to avoid missing early events.
         const { data } = supabase.auth.onAuthStateChange(async (event, session) => {
           if (!mounted) return;
 
           console.log('Auth state changed:', event, session ? 'session present' : 'no session');
 
-          if (event === 'SIGNED_IN' && session) {
-            if (timeoutId) clearTimeout(timeoutId);
-            console.log('Authentication successful!');
-
-            const searchParams = new URLSearchParams(window.location.search);
-            const shouldResumeYouTubeConnect = searchParams.get('connect_youtube') === '1';
-            const next = searchParams.get('next');
-
-            if (shouldResumeYouTubeConnect) {
-              const redirectUrl = new URL('/', window.location.origin);
-              redirectUrl.searchParams.set('connect_youtube', '1');
-              if (next) {
-                redirectUrl.searchParams.set('next', next);
-              }
-              window.location.href = redirectUrl.toString();
-              return;
-            }
-
-            // Go to next URL or home
-            const nextUrl = next ? decodeURIComponent(next) : '/';
-            window.location.href = nextUrl;
+          if ((event === 'INITIAL_SESSION' || event === 'SIGNED_IN') && session) {
+            completeAuth();
           }
         });
         subscription = data.subscription;
+
+        // If a session is already present, complete immediately.
+        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError) {
+          console.error('Auth callback session error:', sessionError);
+        } else if (sessionData.session) {
+          completeAuth();
+          return;
+        }
+
+        // Recovery path: if tokens are in hash but session did not hydrate yet, set it manually.
+        const hashParams = new URLSearchParams(window.location.hash.startsWith('#')
+          ? window.location.hash.slice(1)
+          : window.location.hash);
+        const accessToken = hashParams.get('access_token');
+        const refreshToken = hashParams.get('refresh_token');
+
+        if (accessToken && refreshToken && !completed) {
+          const { data: setSessionData, error: setSessionError } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
+
+          if (setSessionError) {
+            console.error('Auth callback setSession error:', setSessionError);
+          } else if (setSessionData.session) {
+            completeAuth();
+          }
+        }
       } catch (err) {
         console.error('Exception in auth callback setup:', err);
         if (mounted) {
