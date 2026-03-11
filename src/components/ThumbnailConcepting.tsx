@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { generateVidVisionInsight } from '../services/geminiService';
 import { loadBrandKit } from './BrandKit';
+import { parseApiErrorResponse } from '../lib/youtubeApiErrors';
 
 interface VideoItem {
   id: string;
@@ -288,8 +289,8 @@ export default function ThumbnailConcepting() {
       }
 
       if (!response.ok) {
-        const payload = await response.json().catch(() => ({}));
-        throw new Error(payload.error || 'Failed to fetch your videos.');
+        const message = await parseApiErrorResponse(response, 'Failed to fetch your videos.');
+        throw new Error(message);
       }
 
       const data = (await response.json()) as VideoItem[];

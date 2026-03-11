@@ -10,6 +10,7 @@ import {
   Sparkles
 } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { parseApiErrorResponse } from '../lib/youtubeApiErrors';
 import { ShimmerVideoCard } from './Shimmer';
 
 const SHORTS_MAX_SECONDS = 60;
@@ -57,7 +58,8 @@ export default function VideoList({ onOptimizeSEO }: VideoListProps = {}) {
       } else if (response.status === 401) {
         setError("Please connect your YouTube account to view your videos.");
       } else {
-        setError("Failed to fetch your videos.");
+        const message = await parseApiErrorResponse(response, 'Failed to fetch your videos.');
+        setError(message);
       }
     } catch (err) {
       console.error('Failed to fetch videos:', err);

@@ -164,6 +164,42 @@ function toNumber(value: unknown): number {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+function decodeHtmlEntities(value: string): string {
+  return value
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&nbsp;/g, ' ');
+}
+
+function sanitizeUpstreamMessage(rawMessage: unknown, fallbackMessage: string): string {
+  const text = typeof rawMessage === 'string' && rawMessage.trim() ? rawMessage : fallbackMessage;
+  const decoded = decodeHtmlEntities(text);
+  const stripped = decoded.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+  return stripped || fallbackMessage;
+}
+
+function extractYouTubeError(errorPayload: any, fallbackMessage: string, fallbackStatus = 500) {
+  const code = Number(errorPayload?.error?.code) || Number(fallbackStatus) || 500;
+  const status = typeof errorPayload?.error?.status === 'string' ? errorPayload.error.status : null;
+  const reason = typeof errorPayload?.error?.errors?.[0]?.reason === 'string' ? errorPayload.error.errors[0].reason : null;
+  const message = sanitizeUpstreamMessage(
+    errorPayload?.error?.message || errorPayload?.error_description,
+    fallbackMessage,
+  );
+
+  return {
+    httpStatus: code,
+    code,
+    status,
+    reason,
+    message,
+    isQuotaExceeded: Boolean(reason && /quota/i.test(reason)) || /quota/i.test(message),
+  };
+}
+
 type SupabaseProfileRow = {
   id: string;
   full_name: string | null;
@@ -1376,23 +1412,22 @@ Recent videos: ${recentTitles.join(' | ') || 'No recent titles'}`;
 
       if (!searchResponse.ok) {
         const errorPayload = await searchResponse.json().catch(() => ({}));
-        const upstreamCode = errorPayload?.error?.code || searchResponse.status;
-        const upstreamStatus = errorPayload?.error?.status || null;
-        const upstreamReason = errorPayload?.error?.errors?.[0]?.reason || null;
-        const upstreamMessage =
-          errorPayload?.error?.message ||
-          errorPayload?.error_description ||
-          'Failed to fetch videos for insight analysis';
+        const upstream = extractYouTubeError(
+          errorPayload,
+          'Failed to fetch videos for insight analysis',
+          searchResponse.status,
+        );
 
         return res.status(searchResponse.status).json({
-          error: upstreamMessage,
+          error: upstream.message,
           upstream: {
             source: 'youtube',
             step: 'search',
-            code: upstreamCode,
-            status: upstreamStatus,
-            reason: upstreamReason,
-            message: upstreamMessage,
+            code: upstream.code,
+            status: upstream.status,
+            reason: upstream.reason,
+            message: upstream.message,
+            isQuotaExceeded: upstream.isQuotaExceeded,
           },
         });
       }
@@ -1421,23 +1456,22 @@ Recent videos: ${recentTitles.join(' | ') || 'No recent titles'}`;
 
       if (!videosResponse.ok) {
         const errorPayload = await videosResponse.json().catch(() => ({}));
-        const upstreamCode = errorPayload?.error?.code || videosResponse.status;
-        const upstreamStatus = errorPayload?.error?.status || null;
-        const upstreamReason = errorPayload?.error?.errors?.[0]?.reason || null;
-        const upstreamMessage =
-          errorPayload?.error?.message ||
-          errorPayload?.error_description ||
-          'Failed to fetch detailed video data';
+        const upstream = extractYouTubeError(
+          errorPayload,
+          'Failed to fetch detailed video data',
+          videosResponse.status,
+        );
 
         return res.status(videosResponse.status).json({
-          error: upstreamMessage,
+          error: upstream.message,
           upstream: {
             source: 'youtube',
             step: 'videos',
-            code: upstreamCode,
-            status: upstreamStatus,
-            reason: upstreamReason,
-            message: upstreamMessage,
+            code: upstream.code,
+            status: upstream.status,
+            reason: upstream.reason,
+            message: upstream.message,
+            isQuotaExceeded: upstream.isQuotaExceeded,
           },
         });
       }
@@ -1880,10 +1914,18 @@ Return JSON with:
       const data = await response.json().catch(() => ({}));
 
       if (!response.ok || data?.error) {
-        const statusCode = Number(data?.error?.code) || response.status || 500;
-        return res.status(statusCode).json({
-          error: data?.error?.message || 'Failed to fetch channel videos from YouTube',
-          upstream: data?.error || null,
+        const upstream = extractYouTubeError(data, 'Failed to fetch channel videos from YouTube', response.status);
+        return res.status(upstream.httpStatus).json({
+          error: upstream.message,
+          upstream: {
+            source: 'youtube',
+            step: 'search',
+            code: upstream.code,
+            status: upstream.status,
+            reason: upstream.reason,
+            message: upstream.message,
+            isQuotaExceeded: upstream.isQuotaExceeded,
+          },
         });
       }
 
@@ -1903,10 +1945,22 @@ Return JSON with:
       const statsData = await statsResponse.json().catch(() => ({}));
 
       if (!statsResponse.ok || statsData?.error) {
-        const statusCode = Number(statsData?.error?.code) || statsResponse.status || 500;
-        return res.status(statusCode).json({
-          error: statsData?.error?.message || 'Failed to fetch video details from YouTube',
-          upstream: statsData?.error || null,
+        const upstream = extractYouTubeError(
+          statsData,
+          'Failed to fetch video details from YouTube',
+          statsResponse.status,
+        );
+        return res.status(upstream.httpStatus).json({
+          error: upstream.message,
+          upstream: {
+            source: 'youtube',
+            step: 'videos',
+            code: upstream.code,
+            status: upstream.status,
+            reason: upstream.reason,
+            message: upstream.message,
+            isQuotaExceeded: upstream.isQuotaExceeded,
+          },
         });
       }
 
@@ -2546,23 +2600,22 @@ Return JSON with:
       if (!searchResponse.ok) {
         const errorData = await searchResponse.json().catch(() => ({}));
         console.error('YouTube search API error:', errorData);
-        const upstreamCode = errorData?.error?.code || searchResponse.status;
-        const upstreamStatus = errorData?.error?.status || null;
-        const upstreamReason = errorData?.error?.errors?.[0]?.reason || null;
-        const upstreamMessage =
-          errorData?.error?.message ||
-          errorData?.error_description ||
-          'Failed to fetch your channel videos from YouTube';
+        const upstream = extractYouTubeError(
+          errorData,
+          'Failed to fetch your channel videos from YouTube',
+          searchResponse.status,
+        );
 
-        return res.status(502).json({
-          error: `YouTube search failed (${upstreamCode}${upstreamStatus ? ` ${upstreamStatus}` : ''}): ${upstreamMessage}`,
+        return res.status(upstream.httpStatus).json({
+          error: upstream.message,
           upstream: {
             source: 'youtube',
             step: 'search',
-            code: upstreamCode,
-            status: upstreamStatus,
-            reason: upstreamReason,
-            message: upstreamMessage,
+            code: upstream.code,
+            status: upstream.status,
+            reason: upstream.reason,
+            message: upstream.message,
+            isQuotaExceeded: upstream.isQuotaExceeded,
           },
         });
       }
@@ -2585,23 +2638,22 @@ Return JSON with:
       if (!videosResponse.ok) {
         const errorData = await videosResponse.json().catch(() => ({}));
         console.error('YouTube videos API error:', errorData);
-        const upstreamCode = errorData?.error?.code || videosResponse.status;
-        const upstreamStatus = errorData?.error?.status || null;
-        const upstreamReason = errorData?.error?.errors?.[0]?.reason || null;
-        const upstreamMessage =
-          errorData?.error?.message ||
-          errorData?.error_description ||
-          'Failed to fetch video details from YouTube';
+        const upstream = extractYouTubeError(
+          errorData,
+          'Failed to fetch video details from YouTube',
+          videosResponse.status,
+        );
 
-        return res.status(502).json({
-          error: `YouTube video details failed (${upstreamCode}${upstreamStatus ? ` ${upstreamStatus}` : ''}): ${upstreamMessage}`,
+        return res.status(upstream.httpStatus).json({
+          error: upstream.message,
           upstream: {
             source: 'youtube',
             step: 'videos',
-            code: upstreamCode,
-            status: upstreamStatus,
-            reason: upstreamReason,
-            message: upstreamMessage,
+            code: upstream.code,
+            status: upstream.status,
+            reason: upstream.reason,
+            message: upstream.message,
+            isQuotaExceeded: upstream.isQuotaExceeded,
           },
         });
       }

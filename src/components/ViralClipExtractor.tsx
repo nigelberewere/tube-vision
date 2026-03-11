@@ -19,6 +19,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import JSZip from 'jszip';
 import { Clip } from '../services/viralClipService';
 import { fetchWithAI } from '../lib/apiFetch';
+import { parseApiErrorResponse } from '../lib/youtubeApiErrors';
 import { cutVideo } from '../services/ffmpegService';
 import YouTubeShortsIcon from './icons/YouTubeShortsIcon';
 
@@ -125,8 +126,8 @@ export default function ViralClipExtractor() {
       }
 
       if (!response.ok) {
-        const payload = await response.json().catch(() => ({}));
-        throw new Error(payload.error || 'Failed to load your long-form videos');
+        const message = await parseApiErrorResponse(response, 'Failed to load your long-form videos');
+        throw new Error(message);
       }
 
       const videos = (await response.json()) as LongFormVideo[];
@@ -191,8 +192,8 @@ export default function ViralClipExtractor() {
       }
 
       if (!response.ok) {
-        const errData = await response.json().catch(() => ({}));
-        throw new Error(errData.error || 'Failed to analyze video');
+        const message = await parseApiErrorResponse(response, 'Failed to analyze video');
+        throw new Error(message);
       }
 
       const data = await response.json();
@@ -285,8 +286,8 @@ export default function ViralClipExtractor() {
       }
 
       if (!response.ok) {
-        const payload = await response.json().catch(() => ({}));
-        throw new Error(payload.error || 'Failed to fetch niche Shorts');
+        const message = await parseApiErrorResponse(response, 'Failed to fetch niche Shorts');
+        throw new Error(message);
       }
 
       const data = (await response.json()) as NicheShort[];
@@ -321,8 +322,8 @@ export default function ViralClipExtractor() {
       }
 
       if (!response.ok) {
-        const payload = await response.json().catch(() => ({}));
-        throw new Error(payload.error || 'Failed to generate remix plan');
+        const message = await parseApiErrorResponse(response, 'Failed to generate remix plan');
+        throw new Error(message);
       }
 
       const plan = (await response.json()) as RemixPlan;
