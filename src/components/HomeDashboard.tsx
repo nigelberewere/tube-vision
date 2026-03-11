@@ -540,39 +540,68 @@ Return valid JSON only.`;
     };
   }, [analytics, dailyObjects, hourlyObjects]);
 
+  const strongTextClass = isLightTheme ? 'text-slate-900' : 'text-zinc-100';
+  const bodyTextClass = isLightTheme ? 'text-slate-600' : 'text-zinc-300';
+  const mutedTextClass = isLightTheme ? 'text-slate-500' : 'text-zinc-400';
+  const labelTextClass = isLightTheme ? 'text-slate-500' : 'text-zinc-500';
+  const surfaceCardClass = isLightTheme
+    ? 'border-slate-200 bg-white shadow-sm'
+    : 'border-zinc-800 bg-zinc-900';
+  const nestedSurfaceClass = isLightTheme
+    ? 'border-slate-200 bg-slate-50'
+    : 'border-zinc-800 bg-zinc-950';
+  const softPanelClass = isLightTheme
+    ? 'border-slate-200 bg-white shadow-sm'
+    : 'border-white/10 bg-white/5';
+  const insetPanelClass = isLightTheme
+    ? 'border-slate-200 bg-slate-50'
+    : 'border-white/10 bg-black/20';
+  const heroMetaCardClass = isLightTheme
+    ? 'border-slate-200 bg-white shadow-sm'
+    : 'border-white/15 bg-black/25';
+  const primaryActionClass = isLightTheme
+    ? 'bg-slate-900 text-white hover:bg-slate-800 shadow-sm'
+    : 'bg-white text-black hover:bg-slate-200';
+  const copyActionClass = isLightTheme
+    ? 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100'
+    : 'border-white/15 text-zinc-200 hover:bg-white/10';
+  const iconActionClass = isLightTheme
+    ? 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'
+    : 'text-zinc-400 hover:bg-white/10 hover:text-white';
+
   if (!isConnected) {
     return (
       <div className="space-y-6 animate-in fade-in duration-500 pb-10">
-        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-8">
-          <p className="text-[10px] uppercase tracking-[0.2em] text-slate-500 font-bold">Home</p>
-          <h2 className="text-3xl font-bold text-white mt-2">Welcome to Janso Studio</h2>
-          <p className="text-slate-400 mt-3 max-w-2xl">
+        <div className={cn('rounded-2xl border p-8', isLightTheme ? 'border-slate-200 bg-white shadow-sm' : 'border-white/10 bg-white/[0.03]')}>
+          <p className={cn('text-[10px] font-bold uppercase tracking-[0.2em]', labelTextClass)}>Home</p>
+          <h2 className={cn('mt-2 text-3xl font-bold', strongTextClass)}>Welcome to Janso Studio</h2>
+          <p className={cn('mt-3 max-w-2xl', bodyTextClass)}>
             Connect your channel to unlock live creator metrics like subscribers, views in the last hour, last 24 hours,
             and performance trends across your content ecosystem.
           </p>
           <button
             onClick={onConnect}
-            className="mt-6 bg-white text-black hover:bg-slate-200 px-6 py-2.5 rounded-xl font-semibold"
+            className={cn('mt-6 rounded-xl px-6 py-2.5 font-semibold transition-colors', primaryActionClass)}
           >
             Connect YouTube To Start
           </button>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="rounded-xl border border-white/10 bg-zinc-900 p-5">
-            <Activity size={18} className="text-indigo-300" />
-            <p className="text-zinc-100 font-semibold mt-3">Real-Time Pulse</p>
-            <p className="text-zinc-400 text-sm mt-1">Track views in the last hour and last 24 hours.</p>
+          <div className={cn('rounded-xl border p-5', surfaceCardClass)}>
+            <Activity size={18} className={isLightTheme ? 'text-indigo-700' : 'text-indigo-300'} />
+            <p className={cn('mt-3 font-semibold', strongTextClass)}>Real-Time Pulse</p>
+            <p className={cn('mt-1 text-sm', mutedTextClass)}>Track views in the last hour and last 24 hours.</p>
           </div>
-          <div className="rounded-xl border border-white/10 bg-zinc-900 p-5">
-            <Users size={18} className="text-emerald-300" />
-            <p className="text-zinc-100 font-semibold mt-3">Subscriber Health</p>
-            <p className="text-zinc-400 text-sm mt-1">See net subscriber changes and momentum at a glance.</p>
+          <div className={cn('rounded-xl border p-5', surfaceCardClass)}>
+            <Users size={18} className={isLightTheme ? 'text-emerald-700' : 'text-emerald-300'} />
+            <p className={cn('mt-3 font-semibold', strongTextClass)}>Subscriber Health</p>
+            <p className={cn('mt-1 text-sm', mutedTextClass)}>See net subscriber changes and momentum at a glance.</p>
           </div>
-          <div className="rounded-xl border border-white/10 bg-zinc-900 p-5">
-            <Sparkles size={18} className="text-amber-300" />
-            <p className="text-zinc-100 font-semibold mt-3">Actionable Home</p>
-            <p className="text-zinc-400 text-sm mt-1">Use Home as your daily command center before creating.</p>
+          <div className={cn('rounded-xl border p-5', surfaceCardClass)}>
+            <Sparkles size={18} className={isLightTheme ? 'text-amber-700' : 'text-amber-300'} />
+            <p className={cn('mt-3 font-semibold', strongTextClass)}>Actionable Home</p>
+            <p className={cn('mt-1 text-sm', mutedTextClass)}>Use Home as your daily command center before creating.</p>
           </div>
         </div>
       </div>
@@ -583,8 +612,8 @@ Return valid JSON only.`;
     return (
       <div className="space-y-8 pb-10">
         <div className="space-y-4">
-          <div className="h-8 w-64 bg-zinc-800/50 rounded animate-pulse" />
-          <div className="h-4 w-96 bg-zinc-800/50 rounded animate-pulse" />
+          <div className={cn('h-8 w-64 rounded animate-pulse', isLightTheme ? 'bg-slate-200' : 'bg-zinc-800/50')} />
+          <div className={cn('h-4 w-96 rounded animate-pulse', isLightTheme ? 'bg-slate-200' : 'bg-zinc-800/50')} />
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <ShimmerStat />
@@ -609,13 +638,13 @@ Return valid JSON only.`;
     <div className="space-y-8 animate-in fade-in duration-500 pb-10">
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
         <div>
-          <p className="text-[10px] uppercase tracking-[0.2em] text-slate-500 font-bold">Home</p>
-          <h2 className="text-3xl font-bold text-zinc-100 mt-1">{channel?.title || 'Your Channel Overview'}</h2>
-          <p className="text-zinc-400 mt-2">Your daily command center for subscriber and view momentum.</p>
+          <p className={cn('text-[10px] font-bold uppercase tracking-[0.2em]', labelTextClass)}>Home</p>
+          <h2 className={cn('mt-1 text-3xl font-bold', strongTextClass)}>{channel?.title || 'Your Channel Overview'}</h2>
+          <p className={cn('mt-2', mutedTextClass)}>Your daily command center for subscriber and view momentum.</p>
         </div>
         <button
           onClick={fetchDashboard}
-          className="bg-white text-black hover:bg-slate-200 px-5 py-2.5 rounded-xl text-sm font-semibold"
+          className={cn('rounded-xl px-5 py-2.5 text-sm font-semibold transition-colors', primaryActionClass)}
         >
           Refresh Home Metrics
         </button>
@@ -670,20 +699,20 @@ Return valid JSON only.`;
             <div
               className={cn(
                 'rounded-lg border px-3 py-2 min-w-[130px]',
-                isLightTheme ? 'border-slate-300 bg-white/85' : 'border-white/15 bg-black/25'
+                heroMetaCardClass
               )}
             >
-              <p className={cn('text-[10px] uppercase tracking-[0.18em]', isLightTheme ? 'text-slate-500' : 'text-slate-400')}>Role</p>
-              <p className={cn('text-sm font-semibold mt-1', isLightTheme ? 'text-slate-900' : 'text-white')}>Workspace Owner</p>
+              <p className={cn('text-[10px] uppercase tracking-[0.18em]', mutedTextClass)}>Role</p>
+              <p className={cn('text-sm font-semibold mt-1', strongTextClass)}>Workspace Owner</p>
             </div>
             <div
               className={cn(
                 'rounded-lg border px-3 py-2 min-w-[130px]',
-                isLightTheme ? 'border-slate-300 bg-white/85' : 'border-white/15 bg-black/25'
+                heroMetaCardClass
               )}
             >
-              <p className={cn('text-[10px] uppercase tracking-[0.18em]', isLightTheme ? 'text-slate-500' : 'text-slate-400')}>Active Account</p>
-              <p className={cn('text-sm font-semibold mt-1', isLightTheme ? 'text-slate-900' : 'text-white')}>
+              <p className={cn('text-[10px] uppercase tracking-[0.18em]', mutedTextClass)}>Active Account</p>
+              <p className={cn('text-sm font-semibold mt-1', strongTextClass)}>
                 {totalAccounts > 0 ? `${activeAccountIndex + 1} of ${totalAccounts}` : '1 of 1'}
               </p>
             </div>
@@ -692,17 +721,22 @@ Return valid JSON only.`;
       </div>
 
       {error && (
-        <div className="p-5 bg-amber-500/10 border border-amber-500/20 rounded-xl text-sm">
+        <div
+          className={cn(
+            'rounded-xl border p-5 text-sm',
+            isLightTheme ? 'border-amber-200 bg-amber-50' : 'border-amber-500/20 bg-amber-500/10'
+          )}
+        >
           <div className="flex items-start gap-3">
-            <AlertCircle size={18} className="mt-0.5 shrink-0 text-amber-400" />
+            <AlertCircle size={18} className={cn('mt-0.5 shrink-0', isLightTheme ? 'text-amber-600' : 'text-amber-400')} />
             <div className="flex-1">
               {error === 'ANALYTICS_API_DISABLED' ? (
                 <>
-                  <h4 className="font-bold text-amber-300 mb-2">YouTube Analytics API Not Enabled</h4>
-                  <p className="text-amber-200 mb-3">
+                  <h4 className={cn('mb-2 font-bold', isLightTheme ? 'text-amber-900' : 'text-amber-300')}>YouTube Analytics API Not Enabled</h4>
+                  <p className={cn('mb-3', isLightTheme ? 'text-amber-800' : 'text-amber-200')}>
                     The YouTube Analytics API needs to be enabled in your Google Cloud Console to show Home metrics.
                   </p>
-                  <div className="space-y-2 text-sm text-amber-100">
+                  <div className={cn('space-y-2 text-sm', isLightTheme ? 'text-amber-800' : 'text-amber-100')}>
                     <p className="font-semibold">How to fix:</p>
                     <ol className="list-decimal ml-5 space-y-1">
                       <li>
@@ -711,7 +745,7 @@ Return valid JSON only.`;
                           href="https://console.developers.google.com/apis/library/youtubeanalytics.googleapis.com"
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="underline hover:text-white font-semibold"
+                          className={cn('font-semibold underline', isLightTheme ? 'hover:text-amber-950' : 'hover:text-white')}
                         >
                           YouTube Analytics API page
                         </a>
@@ -724,7 +758,7 @@ Return valid JSON only.`;
                   </div>
                 </>
               ) : (
-                <p className="text-amber-200">{error}</p>
+                <p className={isLightTheme ? 'text-amber-800' : 'text-amber-200'}>{error}</p>
               )}
             </div>
           </div>
@@ -732,85 +766,98 @@ Return valid JSON only.`;
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
-          <div className="w-9 h-9 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-300">
+        <div className={cn('rounded-xl border p-5', surfaceCardClass)}>
+          <div className={cn('flex h-9 w-9 items-center justify-center rounded-lg', isLightTheme ? 'bg-emerald-100 text-emerald-700' : 'bg-emerald-500/10 text-emerald-300')}>
             <Users size={17} />
           </div>
-          <p className="text-xs uppercase tracking-wider text-zinc-500 font-bold mt-4">Subscribers</p>
-          <p className="text-2xl font-bold text-zinc-100 mt-1">{compact(toNumber(channel?.statistics?.subscriberCount))}</p>
+          <p className={cn('mt-4 text-xs font-bold uppercase tracking-wider', labelTextClass)}>Subscribers</p>
+          <p className={cn('mt-1 text-2xl font-bold', strongTextClass)}>{compact(toNumber(channel?.statistics?.subscriberCount))}</p>
         </div>
 
-        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
-          <div className="w-9 h-9 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-300">
+        <div className={cn('rounded-xl border p-5', surfaceCardClass)}>
+          <div className={cn('flex h-9 w-9 items-center justify-center rounded-lg', isLightTheme ? 'bg-indigo-100 text-indigo-700' : 'bg-indigo-500/10 text-indigo-300')}>
             <Eye size={17} />
           </div>
-          <p className="text-xs uppercase tracking-wider text-zinc-500 font-bold mt-4">Views Last Hour</p>
-          <p className="text-2xl font-bold text-zinc-100 mt-1">{compact(metrics.viewsLastHour)}</p>
+          <p className={cn('mt-4 text-xs font-bold uppercase tracking-wider', labelTextClass)}>Views Last Hour</p>
+          <p className={cn('mt-1 text-2xl font-bold', strongTextClass)}>{compact(metrics.viewsLastHour)}</p>
         </div>
 
-        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
-          <div className="w-9 h-9 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-300">
+        <div className={cn('rounded-xl border p-5', surfaceCardClass)}>
+          <div className={cn('flex h-9 w-9 items-center justify-center rounded-lg', isLightTheme ? 'bg-blue-100 text-blue-700' : 'bg-blue-500/10 text-blue-300')}>
             <Activity size={17} />
           </div>
-          <p className="text-xs uppercase tracking-wider text-zinc-500 font-bold mt-4">Views Last 24h</p>
-          <p className="text-2xl font-bold text-zinc-100 mt-1">{compact(metrics.viewsLast24Hours)}</p>
+          <p className={cn('mt-4 text-xs font-bold uppercase tracking-wider', labelTextClass)}>Views Last 24h</p>
+          <p className={cn('mt-1 text-2xl font-bold', strongTextClass)}>{compact(metrics.viewsLast24Hours)}</p>
         </div>
 
-        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
-          <div className="w-9 h-9 rounded-lg bg-amber-500/10 flex items-center justify-center text-amber-300">
+        <div className={cn('rounded-xl border p-5', surfaceCardClass)}>
+          <div className={cn('flex h-9 w-9 items-center justify-center rounded-lg', isLightTheme ? 'bg-amber-100 text-amber-700' : 'bg-amber-500/10 text-amber-300')}>
             <BarChart3 size={17} />
           </div>
-          <p className="text-xs uppercase tracking-wider text-zinc-500 font-bold mt-4">Net Subs 30d</p>
-          <p className="text-2xl font-bold text-zinc-100 mt-1">
+          <p className={cn('mt-4 text-xs font-bold uppercase tracking-wider', labelTextClass)}>Net Subs 30d</p>
+          <p className={cn('mt-1 text-2xl font-bold', strongTextClass)}>
             {metrics.netSubs30Days > 0 ? `+${compact(metrics.netSubs30Days)}` : compact(metrics.netSubs30Days)}
           </p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
-          <p className="text-xs uppercase tracking-wider text-zinc-500 font-bold">All Channel Views (All-Time)</p>
-          <p className="text-2xl font-bold text-zinc-100 mt-1">{full(toNumber(channel?.statistics?.viewCount))}</p>
-          <p className="text-xs text-zinc-500 mt-1">{compact(toNumber(channel?.statistics?.viewCount))} lifetime views</p>
+        <div className={cn('rounded-xl border p-5', surfaceCardClass)}>
+          <p className={cn('text-xs font-bold uppercase tracking-wider', labelTextClass)}>All Channel Views (All-Time)</p>
+          <p className={cn('mt-1 text-2xl font-bold', strongTextClass)}>{full(toNumber(channel?.statistics?.viewCount))}</p>
+          <p className={cn('mt-1 text-xs', labelTextClass)}>{compact(toNumber(channel?.statistics?.viewCount))} lifetime views</p>
         </div>
-        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
-          <p className="text-xs uppercase tracking-wider text-zinc-500 font-bold">Total Videos</p>
-          <p className="text-2xl font-bold text-zinc-100 mt-1">{compact(toNumber(channel?.statistics?.videoCount))}</p>
+        <div className={cn('rounded-xl border p-5', surfaceCardClass)}>
+          <p className={cn('text-xs font-bold uppercase tracking-wider', labelTextClass)}>Total Videos</p>
+          <p className={cn('mt-1 text-2xl font-bold', strongTextClass)}>{compact(toNumber(channel?.statistics?.videoCount))}</p>
         </div>
-        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
-          <p className="text-xs uppercase tracking-wider text-zinc-500 font-bold">Avg Views / Day (30d)</p>
-          <p className="text-2xl font-bold text-zinc-100 mt-1">{compact(metrics.avgViewsPerDay)}</p>
+        <div className={cn('rounded-xl border p-5', surfaceCardClass)}>
+          <p className={cn('text-xs font-bold uppercase tracking-wider', labelTextClass)}>Avg Views / Day (30d)</p>
+          <p className={cn('mt-1 text-2xl font-bold', strongTextClass)}>{compact(metrics.avgViewsPerDay)}</p>
         </div>
-        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
-          <p className="text-xs uppercase tracking-wider text-zinc-500 font-bold">Views Last 7 Days</p>
-          <p className="text-2xl font-bold text-zinc-100 mt-1">{compact(metrics.last7DaysViews)}</p>
+        <div className={cn('rounded-xl border p-5', surfaceCardClass)}>
+          <p className={cn('text-xs font-bold uppercase tracking-wider', labelTextClass)}>Views Last 7 Days</p>
+          <p className={cn('mt-1 text-2xl font-bold', strongTextClass)}>{compact(metrics.last7DaysViews)}</p>
         </div>
-        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
-          <p className="text-xs uppercase tracking-wider text-zinc-500 font-bold">Views Last 30 Days</p>
-          <p className="text-2xl font-bold text-zinc-100 mt-1">{compact(metrics.last30DaysViews)}</p>
+        <div className={cn('rounded-xl border p-5', surfaceCardClass)}>
+          <p className={cn('text-xs font-bold uppercase tracking-wider', labelTextClass)}>Views Last 30 Days</p>
+          <p className={cn('mt-1 text-2xl font-bold', strongTextClass)}>{compact(metrics.last30DaysViews)}</p>
         </div>
-        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
-          <p className="text-xs uppercase tracking-wider text-zinc-500 font-bold">Best Posting Hour</p>
-          <p className="text-2xl font-bold text-zinc-100 mt-1">{metrics.bestHour}</p>
+        <div className={cn('rounded-xl border p-5', surfaceCardClass)}>
+          <p className={cn('text-xs font-bold uppercase tracking-wider', labelTextClass)}>Best Posting Hour</p>
+          <p className={cn('mt-1 text-2xl font-bold', strongTextClass)}>{metrics.bestHour}</p>
         </div>
       </div>
 
       {/* Growth Momentum Section */}
       <GrowthMomentum 
         isConnected={isConnected}
-        className="rounded-2xl border border-white/10 bg-gradient-to-br from-purple-500/10 via-pink-500/10 to-blue-500/10 p-6"
+        theme={theme}
+        className={cn(
+          'rounded-2xl border p-6',
+          isLightTheme
+            ? 'border-fuchsia-200 bg-gradient-to-br from-fuchsia-50 via-white to-sky-50 shadow-sm'
+            : 'border-white/10 bg-gradient-to-br from-purple-500/10 via-pink-500/10 to-blue-500/10'
+        )}
       />
 
       {/* Smart Content Repurposing Insight */}
       {shouldShowRepurposeInsight && latestVideo && repurposeInsight && (
-        <div className="rounded-2xl border border-white/10 bg-black/35 p-6 shadow-[0_18px_45px_rgba(0,0,0,0.4)]">
+        <div
+          className={cn(
+            'rounded-2xl border p-6',
+            isLightTheme
+              ? 'border-sky-200 bg-gradient-to-br from-sky-50 via-white to-indigo-50 shadow-[0_18px_45px_rgba(15,23,42,0.08)]'
+              : 'border-white/10 bg-black/35 shadow-[0_18px_45px_rgba(0,0,0,0.4)]'
+          )}
+        >
           <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h3 className="flex items-center gap-2 text-lg font-bold text-white">
-                <Sparkles size={18} className="text-sky-300" />
+              <h3 className={cn('flex items-center gap-2 text-lg font-bold', strongTextClass)}>
+                <Sparkles size={18} className={isLightTheme ? 'text-sky-600' : 'text-sky-300'} />
                 Smart Repurposing Insight
               </h3>
-              <p className="mt-1 text-sm text-zinc-300">
+              <p className={cn('mt-1 text-sm', bodyTextClass)}>
                 Fresh cross-platform drafts from your latest upload.
               </p>
             </div>
@@ -826,7 +873,7 @@ Return valid JSON only.`;
               </button>
               <button
                 onClick={dismissRepurposeInsight}
-                className="rounded-lg p-1.5 text-zinc-400 transition hover:bg-white/10 hover:text-white"
+                className={cn('rounded-lg p-1.5 transition', iconActionClass)}
                 aria-label="Dismiss insight"
               >
                 <X size={16} />
@@ -835,63 +882,68 @@ Return valid JSON only.`;
           </div>
 
           {repurposeError && (
-            <div className="mb-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-200">
+            <div
+              className={cn(
+                'mb-3 rounded-lg border px-3 py-2 text-sm',
+                isLightTheme ? 'border-amber-200 bg-amber-50 text-amber-800' : 'border-amber-500/30 bg-amber-500/10 text-amber-200'
+              )}
+            >
               {repurposeError}
             </div>
           )}
 
           <div className="space-y-3">
-            <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-sky-300">Source Upload</p>
-              <p className="mt-1 text-base font-semibold text-white">{repurposeInsight.videoTitle}</p>
-              <p className="mt-1 text-xs text-zinc-400">
+            <div className={cn('rounded-xl border p-4', softPanelClass)}>
+              <p className={cn('text-[10px] font-bold uppercase tracking-[0.18em]', isLightTheme ? 'text-sky-700' : 'text-sky-300')}>Source Upload</p>
+              <p className={cn('mt-1 text-base font-semibold', strongTextClass)}>{repurposeInsight.videoTitle}</p>
+              <p className={cn('mt-1 text-xs', mutedTextClass)}>
                 Generated {new Date(repurposeInsight.generatedAt).toLocaleString()} for cross-platform publishing.
               </p>
-              <p className="mt-3 text-sm text-zinc-300">{repurposeInsight.recommendedNextStep}</p>
+              <p className={cn('mt-3 text-sm', bodyTextClass)}>{repurposeInsight.recommendedNextStep}</p>
             </div>
 
             <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
-              <div className="rounded-xl border border-white/10 bg-black/20 p-4">
+              <div className={cn('rounded-xl border p-4', insetPanelClass)}>
                 <div className="mb-2 flex items-center justify-between gap-2">
-                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-sky-300">X Post</p>
+                  <p className={cn('text-xs font-bold uppercase tracking-[0.16em]', isLightTheme ? 'text-sky-700' : 'text-sky-300')}>X Post</p>
                   <button
                     onClick={() => copyRepurposeText('x')}
-                    className="inline-flex items-center gap-1 rounded-md border border-white/15 px-2 py-1 text-[11px] text-zinc-200 hover:bg-white/10"
+                    className={cn('inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] transition-colors', copyActionClass)}
                   >
                     {copiedRepurposeItem === 'x' ? <Check size={12} /> : <Copy size={12} />}
                     {copiedRepurposeItem === 'x' ? 'Copied' : 'Copy'}
                   </button>
                 </div>
-                <p className="text-sm leading-relaxed text-zinc-200">{repurposeInsight.xPost}</p>
+                <p className={cn('text-sm leading-relaxed', isLightTheme ? 'text-slate-700' : 'text-zinc-200')}>{repurposeInsight.xPost}</p>
               </div>
 
-              <div className="rounded-xl border border-white/10 bg-black/20 p-4">
+              <div className={cn('rounded-xl border p-4', insetPanelClass)}>
                 <div className="mb-2 flex items-center justify-between gap-2">
-                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-indigo-300">LinkedIn</p>
+                  <p className={cn('text-xs font-bold uppercase tracking-[0.16em]', isLightTheme ? 'text-indigo-700' : 'text-indigo-300')}>LinkedIn</p>
                   <button
                     onClick={() => copyRepurposeText('linkedin')}
-                    className="inline-flex items-center gap-1 rounded-md border border-white/15 px-2 py-1 text-[11px] text-zinc-200 hover:bg-white/10"
+                    className={cn('inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] transition-colors', copyActionClass)}
                   >
                     {copiedRepurposeItem === 'linkedin' ? <Check size={12} /> : <Copy size={12} />}
                     {copiedRepurposeItem === 'linkedin' ? 'Copied' : 'Copy'}
                   </button>
                 </div>
-                <p className="text-sm leading-relaxed text-zinc-200">{repurposeInsight.linkedinPost}</p>
+                <p className={cn('text-sm leading-relaxed', isLightTheme ? 'text-slate-700' : 'text-zinc-200')}>{repurposeInsight.linkedinPost}</p>
               </div>
 
-              <div className="rounded-xl border border-white/10 bg-black/20 p-4">
+              <div className={cn('rounded-xl border p-4', insetPanelClass)}>
                 <div className="mb-2 flex items-center justify-between gap-2">
-                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-violet-300">Blog Angle</p>
+                  <p className={cn('text-xs font-bold uppercase tracking-[0.16em]', isLightTheme ? 'text-violet-700' : 'text-violet-300')}>Blog Angle</p>
                   <button
                     onClick={() => copyRepurposeText('blog')}
-                    className="inline-flex items-center gap-1 rounded-md border border-white/15 px-2 py-1 text-[11px] text-zinc-200 hover:bg-white/10"
+                    className={cn('inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] transition-colors', copyActionClass)}
                   >
                     {copiedRepurposeItem === 'blog' ? <Check size={12} /> : <Copy size={12} />}
                     {copiedRepurposeItem === 'blog' ? 'Copied' : 'Copy'}
                   </button>
                 </div>
-                <p className="text-sm font-semibold leading-relaxed text-white">{repurposeInsight.blogTitle}</p>
-                <p className="mt-2 text-sm leading-relaxed text-zinc-300">{repurposeInsight.blogAngle}</p>
+                <p className={cn('text-sm font-semibold leading-relaxed', strongTextClass)}>{repurposeInsight.blogTitle}</p>
+                <p className={cn('mt-2 text-sm leading-relaxed', bodyTextClass)}>{repurposeInsight.blogAngle}</p>
               </div>
             </div>
           </div>
@@ -899,19 +951,26 @@ Return valid JSON only.`;
       )}
 
       {/* Daily Video Ideas Section */}
-      <div className="rounded-2xl border border-emerald-400/30 bg-gradient-to-br from-emerald-500/10 via-teal-500/10 to-cyan-500/10 p-6">
+      <div
+        className={cn(
+          'rounded-2xl border p-6',
+          isLightTheme
+            ? 'border-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-cyan-50 shadow-sm'
+            : 'border-emerald-400/30 bg-gradient-to-br from-emerald-500/10 via-teal-500/10 to-cyan-500/10'
+        )}
+      >
         <div className="flex items-start gap-4">
-          <div className="w-12 h-12 rounded-xl bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
-            <Lightbulb size={24} className="text-emerald-300" />
+          <div className={cn('flex h-12 w-12 shrink-0 items-center justify-center rounded-xl', isLightTheme ? 'bg-emerald-100' : 'bg-emerald-500/20')}>
+            <Lightbulb size={24} className={isLightTheme ? 'text-emerald-700' : 'text-emerald-300'} />
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
               <div>
-                <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                  <Calendar size={18} className="text-emerald-300" />
+                <h3 className={cn('flex items-center gap-2 text-lg font-bold', strongTextClass)}>
+                  <Calendar size={18} className={isLightTheme ? 'text-emerald-700' : 'text-emerald-300'} />
                   Daily Video Ideas
                 </h3>
-                <p className="text-zinc-300 text-sm mt-1">
+                <p className={cn('mt-1 text-sm', bodyTextClass)}>
                   Fresh, AI-generated ideas personalized for your channel
                 </p>
               </div>
@@ -932,9 +991,9 @@ Return valid JSON only.`;
             {loadingIdeas ? (
               <div className="space-y-3">
                 {[1, 2, 3].map((i) => (
-                  <div key={i} className="bg-white/5 border border-white/10 rounded-xl p-4 animate-pulse">
-                    <div className="h-4 bg-white/10 rounded w-3/4 mb-2"></div>
-                    <div className="h-3 bg-white/10 rounded w-1/2"></div>
+                  <div key={i} className={cn('rounded-xl border p-4 animate-pulse', softPanelClass)}>
+                    <div className={cn('mb-2 h-4 w-3/4 rounded', isLightTheme ? 'bg-slate-200' : 'bg-white/10')}></div>
+                    <div className={cn('h-3 w-1/2 rounded', isLightTheme ? 'bg-slate-200' : 'bg-white/10')}></div>
                   </div>
                 ))}
               </div>
@@ -943,30 +1002,37 @@ Return valid JSON only.`;
                 {dailyIdeas.map((idea, index) => (
                   <div 
                     key={index} 
-                    className="bg-white/5 hover:bg-white/10 border border-white/10 hover:border-emerald-400/30 rounded-xl p-4 transition-all group"
+                    className={cn(
+                      'group rounded-xl border p-4 transition-all',
+                      isLightTheme
+                        ? 'border-slate-200 bg-white shadow-sm hover:border-emerald-300 hover:bg-emerald-50/50'
+                        : 'border-white/10 bg-white/5 hover:border-emerald-400/30 hover:bg-white/10'
+                    )}
                   >
                     <div className="flex items-start justify-between gap-3 mb-2">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1.5">
                           <span className={cn(
                             "text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded",
-                            idea.difficulty === 'Easy' ? "bg-emerald-500/20 text-emerald-300" :
-                            idea.difficulty === 'Medium' ? "bg-yellow-500/20 text-yellow-300" :
-                            "bg-rose-500/20 text-rose-300"
+                            idea.difficulty === 'Easy'
+                              ? isLightTheme ? 'bg-emerald-100 text-emerald-700' : 'bg-emerald-500/20 text-emerald-300'
+                              : idea.difficulty === 'Medium'
+                              ? isLightTheme ? 'bg-amber-100 text-amber-700' : 'bg-yellow-500/20 text-yellow-300'
+                              : isLightTheme ? 'bg-rose-100 text-rose-700' : 'bg-rose-500/20 text-rose-300'
                           )}>
                             {idea.difficulty}
                           </span>
-                          <span className="text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300">
+                          <span className={cn('text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded', isLightTheme ? 'bg-cyan-100 text-cyan-700' : 'bg-cyan-500/20 text-cyan-300')}>
                             {idea.potentialReach}
                           </span>
                         </div>
-                        <h4 className="text-base font-bold text-white group-hover:text-emerald-300 transition-colors">
+                        <h4 className={cn('text-base font-bold transition-colors', isLightTheme ? 'text-slate-900 group-hover:text-emerald-700' : 'text-white group-hover:text-emerald-300')}>
                           {idea.title}
                         </h4>
                       </div>
-                      <Sparkles size={18} className="text-emerald-400 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+                      <Sparkles size={18} className={cn('opacity-0 transition-opacity flex-shrink-0 group-hover:opacity-100', isLightTheme ? 'text-emerald-600' : 'text-emerald-400')} />
                     </div>
-                    <div className="flex items-start gap-2 text-sm text-zinc-300">
+                    <div className={cn('flex items-start gap-2 text-sm', bodyTextClass)}>
                       <Zap size={14} className="text-yellow-400 flex-shrink-0 mt-0.5" />
                       <p className="italic">"{idea.hook}"</p>
                     </div>
@@ -975,7 +1041,7 @@ Return valid JSON only.`;
                 <div className="pt-2">
                   <button 
                     onClick={onNavigateToIdeas}
-                    className="text-sm text-emerald-300 hover:text-emerald-200 font-semibold flex items-center gap-1 transition-colors"
+                    className={cn('flex items-center gap-1 text-sm font-semibold transition-colors', isLightTheme ? 'text-emerald-700 hover:text-emerald-800' : 'text-emerald-300 hover:text-emerald-200')}
                   >
                     View full idea generator
                     <ArrowRight size={16} />
@@ -983,8 +1049,8 @@ Return valid JSON only.`;
                 </div>
               </div>
             ) : (
-              <div className="bg-white/5 border border-white/10 rounded-xl p-6 text-center">
-                <p className="text-zinc-400 text-sm">Click "Refresh Ideas" to get your daily video ideas</p>
+              <div className={cn('rounded-xl border p-6 text-center', softPanelClass)}>
+                <p className={cn('text-sm', mutedTextClass)}>Click "Refresh Ideas" to get your daily video ideas</p>
               </div>
             )}
           </div>
@@ -993,66 +1059,73 @@ Return valid JSON only.`;
 
       {/* AI-Powered Best Posting Time Recommendation */}
       {bestPostingTime && bestPostingTime.bestHour !== null && (
-        <div className="rounded-2xl border border-indigo-400/30 bg-gradient-to-br from-indigo-500/10 via-purple-500/10 to-pink-500/10 p-6">
+        <div
+          className={cn(
+            'rounded-2xl border p-6',
+            isLightTheme
+              ? 'border-indigo-200 bg-gradient-to-br from-indigo-50 via-white to-pink-50 shadow-sm'
+              : 'border-indigo-400/30 bg-gradient-to-br from-indigo-500/10 via-purple-500/10 to-pink-500/10'
+          )}
+        >
           <div className="flex items-start gap-4">
-            <div className="w-12 h-12 rounded-xl bg-indigo-500/20 flex items-center justify-center flex-shrink-0">
-              <Lightbulb size={24} className="text-indigo-300" />
+            <div className={cn('flex h-12 w-12 shrink-0 items-center justify-center rounded-xl', isLightTheme ? 'bg-indigo-100' : 'bg-indigo-500/20')}>
+              <Lightbulb size={24} className={isLightTheme ? 'text-indigo-700' : 'text-indigo-300'} />
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-2">
-                <h3 className="text-lg font-bold text-white">AI-Powered Posting Recommendation</h3>
-                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                <h3 className={cn('text-lg font-bold', strongTextClass)}>AI-Powered Posting Recommendation</h3>
+                <span className={cn('rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider',
                   bestPostingTime.confidence === 'high' 
-                    ? 'bg-emerald-500/20 text-emerald-300' 
+                    ? isLightTheme ? 'bg-emerald-100 text-emerald-700' : 'bg-emerald-500/20 text-emerald-300'
                     : bestPostingTime.confidence === 'medium'
-                    ? 'bg-amber-500/20 text-amber-300'
-                    : 'bg-zinc-500/20 text-zinc-300'
-                }`}>
+                    ? isLightTheme ? 'bg-amber-100 text-amber-700' : 'bg-amber-500/20 text-amber-300'
+                    : isLightTheme ? 'bg-slate-200 text-slate-700' : 'bg-zinc-500/20 text-zinc-300'
+                )}>
                   {bestPostingTime.confidence} confidence
                 </span>
               </div>
               
-              <p className="text-zinc-300 text-sm leading-relaxed mb-4">
+              <p className={cn('mb-4 text-sm leading-relaxed', bodyTextClass)}>
                 {bestPostingTime.aiInsight}
               </p>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+                <div className={cn('rounded-xl border p-4', softPanelClass)}>
                   <div className="flex items-center gap-2 mb-1">
-                    <Clock3 size={16} className="text-indigo-300" />
-                    <p className="text-xs uppercase tracking-wider text-zinc-400 font-bold">Best Hour</p>
+                    <Clock3 size={16} className={isLightTheme ? 'text-indigo-700' : 'text-indigo-300'} />
+                    <p className={cn('text-xs font-bold uppercase tracking-wider', mutedTextClass)}>Best Hour</p>
                   </div>
-                  <p className="text-2xl font-bold text-white">{bestPostingTime.bestHourFormatted}</p>
-                  <p className="text-xs text-zinc-500 mt-1">Optimal posting time</p>
+                  <p className={cn('text-2xl font-bold', strongTextClass)}>{bestPostingTime.bestHourFormatted}</p>
+                  <p className={cn('mt-1 text-xs', labelTextClass)}>Optimal posting time</p>
                 </div>
 
-                <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+                <div className={cn('rounded-xl border p-4', softPanelClass)}>
                   <div className="flex items-center gap-2 mb-1">
-                    <Calendar size={16} className="text-purple-300" />
-                    <p className="text-xs uppercase tracking-wider text-zinc-400 font-bold">Best Day</p>
+                    <Calendar size={16} className={isLightTheme ? 'text-purple-700' : 'text-purple-300'} />
+                    <p className={cn('text-xs font-bold uppercase tracking-wider', mutedTextClass)}>Best Day</p>
                   </div>
-                  <p className="text-2xl font-bold text-white">{bestPostingTime.bestDay}</p>
-                  <p className="text-xs text-zinc-500 mt-1">Best performing day</p>
+                  <p className={cn('text-2xl font-bold', strongTextClass)}>{bestPostingTime.bestDay}</p>
+                  <p className={cn('mt-1 text-xs', labelTextClass)}>Best performing day</p>
                 </div>
 
-                <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+                <div className={cn('rounded-xl border p-4', softPanelClass)}>
                   <div className="flex items-center gap-2 mb-1">
-                    <BarChart3 size={16} className="text-pink-300" />
-                    <p className="text-xs uppercase tracking-wider text-zinc-400 font-bold">Data Points</p>
+                    <BarChart3 size={16} className={isLightTheme ? 'text-pink-700' : 'text-pink-300'} />
+                    <p className={cn('text-xs font-bold uppercase tracking-wider', mutedTextClass)}>Data Points</p>
                   </div>
-                  <p className="text-2xl font-bold text-white">{bestPostingTime.videosAnalyzed}</p>
-                  <p className="text-xs text-zinc-500 mt-1">Videos analyzed</p>
+                  <p className={cn('text-2xl font-bold', strongTextClass)}>{bestPostingTime.videosAnalyzed}</p>
+                  <p className={cn('mt-1 text-xs', labelTextClass)}>Videos analyzed</p>
                 </div>
               </div>
 
               {bestPostingTime.hourlyBreakdown && bestPostingTime.hourlyBreakdown.length > 0 && (
-                <div className="mt-4 pt-4 border-t border-white/10">
-                  <p className="text-xs uppercase tracking-wider text-zinc-400 font-bold mb-2">Top Performing Hours</p>
+                <div className={cn('mt-4 border-t pt-4', isLightTheme ? 'border-slate-200' : 'border-white/10')}>
+                  <p className={cn('mb-2 text-xs font-bold uppercase tracking-wider', mutedTextClass)}>Top Performing Hours</p>
                   <div className="flex flex-wrap gap-2">
                     {bestPostingTime.hourlyBreakdown.slice(0, 5).map((hourData) => (
-                      <div key={hourData.hour} className="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5">
-                        <span className="text-xs font-mono text-indigo-300">{String(hourData.hour).padStart(2, '0')}:00</span>
-                        <span className="text-xs text-zinc-500 ml-2">({hourData.videoCount} videos)</span>
+                      <div key={hourData.hour} className={cn('rounded-lg border px-3 py-1.5', softPanelClass)}>
+                        <span className={cn('text-xs font-mono', isLightTheme ? 'text-indigo-700' : 'text-indigo-300')}>{String(hourData.hour).padStart(2, '0')}:00</span>
+                        <span className={cn('ml-2 text-xs', labelTextClass)}>({hourData.videoCount} videos)</span>
                       </div>
                     ))}
                   </div>
@@ -1063,24 +1136,24 @@ Return valid JSON only.`;
         </div>
       )}
 
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
+      <div className={cn('rounded-2xl border p-5', surfaceCardClass)}>
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h3 className="text-lg font-semibold text-zinc-100">Recent Upload Snapshot</h3>
-            <p className="text-sm text-zinc-400 mt-1">Latest videos from your channel with current view counts.</p>
+            <h3 className={cn('text-lg font-semibold', strongTextClass)}>Recent Upload Snapshot</h3>
+            <p className={cn('mt-1 text-sm', mutedTextClass)}>Latest videos from your channel with current view counts.</p>
           </div>
-          <div className="text-xs text-zinc-500 inline-flex items-center gap-1">
+          <div className={cn('inline-flex items-center gap-1 text-xs', labelTextClass)}>
             <Clock3 size={14} />
             Updated live
           </div>
         </div>
 
         {videos.length === 0 ? (
-          <p className="text-sm text-zinc-500">No recent videos found yet.</p>
+          <p className={cn('text-sm', labelTextClass)}>No recent videos found yet.</p>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {videos.slice(0, 4).map((video) => (
-              <div key={video.id} className="rounded-lg border border-zinc-800 bg-zinc-950 p-3 flex gap-3">
+              <div key={video.id} className={cn('flex gap-3 rounded-lg border p-3', nestedSurfaceClass)}>
                 <img
                   src={
                     video.snippet?.thumbnails?.medium?.url ||
@@ -1089,12 +1162,12 @@ Return valid JSON only.`;
                     ''
                   }
                   alt={video.snippet?.title}
-                  className="w-24 h-14 object-cover rounded-md border border-zinc-800"
+                  className={cn('h-14 w-24 rounded-md border object-cover', isLightTheme ? 'border-slate-200' : 'border-zinc-800')}
                   referrerPolicy="no-referrer"
                 />
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold text-zinc-100 line-clamp-2">{video.snippet?.title || 'Untitled'}</p>
-                  <div className="mt-1 flex items-center gap-3 text-xs text-zinc-500">
+                  <p className={cn('line-clamp-2 text-sm font-semibold', strongTextClass)}>{video.snippet?.title || 'Untitled'}</p>
+                  <div className={cn('mt-1 flex items-center gap-3 text-xs', labelTextClass)}>
                     <span className="inline-flex items-center gap-1">
                       <TrendingUp size={12} />
                       {compact(toNumber(video.statistics?.viewCount))} views

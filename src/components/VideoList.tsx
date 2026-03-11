@@ -44,6 +44,7 @@ export default function VideoList({ onOptimizeSEO }: VideoListProps = {}) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [videoTypeFilter, setVideoTypeFilter] = useState<'long-form' | 'shorts'>('long-form');
 
   const fetchVideos = async () => {
     setLoading(true);
@@ -88,6 +89,9 @@ export default function VideoList({ onOptimizeSEO }: VideoListProps = {}) {
 
   const shortsVideos = filteredVideos.filter(isShortVideo);
   const longFormVideos = filteredVideos.filter((video) => !isShortVideo(video));
+  const activeVideos = videoTypeFilter === 'shorts' ? shortsVideos : longFormVideos;
+  const activeVideoLabel = videoTypeFilter === 'shorts' ? 'Shorts' : 'Long-Form Videos';
+  const emptyActiveMessage = videoTypeFilter === 'shorts' ? 'No Shorts in this view.' : 'No long-form videos in this view.';
 
   const formatDuration = (pt: string) => {
     // Basic ISO 8601 duration parser (e.g., PT5M30S -> 5:30)
@@ -222,15 +226,41 @@ export default function VideoList({ onOptimizeSEO }: VideoListProps = {}) {
           <h1 className="text-3xl font-bold tracking-tight text-zinc-100">My Videos</h1>
           <p className="text-zinc-400 mt-2">Manage and analyze your recent uploads.</p>
         </div>
-        <div className="relative w-full md:w-72">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" size={18} />
-          <input 
-            type="text"
-            placeholder="Search videos..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-zinc-900 border border-zinc-800 rounded-xl pl-10 pr-4 py-2 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all"
-          />
+        <div className="flex w-full flex-col gap-3 md:w-auto md:items-end">
+          <div className="relative w-full md:w-72">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" size={18} />
+            <input 
+              type="text"
+              placeholder="Search videos..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-zinc-900 border border-zinc-800 rounded-xl pl-10 pr-4 py-2 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all"
+            />
+          </div>
+          <div className="inline-flex w-full md:w-auto rounded-xl border border-zinc-800 bg-zinc-900 p-1">
+            <button
+              onClick={() => setVideoTypeFilter('long-form')}
+              className={cn(
+                'flex-1 rounded-lg px-3 py-1.5 text-xs font-bold uppercase tracking-wider transition-colors md:flex-none',
+                videoTypeFilter === 'long-form'
+                  ? 'bg-white text-black shadow-sm'
+                  : 'text-zinc-300 hover:bg-white/5 hover:text-white'
+              )}
+            >
+              Long-Form ({longFormVideos.length})
+            </button>
+            <button
+              onClick={() => setVideoTypeFilter('shorts')}
+              className={cn(
+                'flex-1 rounded-lg px-3 py-1.5 text-xs font-bold uppercase tracking-wider transition-colors md:flex-none',
+                videoTypeFilter === 'shorts'
+                  ? 'bg-white text-black shadow-sm'
+                  : 'text-zinc-300 hover:bg-white/5 hover:text-white'
+              )}
+            >
+              Shorts ({shortsVideos.length})
+            </button>
+          </div>
         </div>
       </div>
 
@@ -245,45 +275,24 @@ export default function VideoList({ onOptimizeSEO }: VideoListProps = {}) {
           </p>
         </div>
       ) : (
-        <div className="space-y-8">
-          <section className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-zinc-100">Long-Form Videos</h2>
-              <span className="rounded-full border border-zinc-700 bg-zinc-900 px-3 py-1 text-xs font-semibold text-zinc-300">
-                {longFormVideos.length}
-              </span>
+        <section className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-zinc-100">{activeVideoLabel}</h2>
+            <span className="rounded-full border border-zinc-700 bg-zinc-900 px-3 py-1 text-xs font-semibold text-zinc-300">
+              {activeVideos.length}
+            </span>
+          </div>
+
+          {activeVideos.length === 0 ? (
+            <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-6 text-sm text-zinc-400">
+              {emptyActiveMessage}
             </div>
-
-            {longFormVideos.length === 0 ? (
-              <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-6 text-sm text-zinc-400">
-                No long-form videos in this view.
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {longFormVideos.map(renderVideoCard)}
-              </div>
-            )}
-          </section>
-
-          <section className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-zinc-100">Shorts</h2>
-              <span className="rounded-full border border-zinc-700 bg-zinc-900 px-3 py-1 text-xs font-semibold text-zinc-300">
-                {shortsVideos.length}
-              </span>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {activeVideos.map(renderVideoCard)}
             </div>
-
-            {shortsVideos.length === 0 ? (
-              <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-6 text-sm text-zinc-400">
-                No Shorts in this view.
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {shortsVideos.map(renderVideoCard)}
-              </div>
-            )}
-          </section>
-        </div>
+          )}
+        </section>
       )}
     </div>
   );

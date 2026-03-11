@@ -507,162 +507,194 @@ export default function VoiceOver() {
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Hero: Script Editor */}
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="glass-card rounded-2xl sm:rounded-3xl overflow-hidden relative min-h-[300px] sm:min-h-[400px] flex flex-col backdrop-blur-xl bg-white/5 border border-white/10"
-      >
-        {/* Background subtle gradient for hero feel */}
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-900/5 to-indigo-900/5 pointer-events-none"></div>
-        
-        <div className="relative z-10 p-4 sm:p-8 flex-1 flex flex-col">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0 mb-4 sm:mb-6">
-            <h2 className="text-lg sm:text-2xl font-bold text-white tracking-tight">
-              Script Editor
-            </h2>
-            <div className="flex items-center gap-2 sm:gap-3">
-              <motion.button 
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => setScript('')}
-                disabled={!script.trim()}
-                className="text-[10px] sm:text-xs font-medium text-slate-400 hover:text-white px-2 sm:px-3 py-1.5 sm:py-2 rounded-xl flex items-center gap-1.5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed bg-white/5 hover:bg-white/10"
-              >
-                <Trash2 className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-                <span className="hidden sm:inline">Clear</span>
-              </motion.button>
-              <motion.button 
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={handleSmartTagging}
-                disabled={isSmartTagging || !script.trim()}
-                className="text-[10px] sm:text-xs font-medium text-white bg-white/10 hover:bg-white/20 px-2 sm:px-4 py-1.5 sm:py-2 rounded-xl flex items-center gap-1.5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed border border-white/5"
-              >
-                {isSmartTagging ? <Loader2 className="w-3 h-3 sm:w-3.5 sm:h-3.5 animate-spin" /> : <Wand2 className="w-3 h-3 sm:w-3.5 sm:h-3.5" />}
-                <span>Tag</span>
-              </motion.button>
-            </div>
-          </div>
-          
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
+        {/* Hero: Script Editor */}
+        <div className="xl:col-span-8">
           <motion.div 
-            animate={flashEditor ? { scale: [1, 1.01, 1], borderColor: ['rgba(255,255,255,0.05)', 'rgba(255,255,255,0.2)', 'rgba(255,255,255,0.05)'] } : {}}
-            transition={{ duration: 0.3 }}
-            className={`relative flex-1 bg-black/20 rounded-2xl border border-white/5 focus-within:border-white/20 transition-colors overflow-hidden ${flashEditor ? 'bg-white/5' : ''}`}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="glass-card rounded-2xl sm:rounded-3xl overflow-hidden relative min-h-[300px] sm:min-h-[400px] flex flex-col backdrop-blur-xl bg-white/5 border border-white/10"
           >
-            <div 
-              ref={highlightRef}
-              className="absolute inset-0 p-3 sm:p-6 text-sm sm:text-lg leading-relaxed whitespace-pre-wrap break-words pointer-events-none text-slate-300 overflow-hidden font-mono"
-              aria-hidden="true"
-            >
-              {renderHighlightedText(script)}
-              {script.endsWith('\n') ? <br/> : null}
-            </div>
-            <textarea
-              ref={textAreaRef}
-              value={script}
-              onChange={(e) => {
-                setScript(e.target.value);
-                e.target.style.height = 'auto';
-                e.target.style.height = `${e.target.scrollHeight}px`;
-              }}
-              onScroll={handleScroll}
-              placeholder="Enter your script here..."
-              className="w-full h-full min-h-[200px] sm:min-h-[300px] p-3 sm:p-6 text-sm sm:text-lg leading-relaxed whitespace-pre-wrap break-words resize-none outline-none bg-transparent text-transparent caret-white font-mono overflow-hidden"
-              spellCheck="false"
-            />
-          </motion.div>
-
-          <AnimatePresence>
-            {error && (
-              <motion.div 
-                initial={{ opacity: 0, height: 0, marginTop: 0 }}
-                animate={{ opacity: 1, height: 'auto', marginTop: 16 }}
-                exit={{ opacity: 0, height: 0, marginTop: 0 }}
-                className="p-3 sm:p-4 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs sm:text-sm shrink-0"
-              >
-                {error}
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          <div className="mt-4 sm:mt-6 flex flex-col sm:flex-row gap-3 sm:gap-4 items-stretch sm:items-center">
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={handleGenerate}
-              disabled={isGenerating || !script.trim()}
-              className="bg-white text-black hover:bg-slate-200 font-medium text-xs sm:text-sm py-2.5 sm:py-3 px-4 sm:px-6 rounded-xl flex items-center justify-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed order-2 sm:order-1 w-full sm:w-auto"
-            >
-              {isGenerating ? (
-                <>
-                  <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin" />
-                  <span>Synthesizing...</span>
-                </>
-              ) : (
-                <>
-                  <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                  <span>Generate Audio</span>
-                </>
-              )}
-            </motion.button>
+            {/* Background subtle gradient for hero feel */}
+            <div className="absolute inset-0 bg-gradient-to-br from-blue-900/5 to-indigo-900/5 pointer-events-none"></div>
             
-            {/* Audio Player */}
-            <AnimatePresence>
-              {audioUrl && (
-                <motion.div 
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -20 }}
-                  className="flex-1 w-full flex flex-col gap-2 bg-black/20 rounded-xl p-3 border border-white/5"
+            <div className="relative z-10 p-4 sm:p-8 flex-1 flex flex-col">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0 mb-4 sm:mb-6">
+                <h2 className="text-lg sm:text-2xl font-bold text-white tracking-tight">
+                  Script Editor
+                </h2>
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <motion.button 
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => setScript('')}
+                    disabled={!script.trim()}
+                    className="text-[10px] sm:text-xs font-medium text-slate-400 hover:text-white px-2 sm:px-3 py-1.5 sm:py-2 rounded-xl flex items-center gap-1.5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed bg-white/5 hover:bg-white/10"
+                  >
+                    <Trash2 className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                    <span className="hidden sm:inline">Clear</span>
+                  </motion.button>
+                  <motion.button 
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={handleSmartTagging}
+                    disabled={isSmartTagging || !script.trim()}
+                    className="text-[10px] sm:text-xs font-medium text-white bg-white/10 hover:bg-white/20 px-2 sm:px-4 py-1.5 sm:py-2 rounded-xl flex items-center gap-1.5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed border border-white/5"
+                  >
+                    {isSmartTagging ? <Loader2 className="w-3 h-3 sm:w-3.5 sm:h-3.5 animate-spin" /> : <Wand2 className="w-3 h-3 sm:w-3.5 sm:h-3.5" />}
+                    <span>Tag</span>
+                  </motion.button>
+                </div>
+              </div>
+              
+              <motion.div 
+                animate={flashEditor ? { scale: [1, 1.01, 1], borderColor: ['rgba(255,255,255,0.05)', 'rgba(255,255,255,0.2)', 'rgba(255,255,255,0.05)'] } : {}}
+                transition={{ duration: 0.3 }}
+                className={`relative flex-1 bg-black/20 rounded-2xl border border-white/5 focus-within:border-white/20 transition-colors overflow-hidden ${flashEditor ? 'bg-white/5' : ''}`}
+              >
+                <div 
+                  ref={highlightRef}
+                  className="absolute inset-0 p-3 sm:p-6 text-sm sm:text-lg leading-relaxed whitespace-pre-wrap break-words pointer-events-none text-slate-300 overflow-hidden font-mono"
+                  aria-hidden="true"
                 >
-                  <div className="flex items-center gap-3">
-                    <motion.button
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      onClick={togglePlay}
-                      className="w-10 h-10 rounded-lg bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors shrink-0"
+                  {renderHighlightedText(script)}
+                  {script.endsWith('\n') ? <br/> : null}
+                </div>
+                <textarea
+                  ref={textAreaRef}
+                  value={script}
+                  onChange={(e) => {
+                    setScript(e.target.value);
+                    e.target.style.height = 'auto';
+                    e.target.style.height = `${e.target.scrollHeight}px`;
+                  }}
+                  onScroll={handleScroll}
+                  placeholder="Enter your script here..."
+                  className="w-full h-full min-h-[200px] sm:min-h-[300px] p-3 sm:p-6 text-sm sm:text-lg leading-relaxed whitespace-pre-wrap break-words resize-none outline-none bg-transparent text-transparent caret-white font-mono overflow-hidden"
+                  spellCheck="false"
+                />
+              </motion.div>
+
+              <AnimatePresence>
+                {error && (
+                  <motion.div 
+                    initial={{ opacity: 0, height: 0, marginTop: 0 }}
+                    animate={{ opacity: 1, height: 'auto', marginTop: 16 }}
+                    exit={{ opacity: 0, height: 0, marginTop: 0 }}
+                    className="p-3 sm:p-4 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs sm:text-sm shrink-0"
+                  >
+                    {error}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              <div className="mt-4 sm:mt-6 flex flex-col sm:flex-row gap-3 sm:gap-4 items-stretch sm:items-center">
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={handleGenerate}
+                  disabled={isGenerating || !script.trim()}
+                  className="bg-white text-black hover:bg-slate-200 font-medium text-xs sm:text-sm py-2.5 sm:py-3 px-4 sm:px-6 rounded-xl flex items-center justify-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed order-2 sm:order-1 w-full sm:w-auto"
+                >
+                  {isGenerating ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin" />
+                      <span>Synthesizing...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                      <span>Generate Audio</span>
+                    </>
+                  )}
+                </motion.button>
+                
+                {/* Audio Player */}
+                <AnimatePresence>
+                  {audioUrl && (
+                    <motion.div 
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -20 }}
+                      className="flex-1 w-full flex flex-col gap-2 bg-black/20 rounded-xl p-3 border border-white/5"
                     >
-                      {isPlaying ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current ml-0.5" />}
-                    </motion.button>
-                    
-                    <div className="flex-1 flex flex-col gap-1.5">
-                      <div 
-                        onClick={handleProgressClick}
-                        className="relative h-2 rounded-full bg-white/10 overflow-hidden cursor-pointer group"
-                      >
-                        <motion.div 
-                          className="absolute inset-y-0 left-0 bg-white rounded-full"
-                          style={{ width: `${duration ? (currentTime / duration) * 100 : 0}%` }}
-                          transition={{ duration: 0.1 }}
-                        />
-                        <div className="absolute inset-0 bg-white/0 group-hover:bg-white/5 transition-colors" />
+                      <div className="flex items-center gap-3">
+                        <motion.button
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          onClick={togglePlay}
+                          className="w-10 h-10 rounded-lg bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors shrink-0"
+                        >
+                          {isPlaying ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current ml-0.5" />}
+                        </motion.button>
+                        
+                        <div className="flex-1 flex flex-col gap-1.5">
+                          <div 
+                            onClick={handleProgressClick}
+                            className="relative h-2 rounded-full bg-white/10 overflow-hidden cursor-pointer group"
+                          >
+                            <motion.div 
+                              className="absolute inset-y-0 left-0 bg-white rounded-full"
+                              style={{ width: `${duration ? (currentTime / duration) * 100 : 0}%` }}
+                              transition={{ duration: 0.1 }}
+                            />
+                            <div className="absolute inset-0 bg-white/0 group-hover:bg-white/5 transition-colors" />
+                          </div>
+                          <div className="flex justify-between items-center px-1">
+                            <span className="text-[10px] font-mono text-slate-400">
+                              {formatTime(currentTime)}
+                            </span>
+                            <span className="text-[10px] font-mono text-slate-500">
+                              {formatTime(duration)}
+                            </span>
+                          </div>
+                        </div>
+                        
+                        <a 
+                          href={audioUrl} 
+                          download="tube-vision-voice.wav"
+                          className="w-10 h-10 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white flex items-center justify-center transition-colors shrink-0"
+                          title="Download Audio"
+                        >
+                          <Download className="w-4 h-4" />
+                        </a>
                       </div>
-                      <div className="flex justify-between items-center px-1">
-                        <span className="text-[10px] font-mono text-slate-400">
-                          {formatTime(currentTime)}
-                        </span>
-                        <span className="text-[10px] font-mono text-slate-500">
-                          {formatTime(duration)}
-                        </span>
-                      </div>
-                    </div>
-                    
-                    <a 
-                      href={audioUrl} 
-                      download="tube-vision-voice.wav"
-                      className="w-10 h-10 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white flex items-center justify-center transition-colors shrink-0"
-                      title="Download Audio"
-                    >
-                      <Download className="w-4 h-4" />
-                    </a>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            </div>
+          </motion.div>
         </div>
-      </motion.div>
+
+        {/* Tag Library (kept beside editor for faster script tagging) */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="xl:col-span-4 xl:sticky xl:top-6 glass-card rounded-3xl p-6 flex flex-col h-[400px] backdrop-blur-xl bg-white/5 border border-white/10"
+        >
+          <h3 className="text-sm font-medium text-slate-400 mb-4 flex items-center gap-2">
+            <Tags className="w-4 h-4" />
+            Tag Library
+          </h3>
+          <p className="text-xs text-slate-500 mb-3">Click a tag to insert it at your current cursor position in the script editor.</p>
+          <div className="flex-1 overflow-y-auto pr-2 flex flex-col gap-2">
+            {TAGS.map((tag) => (
+              <motion.button
+                whileHover={{ scale: 1.02, x: 4 }}
+                whileTap={{ scale: 0.98 }}
+                key={tag}
+                onClick={() => insertTag(tag)}
+                className="w-full px-4 py-3 rounded-xl text-sm font-mono text-left transition-colors text-slate-300 bg-white/5 hover:bg-white/10 border border-transparent hover:border-white/10 flex items-center justify-between group shrink-0"
+              >
+                <span>{tag}</span>
+                <Plus className="w-4 h-4 opacity-0 group-hover:opacity-100 text-slate-400 transition-opacity" />
+              </motion.button>
+            ))}
+          </div>
+        </motion.div>
+      </div>
 
       {/* Multi-Language Dubbing Section */}
       <motion.div 
@@ -874,34 +906,8 @@ export default function VoiceOver() {
         )}
       </motion.div>
 
-      {/* Grid below for Tag Library, Voice Selection, Settings */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Tag Library */}
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="glass-card rounded-3xl p-6 flex flex-col h-[400px] backdrop-blur-xl bg-white/5 border border-white/10"
-        >
-          <h3 className="text-sm font-medium text-slate-400 mb-4 flex items-center gap-2">
-            <Tags className="w-4 h-4" />
-            Tag Library
-          </h3>
-          <div className="flex-1 overflow-y-auto pr-2 flex flex-col gap-2">
-            {TAGS.map((tag, i) => (
-              <motion.button
-                whileHover={{ scale: 1.02, x: 4 }}
-                whileTap={{ scale: 0.98 }}
-                key={tag}
-                onClick={() => insertTag(tag)}
-                className="w-full px-4 py-3 rounded-xl text-sm font-mono text-left transition-colors text-slate-300 bg-white/5 hover:bg-white/10 border border-transparent hover:border-white/10 flex items-center justify-between group shrink-0"
-              >
-                <span>{tag}</span>
-                <Plus className="w-4 h-4 opacity-0 group-hover:opacity-100 text-slate-400 transition-opacity" />
-              </motion.button>
-            ))}
-          </div>
-        </motion.div>
+      {/* Grid below for Voice Selection and Settings */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
         {/* Voice Selection */}
         <motion.div 

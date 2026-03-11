@@ -342,20 +342,6 @@ export default function ViralClipExtractor() {
 
   return (
     <div className="flex flex-col gap-8">
-      <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
-        <div className="flex items-start gap-3">
-          <div className="w-10 h-10 rounded-xl bg-red-500/15 border border-red-400/30 flex items-center justify-center text-red-400">
-            <YouTubeShortsIcon className="w-5 h-5" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-white tracking-tight">YouTube Shorts Studio</h1>
-            <p className="text-sm text-slate-400 mt-1">
-              Turn your long-form content into Shorts, discover niche winners, and generate remix-ready concepts.
-            </p>
-          </div>
-        </div>
-      </div>
-
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         <div className="lg:col-span-5 space-y-4">
           <div className="bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 p-5 flex flex-col">

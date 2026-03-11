@@ -26,9 +26,11 @@ interface Momentum {
 interface GrowthMomentumProps {
   isConnected: boolean;
   className?: string;
+  theme?: 'dark' | 'light';
 }
 
-export default function GrowthMomentum({ isConnected, className }: GrowthMomentumProps) {
+export default function GrowthMomentum({ isConnected, className, theme = 'dark' }: GrowthMomentumProps) {
+  const isLightTheme = theme === 'light';
   const [historyData, setHistoryData] = useState<GrowthMetric[]>([]);
   const [momentum, setMomentum] = useState<{ week?: Momentum; month?: Momentum; quarter?: Momentum } | null>(null);
   const [loading, setLoading] = useState(false);
@@ -106,32 +108,54 @@ export default function GrowthMomentum({ isConnected, className }: GrowthMomentu
 
   const isPositiveGrowth = (growth: number | undefined) => growth && growth > 0;
 
+  const cardClass = isLightTheme
+    ? 'border-slate-200 bg-white shadow-sm'
+    : 'border-white/10 bg-slate-950/70';
+  const labelClass = isLightTheme ? 'text-slate-500' : 'text-slate-400';
+  const headingClass = isLightTheme ? 'text-slate-900' : 'text-white';
+  const mutedClass = isLightTheme ? 'text-slate-500' : 'text-slate-400';
+  const neutralBadgeClass = isLightTheme ? 'bg-slate-100' : 'bg-slate-800/80';
+  const inactivePeriodClass = isLightTheme
+    ? 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 shadow-sm'
+    : 'border border-white/10 bg-slate-800/80 text-slate-200 hover:bg-slate-700';
+  const emptyStateClass = isLightTheme
+    ? 'border-slate-200 bg-slate-50 text-slate-600'
+    : 'border-white/10 bg-slate-900/60 text-slate-300';
+  const errorClass = isLightTheme
+    ? 'border-red-200 bg-red-50 text-red-700'
+    : 'border-red-500/30 bg-red-500/10 text-red-300';
+  const gridStroke = isLightTheme ? '#e2e8f0' : 'rgba(148, 163, 184, 0.16)';
+  const axisColor = isLightTheme ? '#64748b' : '#94a3b8';
+  const tooltipBackground = isLightTheme ? '#ffffff' : '#0f172a';
+  const tooltipBorder = isLightTheme ? '#e2e8f0' : 'rgba(148, 163, 184, 0.2)';
+  const tooltipText = isLightTheme ? '#0f172a' : '#e2e8f0';
+
   return (
     <div className={cn('space-y-6', className)}>
       {/* Growth Metrics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Subscribers Growth */}
-        <div className="relative overflow-hidden rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900">
+        <div className={cn('relative overflow-hidden rounded-lg border p-4', cardClass)}>
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-xs font-medium text-gray-500 uppercase dark:text-gray-400">
+              <p className={cn('text-xs font-medium uppercase', labelClass)}>
                 Subscriber Growth ({selectedPeriod})
               </p>
-              <p className="mt-2 text-2xl font-bold text-gray-900 dark:text-white">
+              <p className={cn('mt-2 text-2xl font-bold', headingClass)}>
                 {periodData?.subscriberGrowth ?? 0 > 0 ? '+' : ''}{formatNumber(periodData?.subscriberGrowth)}
               </p>
               {periodData?.subscriberGrowthPct !== undefined && (
                 <p className={cn(
                   'mt-1 text-sm font-medium',
-                  isPositiveGrowth(periodData.subscriberGrowthPct) ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+                  isPositiveGrowth(periodData.subscriberGrowthPct) ? 'text-green-600' : 'text-red-600'
                 )}>
                   {periodData.subscriberGrowthPct > 0 ? '+' : ''}{periodData.subscriberGrowthPct.toFixed(1)}%
                 </p>
               )}
             </div>
             <div className={cn(
-              'rounded-full p-2 dark:bg-gray-800',
-              isPositiveGrowth(periodData?.subscriberGrowth) ? 'bg-green-100' : 'bg-gray-100'
+              'rounded-full p-2',
+              isPositiveGrowth(periodData?.subscriberGrowth) ? 'bg-green-100' : neutralBadgeClass
             )}>
               {isPositiveGrowth(periodData?.subscriberGrowth) ? (
                 <TrendingUp className={cn('h-5 w-5', isPositiveGrowth(periodData?.subscriberGrowth) ? 'text-green-600' : 'text-gray-600')} />
@@ -143,22 +167,22 @@ export default function GrowthMomentum({ isConnected, className }: GrowthMomentu
         </div>
 
         {/* Views Growth */}
-        <div className="relative overflow-hidden rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900">
+          <div className={cn('relative overflow-hidden rounded-lg border p-4', cardClass)}>
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-xs font-medium text-gray-500 uppercase dark:text-gray-400">
+                <p className={cn('text-xs font-medium uppercase', labelClass)}>
                 View Growth ({selectedPeriod})
               </p>
-              <p className="mt-2 text-2xl font-bold text-gray-900 dark:text-white">
+                <p className={cn('mt-2 text-2xl font-bold', headingClass)}>
                 {periodData?.viewGrowth ?? 0 > 0 ? '+' : ''}{formatNumber(periodData?.viewGrowth)}
               </p>
-              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                <p className={cn('mt-1 text-xs', mutedClass)}>
                 {displayData.length > 0 ? `${displayData.length} days tracked` : 'No data'}
               </p>
             </div>
             <div className={cn(
-              'rounded-full p-2 dark:bg-gray-800',
-              isPositiveGrowth(periodData?.viewGrowth) ? 'bg-blue-100' : 'bg-gray-100'
+                'rounded-full p-2',
+                isPositiveGrowth(periodData?.viewGrowth) ? 'bg-blue-100' : neutralBadgeClass
             )}>
               <Zap className="h-5 w-5 text-blue-600" />
             </div>
@@ -166,20 +190,20 @@ export default function GrowthMomentum({ isConnected, className }: GrowthMomentu
         </div>
 
         {/* Avg Daily Views */}
-        <div className="relative overflow-hidden rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900">
+          <div className={cn('relative overflow-hidden rounded-lg border p-4', cardClass)}>
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-xs font-medium text-gray-500 uppercase dark:text-gray-400">
+                <p className={cn('text-xs font-medium uppercase', labelClass)}>
                 Avg Daily Views ({selectedPeriod})
               </p>
-              <p className="mt-2 text-2xl font-bold text-gray-900 dark:text-white">
+                <p className={cn('mt-2 text-2xl font-bold', headingClass)}>
                 {formatNumber(periodData?.avgDailyViews)}
               </p>
-              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                <p className={cn('mt-1 text-xs', mutedClass)}>
                 7-day average
               </p>
             </div>
-            <div className="rounded-full bg-purple-100 p-2 dark:bg-gray-800">
+              <div className={cn('rounded-full p-2', isLightTheme ? 'bg-purple-100' : 'bg-slate-800/80')}>
               <TrendingUp className="h-5 w-5 text-purple-600" />
             </div>
           </div>
@@ -195,8 +219,8 @@ export default function GrowthMomentum({ isConnected, className }: GrowthMomentu
             className={cn(
               'rounded-lg px-4 py-2 text-sm font-medium transition-colors',
               selectedPeriod === period
-                ? 'bg-blue-600 text-white dark:bg-blue-500'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
+                ? 'bg-blue-600 text-white'
+                : inactivePeriodClass
             )}
           >
             Last {period === 'week' ? '7' : period === 'month' ? '30' : '90'} days
@@ -206,24 +230,26 @@ export default function GrowthMomentum({ isConnected, className }: GrowthMomentu
 
       {/* Growth Chart */}
       {chartData.length > 0 ? (
-        <div className="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-900">
-          <h3 className="mb-4 text-lg font-semibold text-gray-900 dark:text-white">Growth Trend</h3>
+        <div className={cn('rounded-lg border p-6', cardClass)}>
+          <h3 className={cn('mb-4 text-lg font-semibold', headingClass)}>Growth Trend</h3>
           <ResponsiveContainer width="100%" height={300}>
             <ComposedChart data={chartData} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" className="dark:stroke-gray-700" />
+              <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
               <XAxis 
                 dataKey="date" 
-                style={{ color: '#6b7280' }}
-                className="dark:text-gray-400"
+                style={{ color: axisColor }}
               />
-              <YAxis yAxisId="left" style={{ color: '#6b7280' }} className="dark:text-gray-400" />
-              <YAxis yAxisId="right" orientation="right" style={{ color: '#6b7280' }} className="dark:text-gray-400" />
+              <YAxis yAxisId="left" style={{ color: axisColor }} />
+              <YAxis yAxisId="right" orientation="right" style={{ color: axisColor }} />
               <Tooltip 
                 contentStyle={{
-                  backgroundColor: '#fff',
-                  borderColor: '#e5e7eb',
+                  backgroundColor: tooltipBackground,
+                  borderColor: tooltipBorder,
                   borderRadius: '8px',
+                  color: tooltipText,
                 }}
+                labelStyle={{ color: tooltipText }}
+                itemStyle={{ color: tooltipText }}
                 formatter={(value: any) => {
                   if (typeof value === 'number') {
                     return [formatNumber(value), ''];
@@ -231,7 +257,7 @@ export default function GrowthMomentum({ isConnected, className }: GrowthMomentu
                   return value;
                 }}
               />
-              <Legend />
+              <Legend wrapperStyle={{ color: tooltipText }} />
               <Line
                 yAxisId="left"
                 type="monotone"
@@ -252,16 +278,16 @@ export default function GrowthMomentum({ isConnected, className }: GrowthMomentu
           </ResponsiveContainer>
         </div>
       ) : (
-        <div className="rounded-lg border border-gray-200 bg-gray-50 p-8 text-center dark:border-gray-700 dark:bg-gray-800">
-          <p className="text-sm text-gray-600 dark:text-gray-400">
+        <div className={cn('rounded-lg border p-8 text-center', emptyStateClass)}>
+          <p className="text-sm">
             {loading ? 'Loading growth data...' : 'No snapshot data yet. Snapshots are automatically created daily to track your channel\'s growth momentum.'}
           </p>
         </div>
       )}
 
       {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-900 dark:bg-red-900/20">
-          <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
+        <div className={cn('rounded-lg border p-4', errorClass)}>
+          <p className="text-sm">{error}</p>
         </div>
       )}
     </div>
