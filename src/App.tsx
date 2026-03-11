@@ -198,6 +198,7 @@ export default function App() {
   const [geminiErrorToast, setGeminiErrorToast] = useState<GeminiUserErrorDetail | null>(null);
   const [currentPage, setCurrentPage] = useState<'app' | 'privacy' | 'terms' | 'authCallback' | 'login'>('app');
   const [isLogoutPending, setIsLogoutPending] = useState(false);
+  const [supabaseGateTimedOut, setSupabaseGateTimedOut] = useState(false);
   const youtubeConnectIntentRef = useRef<string | null>(null);
   const logoutCleanupRef = useRef<Promise<void> | null>(null);
 
@@ -353,6 +354,23 @@ export default function App() {
   const isSupabaseAuthenticated = Boolean(supabaseUser && supabaseSession?.access_token);
   const isCookieAuthenticated = Boolean(user || accounts.length > 0);
   const isAppAuthenticated = isSupabaseAuthenticated || isCookieAuthenticated;
+  const isSupabaseGateOpen = !supabaseLoading || supabaseGateTimedOut || isCookieAuthenticated;
+  const isAuthCheckPending = loadingUser || !isSupabaseGateOpen;
+
+  useEffect(() => {
+    if (!supabaseLoading) {
+      setSupabaseGateTimedOut(false);
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      setSupabaseGateTimedOut(true);
+    }, 6000);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [supabaseLoading]);
 
   const getSupabaseAuthHeaders = () => {
     const token = supabaseSession?.access_token;
@@ -516,10 +534,10 @@ export default function App() {
   // Redirect unauthenticated users to marketing site (unless viewing legal pages)
   useEffect(() => {
     const hasPendingYouTubeConnect = Boolean(currentPage === 'app' && readYouTubeConnectIntent());
-    if (!loadingUser && !supabaseLoading && !isAppAuthenticated && currentPage === 'app' && !hasPendingYouTubeConnect) {
+    if (!loadingUser && isSupabaseGateOpen && !isAppAuthenticated && currentPage === 'app' && !hasPendingYouTubeConnect) {
       setCurrentPage('login');
     }
-  }, [loadingUser, supabaseLoading, isAppAuthenticated, currentPage]);
+  }, [loadingUser, isSupabaseGateOpen, isAppAuthenticated, currentPage]);
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -989,7 +1007,7 @@ export default function App() {
     return <AuthCallback />;
   }
 
-  if (currentPage === 'app' && (supabaseLoading || loadingUser)) {
+  if (currentPage === 'app' && isAuthCheckPending) {
     return (
       <div
         className={cn(
@@ -1005,7 +1023,7 @@ export default function App() {
     );
   }
 
-  if (currentPage === 'login' || (currentPage === 'app' && !supabaseLoading && !loadingUser && !isAppAuthenticated)) {
+  if (currentPage === 'login' || (currentPage === 'app' && !isAuthCheckPending && !isAppAuthenticated)) {
     return (
       <LoginPage
         isBusy={isLogoutPending}

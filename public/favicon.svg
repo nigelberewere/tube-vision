@@ -1,11 +1,29 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Janso Studio">
   <defs>
-    <linearGradient id="tv-grad" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#6366f1" />
-      <stop offset="100%" stop-color="#ef4444" />
+    <linearGradient id="bg-grad" x1="6" y1="4" x2="58" y2="60" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#101d40" />
+      <stop offset="0.5" stop-color="#0a1025" />
+      <stop offset="1" stop-color="#050505" />
     </linearGradient>
+    <linearGradient id="j-grad" x1="18" y1="16" x2="30" y2="50" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#7dd3fc" />
+      <stop offset="1" stop-color="#2563eb" />
+    </linearGradient>
+    <linearGradient id="play-grad" x1="35" y1="21" x2="52" y2="41" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ff5a7a" />
+      <stop offset="1" stop-color="#ff0033" />
+    </linearGradient>
+    <radialGradient id="play-glow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(43 32) rotate(90) scale(16)">
+      <stop offset="0" stop-color="#ff0033" stop-opacity="0.35" />
+      <stop offset="1" stop-color="#ff0033" stop-opacity="0" />
+    </radialGradient>
   </defs>
-  <rect width="64" height="64" rx="14" fill="#0b0b0f" />
-  <path d="M18 20h28c3.3 0 6 2.7 6 6v12c0 3.3-2.7 6-6 6H18c-3.3 0-6-2.7-6-6V26c0-3.3 2.7-6 6-6Z" fill="url(#tv-grad)" />
-  <path d="M28 26.5v11l10-5.5-10-5.5Z" fill="#ffffff" />
+
+  <rect width="64" height="64" rx="14" fill="url(#bg-grad)" />
+  <rect x="1" y="1" width="62" height="62" rx="13" fill="none" stroke="#1f2f5a" stroke-width="1" />
+
+  <circle cx="43" cy="32" r="15" fill="url(#play-glow)" />
+
+  <path d="M18 16H28V41C28 45.9706 23.9706 50 19 50H14V42H18C19.1046 42 20 41.1046 20 40V16Z" fill="url(#j-grad)" />
+  <path d="M35.2 22.4C35.2 20.4608 37.2998 19.2488 38.98 20.2189L50.02 26.5878C51.7 27.5579 51.7 29.9821 50.02 30.9522L38.98 37.3211C37.2998 38.2912 35.2 37.0792 35.2 35.14V22.4Z" fill="url(#play-grad)" />
 </svg>
