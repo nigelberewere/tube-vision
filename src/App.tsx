@@ -424,6 +424,19 @@ export default function App() {
     try {
       const authHeaders = getSupabaseAuthHeaders();
 
+      // Ensure any pending OAuth popup account is persisted before account list fetch.
+      if (authHeaders.Authorization) {
+        try {
+          await fetch('/api/auth/finalize-youtube', {
+            method: 'POST',
+            headers: authHeaders,
+            credentials: 'include',
+          });
+        } catch (finalizeError) {
+          console.error('Finalize YouTube account refresh error:', finalizeError);
+        }
+      }
+
       // Fetch all accounts
       const accountsResponse = await fetch('/api/user/accounts', {
         headers: authHeaders,
@@ -987,7 +1000,7 @@ export default function App() {
       case 'coach':
         return <AICoach 
           channelContext={user?.channel} 
-          userProfile={user ? { name: user.name, picture: user.picture } : undefined}
+          userProfile={user ? { id: user.id, name: user.name, picture: user.picture } : undefined}
         />;
       case 'ideas':
         return <VideoIdeaGenerator 

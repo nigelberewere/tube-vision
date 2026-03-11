@@ -558,7 +558,43 @@ export async function createApp(options: CreateAppOptions = {}) {
           ? new Date(Date.now() + Number(tokens.expires_in) * 1000).toISOString()
           : null;
 
-      const [profileResult, accountResult] = await Promise.all([
+      const accountPayload = {
+        user_id: supabaseUserId,
+        google_id: String(userInfo?.id || supabaseUserId),
+        channel_id: channel.id,
+        channel_title: channel.snippet?.title || "Untitled Channel",
+        channel_description: channel.snippet?.description || null,
+        channel_thumbnail: channelThumbnail,
+        access_token: tokens.access_token,
+        refresh_token: refreshToken,
+        expires_at: expiresAt,
+        statistics: {
+          subscriberCount: String(channel.statistics?.subscriberCount || "0"),
+          viewCount: String(channel.statistics?.viewCount || "0"),
+          videoCount: String(channel.statistics?.videoCount || "0"),
+        },
+      };
+
+      const upsertAccount = async (onConflict: string) =>
+        supabaseServer
+          .from("youtube_accounts")
+          .upsert(accountPayload, { onConflict });
+
+      let accountResult = await upsertAccount("channel_id");
+      if (accountResult.error) {
+        const code = String((accountResult.error as any)?.code || "");
+        const message = String((accountResult.error as any)?.message || "").toLowerCase();
+        const conflictTargetMissing =
+          code === "42P10" ||
+          message.includes("no unique or exclusion constraint matching the on conflict specification");
+
+        if (conflictTargetMissing) {
+          // Backward-compatible fallback for installations that use a composite unique key.
+          accountResult = await upsertAccount("user_id,channel_id");
+        }
+      }
+
+      const [profileResult] = await Promise.all([
         supabaseServer
           .from("profiles")
           .upsert(
@@ -569,27 +605,6 @@ export async function createApp(options: CreateAppOptions = {}) {
               channel_id: channel.id,
             },
             { onConflict: "id" },
-          ),
-        supabaseServer
-          .from("youtube_accounts")
-          .upsert(
-            {
-              user_id: supabaseUserId,
-              google_id: String(userInfo?.id || supabaseUserId),
-              channel_id: channel.id,
-              channel_title: channel.snippet?.title || "Untitled Channel",
-              channel_description: channel.snippet?.description || null,
-              channel_thumbnail: channelThumbnail,
-              access_token: tokens.access_token,
-              refresh_token: refreshToken,
-              expires_at: expiresAt,
-              statistics: {
-                subscriberCount: String(channel.statistics?.subscriberCount || "0"),
-                viewCount: String(channel.statistics?.viewCount || "0"),
-                videoCount: String(channel.statistics?.videoCount || "0"),
-              },
-            },
-            { onConflict: "channel_id" },
           ),
       ]);
 
@@ -633,6 +648,30 @@ export async function createApp(options: CreateAppOptions = {}) {
       console.error("Failed to refresh access token from legacy account payload:", error);
       return null;
     }
+  }
+
+  async function getAuthHeaderForAccount(user: any) {
+    const refreshToken = user?.tokens?.refresh_token;
+    const fallbackAccessToken = user?.tokens?.access_token;
+
+    if (refreshToken) {
+      try {
+        const refreshClient = new OAuth2Client(GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, redirectUri);
+        refreshClient.setCredentials({ refresh_token: refreshToken });
+        const refreshedToken = (await refreshClient.getAccessToken())?.token;
+        if (refreshedToken) {
+          return { Authorization: `Bearer ${refreshedToken}` };
+        }
+      } catch (error) {
+        console.error("Failed to refresh OAuth token for request:", error);
+      }
+    }
+
+    if (fallbackAccessToken) {
+      return { Authorization: `Bearer ${fallbackAccessToken}` };
+    }
+
+    throw new Error("No OAuth token available for active account");
   }
 
   async function persistLegacyAccountToSupabase(supabaseUserId: string, legacyAccount: any) {
@@ -1031,6 +1070,7 @@ For every video provided, evaluate segments based on:
       scope: [
         "https://www.googleapis.com/auth/youtube.readonly",
         "https://www.googleapis.com/auth/yt-analytics.readonly",
+        "https://www.googleapis.com/auth/userinfo.email",
         "https://www.googleapis.com/auth/userinfo.profile",
       ],
       prompt: "consent",
@@ -1587,7 +1627,7 @@ Recent videos: ${recentTitles.join(" | ") || "No recent titles"}`;
     }
 
     try {
-      const authHeader = { Authorization: `Bearer ${user.tokens.access_token}` };
+      const authHeader = await getAuthHeaderForAccount(user);
       const searchResponse = await fetch(
         "https://www.googleapis.com/youtube/v3/search?part=snippet&forMine=true&type=video&maxResults=30&order=date",
         { headers: authHeader }
@@ -1595,8 +1635,24 @@ Recent videos: ${recentTitles.join(" | ") || "No recent titles"}`;
 
       if (!searchResponse.ok) {
         const errorPayload = await searchResponse.json().catch(() => ({}));
+        const upstreamCode = errorPayload?.error?.code || searchResponse.status;
+        const upstreamStatus = errorPayload?.error?.status || null;
+        const upstreamReason = errorPayload?.error?.errors?.[0]?.reason || null;
+        const upstreamMessage =
+          errorPayload?.error?.message ||
+          errorPayload?.error_description ||
+          "Failed to fetch videos for insight analysis";
+
         return res.status(searchResponse.status).json({
-          error: errorPayload?.error?.message || "Failed to fetch videos for insight analysis",
+          error: upstreamMessage,
+          upstream: {
+            source: "youtube",
+            step: "search",
+            code: upstreamCode,
+            status: upstreamStatus,
+            reason: upstreamReason,
+            message: upstreamMessage,
+          },
         });
       }
 
@@ -1624,8 +1680,24 @@ Recent videos: ${recentTitles.join(" | ") || "No recent titles"}`;
 
       if (!videosResponse.ok) {
         const errorPayload = await videosResponse.json().catch(() => ({}));
+        const upstreamCode = errorPayload?.error?.code || videosResponse.status;
+        const upstreamStatus = errorPayload?.error?.status || null;
+        const upstreamReason = errorPayload?.error?.errors?.[0]?.reason || null;
+        const upstreamMessage =
+          errorPayload?.error?.message ||
+          errorPayload?.error_description ||
+          "Failed to fetch detailed video data";
+
         return res.status(videosResponse.status).json({
-          error: errorPayload?.error?.message || "Failed to fetch detailed video data",
+          error: upstreamMessage,
+          upstream: {
+            source: "youtube",
+            step: "videos",
+            code: upstreamCode,
+            status: upstreamStatus,
+            reason: upstreamReason,
+            message: upstreamMessage,
+          },
         });
       }
 
@@ -1844,31 +1916,48 @@ Return JSON with:
     }
 
     try {
+      const authHeader = await getAuthHeaderForAccount(user);
       const response = await fetch(
         "https://www.googleapis.com/youtube/v3/search?part=snippet&forMine=true&type=video&maxResults=50&order=date",
-        {
-          headers: { Authorization: `Bearer ${user.tokens.access_token}` },
-        }
+        { headers: authHeader }
       );
-      const data = await response.json();
-      
-      // Fetch detailed statistics for each video
-      const videoIds = data.items?.map((item: any) => item.id.videoId).join(",");
-      if (videoIds) {
-        const statsResponse = await fetch(
-          `https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics,contentDetails&id=${videoIds}`,
-          {
-            headers: { Authorization: `Bearer ${user.tokens.access_token}` },
-          }
-        );
-        const statsData = await statsResponse.json();
-        return res.json(statsData.items);
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok || data?.error) {
+        const statusCode = Number(data?.error?.code) || response.status || 500;
+        return res.status(statusCode).json({
+          error: data?.error?.message || "Failed to fetch channel videos from YouTube",
+          upstream: data?.error || null,
+        });
       }
-      
-      res.json([]);
+
+      const videoIds = (data.items || [])
+        .map((item: any) => item?.id?.videoId)
+        .filter(Boolean)
+        .join(",");
+
+      if (!videoIds) {
+        return res.json([]);
+      }
+
+      const statsResponse = await fetch(
+        `https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics,contentDetails&id=${videoIds}`,
+        { headers: authHeader }
+      );
+      const statsData = await statsResponse.json().catch(() => ({}));
+
+      if (!statsResponse.ok || statsData?.error) {
+        const statusCode = Number(statsData?.error?.code) || statsResponse.status || 500;
+        return res.status(statusCode).json({
+          error: statsData?.error?.message || "Failed to fetch video details from YouTube",
+          upstream: statsData?.error || null,
+        });
+      }
+
+      return res.json(statsData.items || []);
     } catch (error) {
       console.error("Fetch videos error:", error);
-      res.status(500).json({ error: "Failed to fetch videos" });
+      return res.status(500).json({ error: "Failed to fetch videos" });
     }
   });
 
@@ -2709,8 +2798,17 @@ Return concise, practical recommendations.`;
           headers: { Authorization: `Bearer ${user.tokens.access_token}` },
         }
       );
-      const myVideosData = await myVideosResponse.json();
-      const myVideoIds = myVideosData.items?.map((item: any) => item.id.videoId).join(",");
+      const myVideosData = await myVideosResponse.json().catch(() => ({}));
+
+      if (!myVideosResponse.ok || myVideosData?.error) {
+        const statusCode = Number(myVideosData?.error?.code) || myVideosResponse.status || 500;
+        return res.status(statusCode).json({
+          error: myVideosData?.error?.message || "Failed to fetch channel videos from YouTube",
+          upstream: myVideosData?.error || null,
+        });
+      }
+
+      const myVideoIds = (myVideosData.items || []).map((item: any) => item?.id?.videoId).filter(Boolean).join(",");
 
       if (!myVideoIds) {
         return res.json({ 
@@ -2726,7 +2824,16 @@ Return concise, practical recommendations.`;
           headers: { Authorization: `Bearer ${user.tokens.access_token}` },
         }
       );
-      const myStatsData = await myStatsResponse.json();
+      const myStatsData = await myStatsResponse.json().catch(() => ({}));
+
+      if (!myStatsResponse.ok || myStatsData?.error) {
+        const statusCode = Number(myStatsData?.error?.code) || myStatsResponse.status || 500;
+        return res.status(statusCode).json({
+          error: myStatsData?.error?.message || "Failed to fetch video stats from YouTube",
+          upstream: myStatsData?.error || null,
+        });
+      }
+
       const myVideos = myStatsData.items || [];
 
       if (myVideos.length === 0) {
@@ -2808,7 +2915,7 @@ Return as JSON.`;
               headers: { Authorization: `Bearer ${user.tokens.access_token}` },
             }
           );
-          const searchData = await searchResponse.json();
+          const searchData = await searchResponse.json().catch(() => ({}));
 
           if (searchData.items) {
             for (const item of searchData.items) {
@@ -2842,7 +2949,15 @@ Return as JSON.`;
           headers: { Authorization: `Bearer ${user.tokens.access_token}` },
         }
       );
-      const channelsStatsData = await channelsStatsResponse.json();
+      const channelsStatsData = await channelsStatsResponse.json().catch(() => ({}));
+
+      if (!channelsStatsResponse.ok || channelsStatsData?.error) {
+        const statusCode = Number(channelsStatsData?.error?.code) || channelsStatsResponse.status || 500;
+        return res.status(statusCode).json({
+          error: channelsStatsData?.error?.message || "Failed to fetch competitor channel stats from YouTube",
+          upstream: channelsStatsData?.error || null,
+        });
+      }
 
       // Filter and rank channels by subscriber count
       const rankedChannels = (channelsStatsData.items || [])
@@ -2878,22 +2993,204 @@ Return as JSON.`;
     }
   });
 
-  app.get("/api/competitors/search", async (req, res) => {
+  app.post("/api/collaborators/search", async (req, res) => {
     const user = await getActiveYouTubeUser(req);
-    const { q } = req.query;
     if (!user || !user.tokens) {
       return res.status(401).json({ error: "Not authenticated" });
     }
 
+    const niche = String(req.body?.niche || "").trim();
+    const minSubscribers = Math.max(0, toNumber(req.body?.minSubscribers));
+    const rawMax = toNumber(req.body?.maxSubscribers || Number.MAX_SAFE_INTEGER);
+    const maxSubscribers = Math.max(minSubscribers, rawMax);
+    const maxResults = Math.min(Math.max(toNumber(req.body?.maxResults || 15), 1), 25);
+
+    if (!niche) {
+      return res.status(400).json({ error: "niche is required" });
+    }
+
     try {
-      const response = await fetch(
-        `https://www.googleapis.com/youtube/v3/search?part=snippet&type=channel&q=${q}&maxResults=5`,
-        {
-          headers: { Authorization: `Bearer ${user.tokens.access_token}` },
-        }
+      const authHeader = await getAuthHeaderForAccount(user);
+      const searchResponse = await fetch(
+        `https://www.googleapis.com/youtube/v3/search?part=snippet&type=channel&q=${encodeURIComponent(niche)}&maxResults=${Math.min(maxResults * 2, 50)}&order=relevance`,
+        { headers: authHeader }
       );
-      const data = await response.json();
-      res.json(data.items);
+      const searchData = await searchResponse.json().catch(() => ({}));
+
+      if (!searchResponse.ok || searchData?.error) {
+        const statusCode = Number(searchData?.error?.code) || searchResponse.status || 500;
+        return res.status(statusCode).json({
+          error: searchData?.error?.message || "Failed to search collaborator channels on YouTube",
+          upstream: searchData?.error || null,
+        });
+      }
+
+      const channelIds = Array.from(
+        new Set(
+          (searchData.items || [])
+            .map((item: any) => item?.snippet?.channelId || item?.id?.channelId)
+            .filter(Boolean)
+        )
+      ).slice(0, 50);
+
+      if (channelIds.length === 0) {
+        return res.json({ creators: [] });
+      }
+
+      const channelsResponse = await fetch(
+        `https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics&id=${channelIds.join(",")}`,
+        { headers: authHeader }
+      );
+      const channelsData = await channelsResponse.json().catch(() => ({}));
+
+      if (!channelsResponse.ok || channelsData?.error) {
+        const statusCode = Number(channelsData?.error?.code) || channelsResponse.status || 500;
+        return res.status(statusCode).json({
+          error: channelsData?.error?.message || "Failed to load collaborator channel stats",
+          upstream: channelsData?.error || null,
+        });
+      }
+
+      const creators = (channelsData.items || [])
+        .filter((channel: any) => {
+          const subscribers = toNumber(channel?.statistics?.subscriberCount);
+          return subscribers >= minSubscribers && subscribers <= maxSubscribers;
+        })
+        .slice(0, maxResults)
+        .map((channel: any) => ({
+          id: channel.id,
+          title: channel?.snippet?.title || "Untitled Channel",
+          description: channel?.snippet?.description || "",
+          customUrl: channel?.snippet?.customUrl || undefined,
+          thumbnails: channel?.snippet?.thumbnails || {},
+          statistics: {
+            subscriberCount: String(channel?.statistics?.subscriberCount || "0"),
+            videoCount: String(channel?.statistics?.videoCount || "0"),
+            viewCount: String(channel?.statistics?.viewCount || "0"),
+          },
+        }));
+
+      res.json({ creators });
+    } catch (error) {
+      console.error("Search collaborators error:", error);
+      res.status(500).json({ error: "Failed to search collaborators" });
+    }
+  });
+
+  app.get("/api/collaborators/videos", async (req, res) => {
+    const user = await getActiveYouTubeUser(req);
+    if (!user || !user.tokens) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
+    const rawChannelId = Array.isArray(req.query.channelId) ? req.query.channelId[0] : req.query.channelId;
+    const channelId = typeof rawChannelId === "string" ? rawChannelId : "";
+    if (!channelId) {
+      return res.status(400).json({ error: "channelId is required" });
+    }
+
+    try {
+      const authHeader = await getAuthHeaderForAccount(user);
+
+      const channelResponse = await fetch(
+        `https://www.googleapis.com/youtube/v3/channels?part=contentDetails&id=${encodeURIComponent(channelId)}`,
+        { headers: authHeader }
+      );
+      const channelData = await channelResponse.json().catch(() => ({}));
+
+      if (!channelResponse.ok || channelData?.error) {
+        const statusCode = Number(channelData?.error?.code) || channelResponse.status || 500;
+        return res.status(statusCode).json({
+          error: channelData?.error?.message || "Failed to fetch collaborator channel details",
+          upstream: channelData?.error || null,
+        });
+      }
+
+      const uploadsPlaylistId = channelData?.items?.[0]?.contentDetails?.relatedPlaylists?.uploads;
+      if (!uploadsPlaylistId) {
+        return res.json({ videos: [] });
+      }
+
+      const playlistResponse = await fetch(
+        `https://www.googleapis.com/youtube/v3/playlistItems?part=contentDetails&playlistId=${uploadsPlaylistId}&maxResults=12`,
+        { headers: authHeader }
+      );
+      const playlistData = await playlistResponse.json().catch(() => ({}));
+
+      if (!playlistResponse.ok || playlistData?.error) {
+        const statusCode = Number(playlistData?.error?.code) || playlistResponse.status || 500;
+        return res.status(statusCode).json({
+          error: playlistData?.error?.message || "Failed to fetch collaborator uploads playlist",
+          upstream: playlistData?.error || null,
+        });
+      }
+
+      const videoIds = (playlistData.items || [])
+        .map((item: any) => item?.contentDetails?.videoId)
+        .filter(Boolean)
+        .join(",");
+
+      if (!videoIds) {
+        return res.json({ videos: [] });
+      }
+
+      const videosResponse = await fetch(
+        `https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics&id=${videoIds}`,
+        { headers: authHeader }
+      );
+      const videosData = await videosResponse.json().catch(() => ({}));
+
+      if (!videosResponse.ok || videosData?.error) {
+        const statusCode = Number(videosData?.error?.code) || videosResponse.status || 500;
+        return res.status(statusCode).json({
+          error: videosData?.error?.message || "Failed to fetch collaborator video stats",
+          upstream: videosData?.error || null,
+        });
+      }
+
+      const videos = (videosData.items || []).map((video: any) => ({
+        id: video.id,
+        title: video?.snippet?.title || "Untitled",
+        viewCount: toNumber(video?.statistics?.viewCount),
+        publishedAt: video?.snippet?.publishedAt || null,
+      }));
+
+      res.json({ videos });
+    } catch (error) {
+      console.error("Fetch collaborator videos error:", error);
+      res.status(500).json({ error: "Failed to fetch collaborator videos" });
+    }
+  });
+
+  app.get("/api/competitors/search", async (req, res) => {
+    const user = await getActiveYouTubeUser(req);
+    if (!user || !user.tokens) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
+    const rawQuery = Array.isArray(req.query.q) ? req.query.q[0] : req.query.q;
+    const query = typeof rawQuery === "string" ? rawQuery.trim() : "";
+    if (!query) {
+      return res.status(400).json({ error: "q is required" });
+    }
+
+    try {
+      const authHeader = await getAuthHeaderForAccount(user);
+      const response = await fetch(
+        `https://www.googleapis.com/youtube/v3/search?part=snippet&type=channel&q=${encodeURIComponent(query)}&maxResults=5`,
+        { headers: authHeader }
+      );
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok || data?.error) {
+        const statusCode = Number(data?.error?.code) || response.status || 500;
+        return res.status(statusCode).json({
+          error: data?.error?.message || "Failed to search competitor channels on YouTube",
+          upstream: data?.error || null,
+        });
+      }
+
+      res.json(data.items || []);
     } catch (error) {
       console.error("Search competitors error:", error);
       res.status(500).json({ error: "Failed to search competitors" });
@@ -2902,66 +3199,96 @@ Return as JSON.`;
 
   app.get("/api/competitors/videos", async (req, res) => {
     const user = await getActiveYouTubeUser(req);
-    const { channelId } = req.query;
     if (!user || !user.tokens) {
       return res.status(401).json({ error: "Not authenticated" });
     }
 
-    try {
-      // Get the channel's "uploads" playlist ID
-      const channelResponse = await fetch(
-        `https://www.googleapis.com/youtube/v3/channels?part=contentDetails,statistics,snippet&id=${channelId}`,
-        {
-          headers: { Authorization: `Bearer ${user.tokens.access_token}` },
-        }
-      );
-      const channelData = await channelResponse.json();
-      const channel = channelData.items?.[0];
-      const uploadsPlaylistId = channel?.contentDetails?.relatedPlaylists?.uploads;
+    const rawChannelId = Array.isArray(req.query.channelId) ? req.query.channelId[0] : req.query.channelId;
+    const channelId = typeof rawChannelId === "string" ? rawChannelId : "";
+    if (!channelId) {
+      return res.status(400).json({ error: "channelId is required" });
+    }
 
+    try {
+      const authHeader = await getAuthHeaderForAccount(user);
+
+      const channelResponse = await fetch(
+        `https://www.googleapis.com/youtube/v3/channels?part=contentDetails,statistics,snippet&id=${encodeURIComponent(channelId)}`,
+        { headers: authHeader }
+      );
+      const channelData = await channelResponse.json().catch(() => ({}));
+
+      if (!channelResponse.ok || channelData?.error) {
+        const statusCode = Number(channelData?.error?.code) || channelResponse.status || 500;
+        return res.status(statusCode).json({
+          error: channelData?.error?.message || "Failed to fetch competitor channel details",
+          upstream: channelData?.error || null,
+        });
+      }
+
+      const channel = channelData.items?.[0];
+      if (!channel) {
+        return res.status(404).json({ error: "Channel not found" });
+      }
+
+      const uploadsPlaylistId = channel?.contentDetails?.relatedPlaylists?.uploads;
       if (!uploadsPlaylistId) {
         return res.status(404).json({ error: "Uploads playlist not found" });
       }
 
-      // Get videos from the uploads playlist
       const playlistResponse = await fetch(
         `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet,contentDetails&playlistId=${uploadsPlaylistId}&maxResults=20`,
-        {
-          headers: { Authorization: `Bearer ${user.tokens.access_token}` },
-        }
+        { headers: authHeader }
       );
-      const playlistData = await playlistResponse.json();
-      const videoIds = playlistData.items?.map((item: any) => item.contentDetails.videoId).join(",");
+      const playlistData = await playlistResponse.json().catch(() => ({}));
+
+      if (!playlistResponse.ok || playlistData?.error) {
+        const statusCode = Number(playlistData?.error?.code) || playlistResponse.status || 500;
+        return res.status(statusCode).json({
+          error: playlistData?.error?.message || "Failed to fetch competitor uploads playlist",
+          upstream: playlistData?.error || null,
+        });
+      }
+
+      const videoIds = (playlistData.items || [])
+        .map((item: any) => item?.contentDetails?.videoId)
+        .filter(Boolean)
+        .join(",");
+
+      const rawCustomUrl = channel.snippet?.customUrl;
+      const normalizedCustomUrl = rawCustomUrl
+        ? String(rawCustomUrl).replace(/^https?:\/\/(www\.)?youtube\.com\//i, "")
+        : "";
+      const channelPath = normalizedCustomUrl
+        ? normalizedCustomUrl.startsWith("@") ||
+          normalizedCustomUrl.startsWith("c/") ||
+          normalizedCustomUrl.startsWith("user/") ||
+          normalizedCustomUrl.startsWith("channel/")
+          ? normalizedCustomUrl
+          : `@${normalizedCustomUrl}`
+        : channel.id
+          ? `channel/${channel.id}`
+          : "";
+      const channelUrl = channelPath ? `https://www.youtube.com/${channelPath}` : undefined;
 
       if (videoIds) {
         const statsResponse = await fetch(
           `https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics&id=${videoIds}`,
-          {
-            headers: { Authorization: `Bearer ${user.tokens.access_token}` },
-          }
+          { headers: authHeader }
         );
-        const statsData = await statsResponse.json();
-        
-        // Sort by view count to get "most popular"
-        const sortedVideos = statsData.items.sort((a: any, b: any) => 
-          parseInt(b.statistics.viewCount) - parseInt(a.statistics.viewCount)
-        );
+        const statsData = await statsResponse.json().catch(() => ({}));
 
-        const rawCustomUrl = channel.snippet?.customUrl;
-        const normalizedCustomUrl = rawCustomUrl
-          ? String(rawCustomUrl).replace(/^https?:\/\/(www\.)?youtube\.com\//i, '')
-          : '';
-        const channelPath = normalizedCustomUrl
-          ? normalizedCustomUrl.startsWith('@') ||
-            normalizedCustomUrl.startsWith('c/') ||
-            normalizedCustomUrl.startsWith('user/') ||
-            normalizedCustomUrl.startsWith('channel/')
-            ? normalizedCustomUrl
-            : `@${normalizedCustomUrl}`
-          : channel.id
-            ? `channel/${channel.id}`
-            : '';
-        const channelUrl = channelPath ? `https://www.youtube.com/${channelPath}` : undefined;
+        if (!statsResponse.ok || statsData?.error) {
+          const statusCode = Number(statsData?.error?.code) || statsResponse.status || 500;
+          return res.status(statusCode).json({
+            error: statsData?.error?.message || "Failed to fetch competitor video stats",
+            upstream: statsData?.error || null,
+          });
+        }
+
+        const sortedVideos = (statsData.items || []).sort(
+          (a: any, b: any) => parseInt(b.statistics.viewCount) - parseInt(a.statistics.viewCount)
+        );
 
         return res.json({
           channel: {
@@ -2971,27 +3298,11 @@ Return as JSON.`;
             thumbnails: channel.snippet.thumbnails,
             customUrl: rawCustomUrl,
             channelUrl,
-            statistics: channel.statistics
+            statistics: channel.statistics,
           },
-          videos: sortedVideos
+          videos: sortedVideos,
         });
       }
-
-      const rawCustomUrl = channel.snippet?.customUrl;
-      const normalizedCustomUrl = rawCustomUrl
-        ? String(rawCustomUrl).replace(/^https?:\/\/(www\.)?youtube\.com\//i, '')
-        : '';
-      const channelPath = normalizedCustomUrl
-        ? normalizedCustomUrl.startsWith('@') ||
-          normalizedCustomUrl.startsWith('c/') ||
-          normalizedCustomUrl.startsWith('user/') ||
-          normalizedCustomUrl.startsWith('channel/')
-          ? normalizedCustomUrl
-          : `@${normalizedCustomUrl}`
-        : channel.id
-          ? `channel/${channel.id}`
-          : '';
-      const channelUrl = channelPath ? `https://www.youtube.com/${channelPath}` : undefined;
 
       res.json({
         channel: {
