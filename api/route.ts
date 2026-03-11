@@ -49,9 +49,13 @@ const OAUTH_MISSING_VARS = [
   .map(([name]) => name);
 
 const COOKIE_MAX_AGE_SECONDS = 30 * 24 * 60 * 60;
+const PENDING_ACCOUNT_COOKIE = 'tube_vision_pending_account';
 const COOKIE_BASE_OPTIONS = APP_URL.startsWith('https://')
   ? `Path=/; HttpOnly; SameSite=None; Secure; Max-Age=${COOKIE_MAX_AGE_SECONDS}`
   : `Path=/; HttpOnly; SameSite=Lax; Max-Age=${COOKIE_MAX_AGE_SECONDS}`;
+const CLEAR_COOKIE_BASE_OPTIONS = APP_URL.startsWith('https://')
+  ? 'Path=/; HttpOnly; SameSite=None; Secure; Max-Age=0'
+  : 'Path=/; HttpOnly; SameSite=Lax; Max-Age=0';
 
 function signOAuthState(payload: { redirectTo: string; supabaseUserId: string | null; issuedAt: number }) {
   return createHmac('sha256', OAUTH_STATE_SECRET)
@@ -555,6 +559,97 @@ function readAccountsFromCookies(req: VercelRequest) {
   }
 }
 
+function readPendingAccountFromCookies(req: VercelRequest) {
+  const cookies = req.headers.cookie || '';
+  const pendingCookie = getCookieValue(cookies, PENDING_ACCOUNT_COOKIE);
+  if (!pendingCookie) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(decodeURIComponent(pendingCookie));
+  } catch {
+    return null;
+  }
+}
+
+async function resolveAccessTokenFromLegacyTokens(tokens: any): Promise<string | null> {
+  const directAccessToken =
+    typeof tokens?.access_token === 'string' && tokens.access_token.trim()
+      ? tokens.access_token.trim()
+      : null;
+
+  if (directAccessToken) {
+    return directAccessToken;
+  }
+
+  const refreshToken =
+    typeof tokens?.refresh_token === 'string' && tokens.refresh_token.trim()
+      ? tokens.refresh_token.trim()
+      : null;
+
+  if (!refreshToken) {
+    return null;
+  }
+
+  try {
+    const client = createOAuthClient();
+    client.setCredentials({ refresh_token: refreshToken });
+    const refreshedToken = (await client.getAccessToken())?.token;
+    return refreshedToken || null;
+  } catch (error) {
+    console.error('Failed to refresh access token from legacy account payload:', error);
+    return null;
+  }
+}
+
+async function persistLegacyAccountToSupabase(
+  supabaseUserId: string,
+  legacyAccount: any,
+) {
+  const channel = legacyAccount?.channel;
+  if (!channel?.id) {
+    return false;
+  }
+
+  const accessToken = await resolveAccessTokenFromLegacyTokens(legacyAccount?.tokens || {});
+  if (!accessToken) {
+    return false;
+  }
+
+  const refreshToken =
+    typeof legacyAccount?.tokens?.refresh_token === 'string'
+      ? legacyAccount.tokens.refresh_token
+      : '';
+
+  const expiryDate = Number(legacyAccount?.tokens?.expiry_date);
+
+  await persistYouTubeAccountToSupabase(
+    supabaseUserId,
+    {
+      id: legacyAccount?.id,
+      name: legacyAccount?.name,
+      picture: legacyAccount?.picture,
+    },
+    {
+      id: channel.id,
+      snippet: {
+        title: channel.title,
+        description: channel.description,
+        thumbnails: channel.thumbnails,
+      },
+      statistics: channel.statistics,
+    },
+    {
+      access_token: accessToken,
+      refresh_token: refreshToken,
+      expiry_date: Number.isFinite(expiryDate) ? expiryDate : undefined,
+    },
+  );
+
+  return true;
+}
+
 async function getUnifiedAccountsAndActiveIndex(req: VercelRequest): Promise<UnifiedAccountState> {
   const cookieState = readAccountsFromCookies(req);
   const fallbackState: UnifiedAccountState = {
@@ -808,6 +903,32 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   }
 
+  if (path === 'api/auth/finalize-youtube' && req.method === 'POST') {
+    const authUser = await verifySupabaseUser(req);
+    if (!authUser) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    try {
+      const pendingAccount = readPendingAccountFromCookies(req);
+      const { accounts, activeIndex } = readAccountsFromCookies(req);
+      const activeAccount = accounts[activeIndex] || accounts[0] || null;
+      const accountToPersist = pendingAccount || activeAccount;
+
+      if (!accountToPersist) {
+        return res.status(200).json({ success: true, persisted: false, reason: 'No pending account data' });
+      }
+
+      const persisted = await persistLegacyAccountToSupabase(authUser.id, accountToPersist);
+
+      res.setHeader('Set-Cookie', `${PENDING_ACCOUNT_COOKIE}=; ${CLEAR_COOKIE_BASE_OPTIONS}`);
+      return res.json({ success: true, persisted });
+    } catch (error) {
+      console.error('Finalize YouTube auth error:', error);
+      return res.status(500).json({ error: 'Failed to finalize YouTube account' });
+    }
+  }
+
   // OAuth URL generator
   if (path === 'api/auth/google/url') {
     console.log(`[Auth URL Request] REDIRECT_URI: ${REDIRECT_URI}`);
@@ -997,10 +1118,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       const boundedAccounts = updatedAccounts.slice(0, 5);
       const cookieValue = encodeURIComponent(JSON.stringify(boundedAccounts));
+      const pendingAccountValue = encodeURIComponent(JSON.stringify(newUserData));
 
       res.setHeader('Set-Cookie', [
         `tube_vision_accounts=${cookieValue}; ${COOKIE_BASE_OPTIONS}`,
-        `tube_vision_active=0; ${COOKIE_BASE_OPTIONS}`
+        `tube_vision_active=0; ${COOKIE_BASE_OPTIONS}`,
+        `${PENDING_ACCOUNT_COOKIE}=${pendingAccountValue}; ${COOKIE_BASE_OPTIONS}`,
       ]);
 
       if (!supabaseUserId) {
@@ -3055,7 +3178,10 @@ Return as JSON.`;
         : 'tube_vision_accounts=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0',
       APP_URL.startsWith('https://')
         ? 'tube_vision_active=; Path=/; HttpOnly; SameSite=None; Secure; Max-Age=0'
-        : 'tube_vision_active=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0'
+        : 'tube_vision_active=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0',
+      APP_URL.startsWith('https://')
+        ? `${PENDING_ACCOUNT_COOKIE}=; Path=/; HttpOnly; SameSite=None; Secure; Max-Age=0`
+        : `${PENDING_ACCOUNT_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`
     ]);
     return res.json({ success: true });
   }

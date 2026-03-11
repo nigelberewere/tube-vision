@@ -25,6 +25,32 @@ export function AuthCallback() {
     let timeoutId: ReturnType<typeof setTimeout> | null = null;
     let completed = false;
 
+    const finalizeYouTubeAccount = async (accessToken?: string | null) => {
+      if (!accessToken) {
+        return;
+      }
+
+      try {
+        const controller = new AbortController();
+        const timeout = window.setTimeout(() => controller.abort(), 8000);
+        try {
+          await fetch('/api/auth/finalize-youtube', {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+            },
+            credentials: 'include',
+            signal: controller.signal,
+          });
+        } finally {
+          window.clearTimeout(timeout);
+        }
+      } catch (finalizeError) {
+        // Do not block sign-in completion if finalization fails temporarily.
+        console.error('Finalize YouTube account error:', finalizeError);
+      }
+    };
+
     const finishRedirect = () => {
       if (!mounted || completed) {
         return;
@@ -67,7 +93,9 @@ export function AuthCallback() {
           }
 
           if ((event === 'INITIAL_SESSION' || event === 'SIGNED_IN') && session) {
-            finishRedirect();
+            void finalizeYouTubeAccount(session.access_token).finally(() => {
+              finishRedirect();
+            });
           }
         });
         subscription = data.subscription;
@@ -92,6 +120,7 @@ export function AuthCallback() {
           }
 
           if (setSessionData.session) {
+            await finalizeYouTubeAccount(setSessionData.session.access_token);
             finishRedirect();
             return;
           }
@@ -104,6 +133,7 @@ export function AuthCallback() {
         }
 
         if (sessionData.session) {
+          await finalizeYouTubeAccount(sessionData.session.access_token);
           finishRedirect();
         }
       } catch (err) {

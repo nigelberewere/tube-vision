@@ -605,6 +605,80 @@ export async function createApp(options: CreateAppOptions = {}) {
     }
   }
 
+  async function resolveAccessTokenFromLegacyTokens(tokens: any): Promise<string | null> {
+    const directAccessToken =
+      typeof tokens?.access_token === "string" && tokens.access_token.trim()
+        ? tokens.access_token.trim()
+        : null;
+
+    if (directAccessToken) {
+      return directAccessToken;
+    }
+
+    const refreshToken =
+      typeof tokens?.refresh_token === "string" && tokens.refresh_token.trim()
+        ? tokens.refresh_token.trim()
+        : null;
+
+    if (!refreshToken) {
+      return null;
+    }
+
+    try {
+      const refreshClient = new OAuth2Client(GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, redirectUri);
+      refreshClient.setCredentials({ refresh_token: refreshToken });
+      const refreshedToken = (await refreshClient.getAccessToken())?.token;
+      return refreshedToken || null;
+    } catch (error) {
+      console.error("Failed to refresh access token from legacy account payload:", error);
+      return null;
+    }
+  }
+
+  async function persistLegacyAccountToSupabase(supabaseUserId: string, legacyAccount: any) {
+    const channel = legacyAccount?.channel;
+    if (!channel?.id) {
+      return false;
+    }
+
+    const accessToken = await resolveAccessTokenFromLegacyTokens(legacyAccount?.tokens || {});
+    if (!accessToken) {
+      return false;
+    }
+
+    const refreshToken =
+      typeof legacyAccount?.tokens?.refresh_token === "string"
+        ? legacyAccount.tokens.refresh_token
+        : "";
+
+    const expiryDate = Number(legacyAccount?.tokens?.expiry_date);
+
+    await persistYouTubeAccountToSupabase(
+      supabaseUserId,
+      {
+        id: legacyAccount?.id,
+        name: legacyAccount?.name,
+        picture: legacyAccount?.picture,
+      },
+      {
+        id: channel.id,
+        snippet: {
+          title: channel.title,
+          description: channel.description,
+          thumbnails: channel.thumbnails,
+        },
+        statistics: channel.statistics,
+      },
+      {
+        access_token: accessToken,
+        refresh_token: refreshToken,
+        expiry_date: Number.isFinite(expiryDate) ? expiryDate : undefined,
+      },
+    );
+
+    return true;
+  }
+
   async function getUnifiedAccountsAndActiveIndex(req: express.Request): Promise<UnifiedAccountState> {
     const sessionState = getSessionAccountsAndActiveIndex(req);
     const fallbackState: UnifiedAccountState = {
@@ -903,6 +977,32 @@ For every video provided, evaluate segments based on:
     });
   });
 
+  app.post("/api/auth/finalize-youtube", async (req, res) => {
+    const authUser = await verifyUser(req);
+    if (!authUser) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
+    try {
+      const sessionState = getSessionAccountsAndActiveIndex(req);
+      const session = sessionState.session as any;
+      const pendingAccount = session.pendingYouTubeAccount || null;
+      const activeAccount = sessionState.accounts[sessionState.activeIndex] || sessionState.accounts[0] || null;
+      const accountToPersist = pendingAccount || activeAccount;
+
+      if (!accountToPersist) {
+        return res.status(200).json({ success: true, persisted: false, reason: "No pending account data" });
+      }
+
+      const persisted = await persistLegacyAccountToSupabase(authUser.id, accountToPersist);
+      delete session.pendingYouTubeAccount;
+      return res.json({ success: true, persisted });
+    } catch (error) {
+      console.error("Finalize YouTube auth error:", error);
+      return res.status(500).json({ error: "Failed to finalize YouTube account" });
+    }
+  });
+
   app.get("/api/auth/google/url", async (req, res) => {
     console.log(`[Auth URL Request] REDIRECT_URI: ${redirectUri}`);
     const postAuthRedirect = normalizePostAuthRedirect(Array.isArray(req.query.next) ? req.query.next[0] : req.query.next);
@@ -1089,6 +1189,7 @@ For every video provided, evaluate segments based on:
       });
       dedupedAccounts.unshift(newUserData);
       setSessionAccountsAndActiveIndex(req, dedupedAccounts.slice(0, 5), 0);
+      (req.session as any).pendingYouTubeAccount = newUserData;
 
       if (!supabaseUserId) {
         // Combined flow (from /auth/youtube): create/find Supabase user via admin magic link,
