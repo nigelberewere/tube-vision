@@ -168,11 +168,11 @@ export default function LoginPage({ onConnect, isBusy = false, busyLabel = 'Fina
 
           <p className="text-[10px] text-center text-slate-500 leading-relaxed">
             By continuing, you agree to our{' '}
-            <a href="/terms" className="underline underline-offset-2 hover:text-slate-300 transition-colors">
+            <a href="https://janso.studio/terms" className="underline underline-offset-2 hover:text-slate-300 transition-colors">
               Terms of Service
             </a>{' '}
             and{' '}
-            <a href="/privacy" className="underline underline-offset-2 hover:text-slate-300 transition-colors">
+            <a href="https://janso.studio/privacy" className="underline underline-offset-2 hover:text-slate-300 transition-colors">
               Privacy Policy
             </a>
             .

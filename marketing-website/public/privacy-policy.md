@@ -230,7 +230,6 @@ We implement industry-standard security measures:
 - **Monitoring**: Automated security scanning and alerts
 - **Audits**: Regular security reviews
 
-However, no method of transmission or storage is completely secure, and we cannot guarantee absolute security.
 
 ## Changes to This Privacy Policy
 
@@ -263,7 +262,7 @@ If you are in the European Economic Area (EEA), UK, or Switzerland, you have rig
    - **Legitimate Interest**: For Service improvement and security
    - **Contract**: To provide the Service you requested
 
-2. **Privacy Contact**: admin@janso.studio
+2. **Privacy Contact**: privacy@janso.studio
 
 3. **Right to Lodge a Complaint**: You may file a complaint with your local data protection authority
 
@@ -281,7 +280,7 @@ If you have questions or concerns about this Privacy Policy or our data practice
 
 - **Email**: feedback@janso.studio
 - **Website**: https://janso.studio
-- **Support**: Use the in-app feedback feature
+- **Support**: support@janso.studio
 
 For data protection inquiries from the EU:
 - **Privacy Contact**: admin@janso.studio
