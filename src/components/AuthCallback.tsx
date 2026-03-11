@@ -21,7 +21,6 @@ export function AuthCallback() {
 
   useEffect(() => {
     let mounted = true;
-    let subscription: { unsubscribe: () => void } | null = null;
     let timeoutId: ReturnType<typeof setTimeout> | null = null;
     let completed = false;
 
@@ -75,8 +74,23 @@ export function AuthCallback() {
         return;
       }
 
-      const nextUrl = next ? decodeURIComponent(next) : '/';
+      const nextUrl = next
+        ? (() => {
+            try {
+              return decodeURIComponent(next);
+            } catch {
+              return next;
+            }
+          })()
+        : '/';
       window.location.replace(nextUrl);
+    };
+
+    const setAuthError = (message: string) => {
+      if (!mounted || completed) {
+        return;
+      }
+      setError(message);
     };
 
     const run = async () => {
@@ -87,18 +101,12 @@ export function AuthCallback() {
           }
         }, 25000);
 
-        const { data } = supabase.auth.onAuthStateChange((event, session) => {
-          if (!mounted || completed) {
-            return;
-          }
-
-          if ((event === 'INITIAL_SESSION' || event === 'SIGNED_IN') && session) {
-            void finalizeYouTubeAccount(session.access_token).finally(() => {
-              finishRedirect();
-            });
-          }
-        });
-        subscription = data.subscription;
+        const searchParams = new URLSearchParams(window.location.search);
+        const errorDescription = searchParams.get('error_description');
+        if (errorDescription) {
+          setAuthError(`Authentication failed: ${errorDescription}`);
+          return;
+        }
 
         const hashValue = window.location.hash.startsWith('#')
           ? window.location.hash.slice(1)
@@ -106,36 +114,53 @@ export function AuthCallback() {
         const hashParams = new URLSearchParams(hashValue);
         const accessToken = hashParams.get('access_token');
         const refreshToken = hashParams.get('refresh_token');
+        const authCode = searchParams.get('code');
+        const tokenHash = searchParams.get('token_hash');
+        const otpType = searchParams.get('type');
 
-        // Deterministic path for magic-link callback URLs containing hash tokens.
+        // Flow 1: Magic-link hash tokens.
         if (accessToken && refreshToken) {
-          const { data: setSessionData, error: setSessionError } = await supabase.auth.setSession({
+          const { error: setSessionError } = await supabase.auth.setSession({
             access_token: accessToken,
             refresh_token: refreshToken,
           });
 
           if (setSessionError) {
-            setError(`Authentication failed: ${setSessionError.message}`);
+            setAuthError(`Authentication failed: ${setSessionError.message}`);
             return;
           }
-
-          if (setSessionData.session) {
-            await finalizeYouTubeAccount(setSessionData.session.access_token);
-            finishRedirect();
+        } else if (authCode) {
+          // Flow 2: PKCE code exchange.
+          const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(authCode);
+          if (exchangeError) {
+            setAuthError(`Authentication failed: ${exchangeError.message}`);
+            return;
+          }
+        } else if (tokenHash && otpType) {
+          // Flow 3: token_hash verification links.
+          const { error: otpError } = await supabase.auth.verifyOtp({
+            token_hash: tokenHash,
+            type: otpType as any,
+          });
+          if (otpError) {
+            setAuthError(`Authentication failed: ${otpError.message}`);
             return;
           }
         }
 
         const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
         if (sessionError) {
-          setError(`Authentication failed: ${sessionError.message}`);
+          setAuthError(`Authentication failed: ${sessionError.message}`);
           return;
         }
 
-        if (sessionData.session) {
-          await finalizeYouTubeAccount(sessionData.session.access_token);
-          finishRedirect();
+        if (!sessionData.session) {
+          setAuthError('Authentication completed but no session was created. Please try again.');
+          return;
         }
+
+        await finalizeYouTubeAccount(sessionData.session.access_token);
+        finishRedirect();
       } catch (err) {
         console.error('Auth callback exception:', err);
         if (mounted) {
@@ -148,9 +173,6 @@ export function AuthCallback() {
 
     return () => {
       mounted = false;
-      if (subscription) {
-        subscription.unsubscribe();
-      }
       if (timeoutId) {
         clearTimeout(timeoutId);
       }
