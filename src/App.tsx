@@ -697,17 +697,26 @@ export default function App() {
   const handleLogout = async () => {
     try {
       await Promise.allSettled([
-        fetch('/api/auth/logout', { method: 'POST' }),
+        fetch('/api/auth/logout', {
+          method: 'POST',
+          credentials: 'include',
+        }),
         signOutSupabase(),
       ]);
+
       setUser(null);
       setAccounts([]);
       setActiveAccountIndex(0);
       if (CHANNEL_REQUIRED_TABS.includes(activeTab)) {
         setActiveTab('voiceover');
       }
+
+      window.location.replace('https://janso.studio');
     } catch (error) {
       console.error('Logout error:', error);
+
+      // Fallback to force exit the app shell if logout fails unexpectedly.
+      window.location.replace('https://janso.studio');
     }
   };
 
