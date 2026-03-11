@@ -351,6 +351,8 @@ export default function App() {
   const requiresChannelConnection = CHANNEL_REQUIRED_TABS.includes(activeTab);
   const showMyVideosConnectIcon = activeTab === 'videos';
   const isSupabaseAuthenticated = Boolean(supabaseUser && supabaseSession?.access_token);
+  const isCookieAuthenticated = Boolean(user || accounts.length > 0);
+  const isAppAuthenticated = isSupabaseAuthenticated || isCookieAuthenticated;
 
   const getSupabaseAuthHeaders = () => {
     const token = supabaseSession?.access_token;
@@ -398,20 +400,13 @@ export default function App() {
   };
 
   const fetchUser = async () => {
-    if (!supabaseSession?.access_token) {
-      setUser(null);
-      setAccounts([]);
-      setActiveAccountIndex(0);
-      setLoadingUser(false);
-      return;
-    }
-
     try {
       const authHeaders = getSupabaseAuthHeaders();
 
       // Fetch all accounts
       const accountsResponse = await fetch('/api/user/accounts', {
         headers: authHeaders,
+        credentials: 'include',
       });
       if (accountsResponse.ok) {
         const accountsData = await accountsResponse.json();
@@ -424,6 +419,7 @@ export default function App() {
         if (nextAccounts.length > 0) {
           const channelResponse = await fetch('/api/user/channel', {
             headers: authHeaders,
+            credentials: 'include',
           });
           if (channelResponse.ok) {
             const channelData = await channelResponse.json();
@@ -520,10 +516,10 @@ export default function App() {
   // Redirect unauthenticated users to marketing site (unless viewing legal pages)
   useEffect(() => {
     const hasPendingYouTubeConnect = Boolean(currentPage === 'app' && readYouTubeConnectIntent());
-    if (!loadingUser && !supabaseLoading && !isSupabaseAuthenticated && currentPage === 'app' && !hasPendingYouTubeConnect) {
+    if (!loadingUser && !supabaseLoading && !isAppAuthenticated && currentPage === 'app' && !hasPendingYouTubeConnect) {
       setCurrentPage('login');
     }
-  }, [loadingUser, supabaseLoading, isSupabaseAuthenticated, currentPage]);
+  }, [loadingUser, supabaseLoading, isAppAuthenticated, currentPage]);
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -993,7 +989,7 @@ export default function App() {
     return <AuthCallback />;
   }
 
-  if (currentPage === 'login' || (currentPage === 'app' && !supabaseLoading && !isSupabaseAuthenticated)) {
+  if (currentPage === 'login' || (currentPage === 'app' && !supabaseLoading && !loadingUser && !isAppAuthenticated)) {
     return (
       <LoginPage
         isBusy={isLogoutPending}

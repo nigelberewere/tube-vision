@@ -16,13 +16,56 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 
+type VerifyOtpType = 'signup' | 'invite' | 'magiclink' | 'recovery' | 'email' | 'email_change';
+
+function parseVerifyOtpType(rawType: string | null): VerifyOtpType | null {
+  if (!rawType) {
+    return null;
+  }
+
+  const normalized = rawType.trim().toLowerCase();
+  if (
+    normalized === 'signup' ||
+    normalized === 'invite' ||
+    normalized === 'magiclink' ||
+    normalized === 'recovery' ||
+    normalized === 'email' ||
+    normalized === 'email_change'
+  ) {
+    return normalized;
+  }
+
+  return null;
+}
+
 export function AuthCallback() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let mounted = true;
+    let subscription: { unsubscribe: () => void } | null = null;
     let timeoutId: ReturnType<typeof setTimeout> | null = null;
     let completed = false;
+
+    const sleep = (ms: number) =>
+      new Promise<void>((resolve) => {
+        setTimeout(resolve, ms);
+      });
+
+    const withTimeout = async <T,>(promise: Promise<T>, ms: number): Promise<T | null> => {
+      let timer: ReturnType<typeof setTimeout> | null = null;
+      try {
+        const timeoutPromise = new Promise<null>((resolve) => {
+          timer = setTimeout(() => resolve(null), ms);
+        });
+
+        return await Promise.race([promise, timeoutPromise]);
+      } finally {
+        if (timer) {
+          clearTimeout(timer);
+        }
+      }
+    };
 
     const finalizeYouTubeAccount = async (accessToken?: string | null) => {
       if (!accessToken) {
@@ -31,7 +74,7 @@ export function AuthCallback() {
 
       try {
         const controller = new AbortController();
-        const timeout = window.setTimeout(() => controller.abort(), 8000);
+        const timeout = setTimeout(() => controller.abort(), 8000);
         try {
           await fetch('/api/auth/finalize-youtube', {
             method: 'POST',
@@ -42,7 +85,7 @@ export function AuthCallback() {
             signal: controller.signal,
           });
         } finally {
-          window.clearTimeout(timeout);
+          clearTimeout(timeout);
         }
       } catch (finalizeError) {
         // Do not block sign-in completion if finalization fails temporarily.
@@ -90,16 +133,54 @@ export function AuthCallback() {
       if (!mounted || completed) {
         return;
       }
+
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+
       setError(message);
+    };
+
+    const waitForSessionAccessToken = async (maxWaitMs = 12000): Promise<string | null> => {
+      const deadline = Date.now() + maxWaitMs;
+
+      while (mounted && !completed && Date.now() < deadline) {
+        const { data, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError) {
+          console.error('Session lookup error during callback:', sessionError);
+        }
+
+        const token = data.session?.access_token;
+        if (token) {
+          return token;
+        }
+
+        await sleep(300);
+      }
+
+      return null;
     };
 
     const run = async () => {
       try {
+        let accessTokenFromEvent: string | null = null;
+
         timeoutId = setTimeout(() => {
           if (mounted && !completed) {
             setError('Authentication timeout - please try again');
           }
         }, 25000);
+
+        const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+          if (!mounted || completed) {
+            return;
+          }
+
+          if (session?.access_token) {
+            accessTokenFromEvent = session.access_token;
+          }
+        });
+        subscription = data.subscription;
 
         const searchParams = new URLSearchParams(window.location.search);
         const errorDescription = searchParams.get('error_description');
@@ -116,50 +197,56 @@ export function AuthCallback() {
         const refreshToken = hashParams.get('refresh_token');
         const authCode = searchParams.get('code');
         const tokenHash = searchParams.get('token_hash');
-        const otpType = searchParams.get('type');
+        const otpType = parseVerifyOtpType(searchParams.get('type'));
 
         // Flow 1: Magic-link hash tokens.
         if (accessToken && refreshToken) {
-          const { error: setSessionError } = await supabase.auth.setSession({
-            access_token: accessToken,
-            refresh_token: refreshToken,
-          });
+          const setSessionResult = await withTimeout(
+            supabase.auth.setSession({
+              access_token: accessToken,
+              refresh_token: refreshToken,
+            }),
+            10000,
+          );
 
-          if (setSessionError) {
-            setAuthError(`Authentication failed: ${setSessionError.message}`);
+          if (setSessionResult?.error) {
+            setAuthError(`Authentication failed: ${setSessionResult.error.message}`);
             return;
           }
         } else if (authCode) {
           // Flow 2: PKCE code exchange.
-          const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(authCode);
-          if (exchangeError) {
-            setAuthError(`Authentication failed: ${exchangeError.message}`);
+          const exchangeResult = await withTimeout(
+            supabase.auth.exchangeCodeForSession(authCode),
+            10000,
+          );
+
+          if (exchangeResult?.error) {
+            setAuthError(`Authentication failed: ${exchangeResult.error.message}`);
             return;
           }
         } else if (tokenHash && otpType) {
           // Flow 3: token_hash verification links.
-          const { error: otpError } = await supabase.auth.verifyOtp({
-            token_hash: tokenHash,
-            type: otpType as any,
-          });
-          if (otpError) {
-            setAuthError(`Authentication failed: ${otpError.message}`);
+          const otpResult = await withTimeout(
+            supabase.auth.verifyOtp({
+              token_hash: tokenHash,
+              type: otpType,
+            }),
+            10000,
+          );
+
+          if (otpResult?.error) {
+            setAuthError(`Authentication failed: ${otpResult.error.message}`);
             return;
           }
         }
 
-        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-        if (sessionError) {
-          setAuthError(`Authentication failed: ${sessionError.message}`);
+        const activeAccessToken = accessTokenFromEvent || await waitForSessionAccessToken();
+        if (!activeAccessToken) {
+          setAuthError('Authentication timeout - please try again');
           return;
         }
 
-        if (!sessionData.session) {
-          setAuthError('Authentication completed but no session was created. Please try again.');
-          return;
-        }
-
-        await finalizeYouTubeAccount(sessionData.session.access_token);
+        await finalizeYouTubeAccount(activeAccessToken);
         finishRedirect();
       } catch (err) {
         console.error('Auth callback exception:', err);
@@ -173,6 +260,9 @@ export function AuthCallback() {
 
     return () => {
       mounted = false;
+      if (subscription) {
+        subscription.unsubscribe();
+      }
       if (timeoutId) {
         clearTimeout(timeoutId);
       }
