@@ -545,9 +545,9 @@ export default function VoiceOver() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
+      <div className="grid grid-cols-1 gap-6 items-start">
         {/* Hero: Script Editor */}
-        <div className="xl:col-span-8">
+        <div>
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -704,14 +704,15 @@ export default function VoiceOver() {
             </div>
           </motion.div>
         </div>
+      </div>
 
-        {/* Script-side controls */}
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="xl:col-span-4 xl:sticky xl:top-6 glass-card rounded-3xl p-6 flex flex-col h-[420px] lg:h-[520px] xl:h-[640px] backdrop-blur-xl bg-white/5 border border-white/10"
-        >
+      {/* Script-side controls */}
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+        className="glass-card rounded-3xl p-6 flex flex-col backdrop-blur-xl bg-white/5 border border-white/10"
+      >
           <div className="mb-4">
             <h3 className="text-sm font-medium text-slate-300">Script Controls</h3>
             <p className="mt-1 text-xs text-slate-500">
@@ -908,7 +909,6 @@ export default function VoiceOver() {
             </button>
           </div>
         </motion.div>
-      </div>
 
       {/* Multi-Language Dubbing Section */}
       <motion.div 
