@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { GoogleGenAI, Modality } from '@google/genai';
 import { Play, Square, Download, Loader2, Volume2, Sparkles, Pause, Tags, Plus, Wand2, Sliders, Trash2, Globe, Languages, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { cn } from '../lib/utils';
 
 const VOICES = ['Algenib', 'Kore', 'Puck', 'Charon', 'Fenrir', 'Zephyr', 'Aoede', 'Orus'];
 const TAGS = [
@@ -133,6 +134,7 @@ export default function VoiceOver() {
   const [translations, setTranslations] = useState<Translation[]>([]);
   const [isTranslating, setIsTranslating] = useState(false);
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>([]);
+  const [activeControlPanel, setActiveControlPanel] = useState<'tags' | 'voice' | 'parameters'>('tags');
   
   const audioRef = useRef<HTMLAudioElement>(null);
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
@@ -505,6 +507,27 @@ export default function VoiceOver() {
     });
   };
 
+  const controlPanels = [
+    {
+      id: 'tags' as const,
+      label: 'Tags',
+      icon: Tags,
+      description: 'Insert delivery cues',
+    },
+    {
+      id: 'voice' as const,
+      label: 'Voice Model',
+      icon: Volume2,
+      description: 'Choose and preview',
+    },
+    {
+      id: 'parameters' as const,
+      label: 'Parameters',
+      icon: Sliders,
+      description: 'Tune delivery',
+    },
+  ];
+
   return (
     <div className="flex flex-col gap-6">
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
@@ -667,31 +690,177 @@ export default function VoiceOver() {
           </motion.div>
         </div>
 
-        {/* Tag Library (kept beside editor for faster script tagging) */}
+        {/* Script-side controls */}
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="xl:col-span-4 xl:sticky xl:top-6 glass-card rounded-3xl p-6 flex flex-col h-[400px] backdrop-blur-xl bg-white/5 border border-white/10"
+          className="xl:col-span-4 xl:sticky xl:top-6 glass-card rounded-3xl p-6 flex flex-col h-[420px] lg:h-[520px] xl:h-[640px] backdrop-blur-xl bg-white/5 border border-white/10"
         >
-          <h3 className="text-sm font-medium text-slate-400 mb-4 flex items-center gap-2">
-            <Tags className="w-4 h-4" />
-            Tag Library
-          </h3>
-          <p className="text-xs text-slate-500 mb-3">Click a tag to insert it at your current cursor position in the script editor.</p>
-          <div className="flex-1 overflow-y-auto pr-2 flex flex-col gap-2">
-            {TAGS.map((tag) => (
-              <motion.button
-                whileHover={{ scale: 1.02, x: 4 }}
-                whileTap={{ scale: 0.98 }}
-                key={tag}
-                onClick={() => insertTag(tag)}
-                className="w-full px-4 py-3 rounded-xl text-sm font-mono text-left transition-colors text-slate-300 bg-white/5 hover:bg-white/10 border border-transparent hover:border-white/10 flex items-center justify-between group shrink-0"
-              >
-                <span>{tag}</span>
-                <Plus className="w-4 h-4 opacity-0 group-hover:opacity-100 text-slate-400 transition-opacity" />
-              </motion.button>
-            ))}
+          <div className="mb-4">
+            <h3 className="text-sm font-medium text-slate-300">Editor Controls</h3>
+            <p className="mt-1 text-xs text-slate-500">
+              Keep your script visible while inserting tags, choosing a voice, or tuning delivery.
+            </p>
+          </div>
+
+          <div className="border-b border-white/10 mb-4">
+            <div className="flex gap-1 overflow-x-auto">
+              {controlPanels.map((panel) => {
+                const Icon = panel.icon;
+                const isActive = activeControlPanel === panel.id;
+
+                return (
+                  <button
+                    key={panel.id}
+                    onClick={() => setActiveControlPanel(panel.id)}
+                    className={cn(
+                      'flex items-center gap-2 px-3 py-3 border-b-2 transition-all whitespace-nowrap',
+                      isActive
+                        ? 'border-blue-500 text-white'
+                        : 'border-transparent text-slate-400 hover:text-slate-300 hover:border-slate-600'
+                    )}
+                  >
+                    <Icon size={15} />
+                    <span className="font-medium text-sm">{panel.label}</span>
+                    <span className="hidden sm:inline text-[11px] text-slate-500">{panel.description}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-y-auto pr-2">
+            {activeControlPanel === 'tags' && (
+              <div className="flex flex-col h-full">
+                <p className="text-xs text-slate-500 mb-3">Click a tag to insert it at your current cursor position in the script editor.</p>
+                <div className="flex-1 overflow-y-auto pr-1 flex flex-col gap-2">
+                  {TAGS.map((tag) => (
+                    <motion.button
+                      whileHover={{ scale: 1.02, x: 4 }}
+                      whileTap={{ scale: 0.98 }}
+                      key={tag}
+                      onClick={() => insertTag(tag)}
+                      className="w-full px-4 py-3 rounded-xl text-sm font-mono text-left transition-colors text-slate-300 bg-white/5 hover:bg-white/10 border border-transparent hover:border-white/10 flex items-center justify-between group shrink-0"
+                    >
+                      <span>{tag}</span>
+                      <Plus className="w-4 h-4 opacity-0 group-hover:opacity-100 text-slate-400 transition-opacity" />
+                    </motion.button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {activeControlPanel === 'voice' && (
+              <div className="flex flex-col h-full">
+                <p className="text-xs text-slate-500 mb-3">Switch voice models and preview them without leaving the script editor.</p>
+                <div className="flex-1 overflow-y-auto pr-1 flex flex-col gap-2">
+                  {VOICES.map((v) => (
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      key={v}
+                      onClick={() => setVoice(v)}
+                      className={`px-4 py-3 rounded-xl text-sm font-medium transition-colors border flex items-center justify-between group shrink-0 ${
+                        voice === v 
+                          ? 'bg-white/10 text-white border-white/20' 
+                          : 'bg-transparent border-transparent text-slate-400 hover:bg-white/5 hover:text-slate-200'
+                      }`}
+                    >
+                      <span>{v}</span>
+                      <div 
+                        onClick={(e) => handlePreviewVoice(e, v)}
+                        className={`p-1.5 rounded-lg transition-colors ${
+                          playingPreview === v || previewingVoice === v
+                            ? 'text-black bg-white'
+                            : voice === v 
+                              ? 'text-white hover:bg-white/20' 
+                              : 'text-slate-500 hover:bg-white/10 hover:text-white opacity-0 group-hover:opacity-100'
+                        }`}
+                        title="Preview voice"
+                      >
+                        {previewingVoice === v ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : playingPreview === v ? (
+                          <Square className="w-3.5 h-3.5 fill-current" />
+                        ) : (
+                          <Volume2 className="w-3.5 h-3.5" />
+                        )}
+                      </div>
+                    </motion.button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {activeControlPanel === 'parameters' && (
+              <div className="flex flex-col gap-8">
+                <p className="text-xs text-slate-500">Tune the generated performance while keeping the script in view.</p>
+
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <label className="text-sm font-medium text-slate-300">Pitch</label>
+                    <span className="text-xs font-mono text-slate-500 bg-black/20 px-2 py-1 rounded-md">{pitch > 0 ? '+' : ''}{pitch.toFixed(1)}</span>
+                  </div>
+                  <input 
+                    type="range" 
+                    min="-1.0" 
+                    max="1.0" 
+                    step="0.1"
+                    value={pitch}
+                    onChange={(e) => setPitch(parseFloat(e.target.value))}
+                    className="w-full h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-white hover:accent-slate-200 transition-colors"
+                  />
+                  <div className="flex justify-between mt-2">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase">Deep</span>
+                    <span className="text-[10px] font-bold text-slate-500 uppercase">Normal</span>
+                    <span className="text-[10px] font-bold text-slate-500 uppercase">High</span>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <label className="text-sm font-medium text-slate-300">Speed</label>
+                    <span className="text-xs font-mono text-slate-500 bg-black/20 px-2 py-1 rounded-md">{speed.toFixed(1)}x</span>
+                  </div>
+                  <input 
+                    type="range" 
+                    min="0.5" 
+                    max="2.0" 
+                    step="0.1"
+                    value={speed}
+                    onChange={(e) => setSpeed(parseFloat(e.target.value))}
+                    className="w-full h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-white hover:accent-slate-200 transition-colors"
+                  />
+                  <div className="flex justify-between mt-2">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase">Slow</span>
+                    <span className="text-[10px] font-bold text-slate-500 uppercase">1.0x</span>
+                    <span className="text-[10px] font-bold text-slate-500 uppercase">Fast</span>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <label className="text-sm font-medium text-slate-300">Volume</label>
+                    <span className="text-xs font-mono text-slate-500 bg-black/20 px-2 py-1 rounded-md">{Math.round(volume * 100)}%</span>
+                  </div>
+                  <input 
+                    type="range" 
+                    min="0.5" 
+                    max="1.5" 
+                    step="0.1"
+                    value={volume}
+                    onChange={(e) => setVolume(parseFloat(e.target.value))}
+                    className="w-full h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-white hover:accent-slate-200 transition-colors"
+                  />
+                  <div className="flex justify-between mt-2">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase">Quiet</span>
+                    <span className="text-[10px] font-bold text-slate-500 uppercase">100%</span>
+                    <span className="text-[10px] font-bold text-slate-500 uppercase">Loud</span>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </motion.div>
       </div>
@@ -905,139 +1074,6 @@ export default function VoiceOver() {
           </div>
         )}
       </motion.div>
-
-      {/* Grid below for Voice Selection and Settings */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
-        {/* Voice Selection */}
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="glass-card rounded-3xl p-6 flex flex-col h-[400px] backdrop-blur-xl bg-white/5 border border-white/10"
-        >
-          <h3 className="text-sm font-medium text-slate-400 mb-4 flex items-center gap-2">
-            <Volume2 className="w-4 h-4" />
-            Voice Model
-          </h3>
-          <div className="flex-1 overflow-y-auto pr-2 flex flex-col gap-2">
-            {VOICES.map((v) => (
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                key={v}
-                onClick={() => setVoice(v)}
-                className={`px-4 py-3 rounded-xl text-sm font-medium transition-colors border flex items-center justify-between group shrink-0 ${
-                  voice === v 
-                    ? 'bg-white/10 text-white border-white/20' 
-                    : 'bg-transparent border-transparent text-slate-400 hover:bg-white/5 hover:text-slate-200'
-                }`}
-              >
-                <span>{v}</span>
-                <div 
-                  onClick={(e) => handlePreviewVoice(e, v)}
-                  className={`p-1.5 rounded-lg transition-colors ${
-                    playingPreview === v || previewingVoice === v
-                      ? 'text-black bg-white'
-                      : voice === v 
-                        ? 'text-white hover:bg-white/20' 
-                        : 'text-slate-500 hover:bg-white/10 hover:text-white opacity-0 group-hover:opacity-100'
-                  }`}
-                  title="Preview voice"
-                >
-                   {previewingVoice === v ? (
-                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                   ) : playingPreview === v ? (
-                     <Square className="w-3.5 h-3.5 fill-current" />
-                   ) : (
-                     <Volume2 className="w-3.5 h-3.5" />
-                   )}
-                </div>
-              </motion.button>
-            ))}
-          </div>
-        </motion.div>
-
-        {/* Settings */}
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-          className="glass-card rounded-3xl p-6 flex flex-col h-[400px] backdrop-blur-xl bg-white/5 border border-white/10"
-        >
-          <h3 className="text-sm font-medium text-slate-400 mb-6 flex items-center gap-2">
-            <Sliders className="w-4 h-4" />
-            Parameters
-          </h3>
-          <div className="flex flex-col gap-8">
-            {/* Pitch */}
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <label className="text-sm font-medium text-slate-300">Pitch</label>
-                <span className="text-xs font-mono text-slate-500 bg-black/20 px-2 py-1 rounded-md">{pitch > 0 ? '+' : ''}{pitch.toFixed(1)}</span>
-              </div>
-              <input 
-                type="range" 
-                min="-1.0" 
-                max="1.0" 
-                step="0.1"
-                value={pitch}
-                onChange={(e) => setPitch(parseFloat(e.target.value))}
-                className="w-full h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-white hover:accent-slate-200 transition-colors"
-              />
-              <div className="flex justify-between mt-2">
-                <span className="text-[10px] font-bold text-slate-500 uppercase">Deep</span>
-                <span className="text-[10px] font-bold text-slate-500 uppercase">Normal</span>
-                <span className="text-[10px] font-bold text-slate-500 uppercase">High</span>
-              </div>
-            </div>
-
-            {/* Speed */}
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <label className="text-sm font-medium text-slate-300">Speed</label>
-                <span className="text-xs font-mono text-slate-500 bg-black/20 px-2 py-1 rounded-md">{speed.toFixed(1)}x</span>
-              </div>
-              <input 
-                type="range" 
-                min="0.5" 
-                max="2.0" 
-                step="0.1"
-                value={speed}
-                onChange={(e) => setSpeed(parseFloat(e.target.value))}
-                className="w-full h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-white hover:accent-slate-200 transition-colors"
-              />
-              <div className="flex justify-between mt-2">
-                <span className="text-[10px] font-bold text-slate-500 uppercase">Slow</span>
-                <span className="text-[10px] font-bold text-slate-500 uppercase">1.0x</span>
-                <span className="text-[10px] font-bold text-slate-500 uppercase">Fast</span>
-              </div>
-            </div>
-
-            {/* Volume */}
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <label className="text-sm font-medium text-slate-300">Volume</label>
-                <span className="text-xs font-mono text-slate-500 bg-black/20 px-2 py-1 rounded-md">{Math.round(volume * 100)}%</span>
-              </div>
-              <input 
-                type="range" 
-                min="0.5" 
-                max="1.5" 
-                step="0.1"
-                value={volume}
-                onChange={(e) => setVolume(parseFloat(e.target.value))}
-                className="w-full h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-white hover:accent-slate-200 transition-colors"
-              />
-              <div className="flex justify-between mt-2">
-                <span className="text-[10px] font-bold text-slate-500 uppercase">Quiet</span>
-                <span className="text-[10px] font-bold text-slate-500 uppercase">100%</span>
-                <span className="text-[10px] font-bold text-slate-500 uppercase">Loud</span>
-              </div>
-            </div>
-          </div>
-        </motion.div>
-      </div>
 
       <audio ref={audioRef} src={audioUrl || undefined} className="hidden" />
     </div>
