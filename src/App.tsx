@@ -197,7 +197,9 @@ export default function App() {
   const [scriptTopic, setScriptTopic] = useState<string>('');
   const [geminiErrorToast, setGeminiErrorToast] = useState<GeminiUserErrorDetail | null>(null);
   const [currentPage, setCurrentPage] = useState<'app' | 'privacy' | 'terms' | 'authCallback' | 'login'>('app');
+  const [isLogoutPending, setIsLogoutPending] = useState(false);
   const youtubeConnectIntentRef = useRef<string | null>(null);
+  const logoutCleanupRef = useRef<Promise<void> | null>(null);
 
   // Handle URL-based routing for legal pages
   useEffect(() => {
@@ -726,14 +728,20 @@ export default function App() {
       setActiveTab('voiceover');
     }
     setCurrentPage('login');
+    setIsLogoutPending(true);
 
-    // Fire-and-forget server-side cleanup in the background.
-    Promise.allSettled([
+    // Run server-side cleanup and keep a reference so login can wait for completion.
+    const cleanup = Promise.allSettled([
       fetch('/api/auth/logout', { method: 'POST', credentials: 'include', keepalive: true }),
       signOutSupabase(),
-    ]).catch(() => {
-      // Already on login page; ignore background errors.
-    });
+    ])
+      .then(() => undefined)
+      .finally(() => {
+        logoutCleanupRef.current = null;
+        setIsLogoutPending(false);
+      });
+
+    logoutCleanupRef.current = cleanup;
   };
 
   const handleSwitchAccount = async (index: number) => {
@@ -985,7 +993,11 @@ export default function App() {
   if (currentPage === 'login' || (currentPage === 'app' && !supabaseLoading && !isSupabaseAuthenticated)) {
     return (
       <LoginPage
-        onConnect={() => {
+        isBusy={isLogoutPending}
+        onConnect={async () => {
+          if (logoutCleanupRef.current) {
+            await logoutCleanupRef.current;
+          }
           window.location.href = '/auth/youtube';
         }}
       />

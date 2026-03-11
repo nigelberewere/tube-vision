@@ -2,7 +2,9 @@ import { useState } from 'react';
 import { BarChart4, FileText, Mic, Search, Lightbulb, Image as ImageIcon, Play } from 'lucide-react';
 
 interface LoginPageProps {
-  onConnect: () => void;
+  onConnect: () => void | Promise<void>;
+  isBusy?: boolean;
+  busyLabel?: string;
 }
 
 const features = [
@@ -15,12 +17,21 @@ const features = [
   { icon: Play, label: 'YouTube Shorts Studio', color: 'text-red-400' },
 ];
 
-export default function LoginPage({ onConnect }: LoginPageProps) {
+export default function LoginPage({ onConnect, isBusy = false, busyLabel = 'Finalizing sign out...' }: LoginPageProps) {
   const [loading, setLoading] = useState(false);
 
-  const handleSignIn = () => {
+  const handleSignIn = async () => {
+    if (loading || isBusy) {
+      return;
+    }
+
     setLoading(true);
-    onConnect();
+    try {
+      await onConnect();
+    } catch (error) {
+      console.error('Failed to start OAuth flow:', error);
+      setLoading(false);
+    }
   };
 
   return (
@@ -94,10 +105,28 @@ export default function LoginPage({ onConnect }: LoginPageProps) {
 
           <button
             onClick={handleSignIn}
-            disabled={loading}
+            disabled={loading || isBusy}
             className="w-full flex items-center justify-center gap-3 bg-white hover:bg-slate-100 active:bg-slate-200 disabled:opacity-60 disabled:cursor-not-allowed text-black font-semibold text-sm rounded-xl px-5 py-3 transition-colors shadow-lg"
           >
-            {loading ? (
+            {isBusy && !loading ? (
+              <>
+                <svg
+                  className="animate-spin w-4 h-4 text-black/60"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                  />
+                </svg>
+                {busyLabel}
+              </>
+            ) : loading ? (
               <>
                 <svg
                   className="animate-spin w-4 h-4 text-black/60"
