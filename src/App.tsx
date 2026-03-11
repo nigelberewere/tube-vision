@@ -37,7 +37,7 @@ import VoiceOver from './components/VoiceOver';
 import ViralClipExtractor from './components/ViralClipExtractor.tsx';
 import CommentStrategist from './components/CommentStrategist';
 import OnboardingTour, { type OnboardingStep } from './components/OnboardingTour';
-import SettingsPanel from './components/SettingsPanel';
+import SettingsPanel, { type SettingsTab as SettingsPanelTab } from './components/SettingsPanel';
 import { LegalViewer } from './components/LegalViewer';
 import { AuthCallback } from './components/AuthCallback';
 import LoginPage from './components/LoginPage';
@@ -69,6 +69,7 @@ type Theme = 'dark' | 'light';
 
 type TourStep = OnboardingStep & {
   focusTab?: Tab;
+  settingsTab?: SettingsPanelTab;
 };
 
 interface YouTubeChannel {
@@ -125,9 +126,10 @@ const ONBOARDING_STEPS: TourStep[] = [
   },
   {
     targetId: 'tour-settings-tab',
-    title: 'Settings, Brand, and API Keys',
-    description: 'Use Settings to manage appearance, brand kit assets, and API Keys for BYOK AI features.',
+    title: 'Settings, Brand Kit, and API Keys',
+    description: 'Brand Kit is OFF by default. In Settings > Brand Kit, turn it on, then upload logos and set your colors/fonts. Add API Keys in the API Keys tab for BYOK features.',
     focusTab: 'settings',
+    settingsTab: 'brandkit',
   },
 ];
 
@@ -178,6 +180,7 @@ export default function App() {
     signOut: signOutSupabase,
   } = useAuth();
   const [activeTab, setActiveTab] = useState<Tab>('home');
+  const [settingsPanelTab, setSettingsPanelTab] = useState<SettingsPanelTab>('appearance');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [theme, setTheme] = useState<Theme>(() => {
     if (typeof window === 'undefined') {
@@ -569,6 +572,9 @@ export default function App() {
     const step = ONBOARDING_STEPS[onboardingStepIndex];
     if (step?.focusTab) {
       setActiveTab(step.focusTab);
+      if (step.focusTab === 'settings') {
+        setSettingsPanelTab(step.settingsTab || 'appearance');
+      }
     }
 
     setIsProfileMenuOpen(false);
@@ -577,6 +583,12 @@ export default function App() {
       setIsSidebarOpen(true);
     }
   }, [isOnboardingOpen, onboardingStepIndex, user]);
+
+  useEffect(() => {
+    if (activeTab !== 'settings' && settingsPanelTab !== 'appearance') {
+      setSettingsPanelTab('appearance');
+    }
+  }, [activeTab, settingsPanelTab]);
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
@@ -939,6 +951,7 @@ export default function App() {
             activeAccountIndex={activeAccountIndex}
             totalAccounts={accounts.length}
             onNavigateToIdeas={() => setActiveTab('ideas')}
+            theme={theme}
           />
         );
       case 'seo':
@@ -962,7 +975,7 @@ export default function App() {
       case 'clips':
         return <ViralClipExtractor />;
       case 'settings':
-        return <SettingsPanel theme={theme} onThemeChange={setTheme} />;
+        return <SettingsPanel theme={theme} onThemeChange={setTheme} initialTab={settingsPanelTab} />;
       case 'videos':
         return <VideoList onOptimizeSEO={(videoTitle) => {
           setSeoVideoTopic(videoTitle);
@@ -1000,6 +1013,7 @@ export default function App() {
             activeAccountIndex={activeAccountIndex}
             totalAccounts={accounts.length}
             onNavigateToIdeas={() => setActiveTab('ideas')}
+            theme={theme}
           />
         );
     }
@@ -1310,6 +1324,7 @@ export default function App() {
                         data-tour-id="tour-settings-entry"
                         onClick={() => {
                           setIsProfileMenuOpen(false);
+                          setSettingsPanelTab('appearance');
                           setActiveTab('settings');
                           setIsSidebarOpen(false);
                         }}
@@ -1395,6 +1410,7 @@ export default function App() {
               </button>
               <button
                 onClick={() => {
+                  setSettingsPanelTab('appearance');
                   setActiveTab('settings');
                   setIsSidebarOpen(false);
                 }}
@@ -1469,6 +1485,7 @@ export default function App() {
                 {geminiErrorToast.requiresApiKey && (
                   <button
                     onClick={() => {
+                      setSettingsPanelTab('apikeys');
                       setActiveTab('settings');
                       setIsSidebarOpen(false);
                       setGeminiErrorToast(null);

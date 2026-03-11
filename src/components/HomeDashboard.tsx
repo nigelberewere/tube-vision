@@ -45,6 +45,7 @@ interface HomeDashboardProps {
   activeAccountIndex?: number;
   totalAccounts?: number;
   onNavigateToIdeas?: () => void;
+  theme?: 'dark' | 'light';
 }
 
 interface AnalyticsReport {
@@ -192,7 +193,9 @@ export default function HomeDashboard({
   activeAccountIndex = 0,
   totalAccounts = 0,
   onNavigateToIdeas,
+  theme = 'dark',
 }: HomeDashboardProps) {
+  const isLightTheme = theme === 'light';
   const [analytics, setAnalytics] = useState<AnalyticsPayload | null>(null);
   const [videos, setVideos] = useState<VideoItem[]>([]);
   const [bestPostingTime, setBestPostingTime] = useState<BestPostingTime | null>(null);
@@ -618,38 +621,69 @@ Return valid JSON only.`;
         </button>
       </div>
 
-      <div className="rounded-2xl border border-indigo-400/20 bg-gradient-to-r from-indigo-500/10 via-slate-900 to-cyan-500/10 p-5">
+      <div
+        className={cn(
+          'rounded-2xl border p-5',
+          isLightTheme
+            ? 'border-indigo-200 bg-gradient-to-r from-indigo-100 via-white to-cyan-100'
+            : 'border-indigo-400/20 bg-gradient-to-r from-indigo-500/10 via-slate-900 to-cyan-500/10'
+        )}
+      >
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div className="flex items-center gap-4 min-w-0">
             {profileImage ? (
               <img
                 src={profileImage}
                 alt={profileName || 'Account profile'}
-                className="w-14 h-14 rounded-full border border-white/20 object-cover"
+                className={cn(
+                  'w-14 h-14 rounded-full border object-cover',
+                  isLightTheme ? 'border-indigo-200' : 'border-white/20'
+                )}
                 referrerPolicy="no-referrer"
               />
             ) : (
-              <div className="w-14 h-14 rounded-full border border-white/20 bg-white/10 text-white font-bold flex items-center justify-center">
+              <div
+                className={cn(
+                  'w-14 h-14 rounded-full border font-bold flex items-center justify-center',
+                  isLightTheme
+                    ? 'border-indigo-200 bg-indigo-100 text-slate-900'
+                    : 'border-white/20 bg-white/10 text-white'
+                )}
+              >
                 {(profileName || channel?.title || 'T').slice(0, 1).toUpperCase()}
               </div>
             )}
             <div className="min-w-0">
-              <p className="text-[10px] uppercase tracking-[0.2em] text-indigo-200/80 font-bold">Personal Workspace</p>
-              <h3 className="text-xl font-bold text-white truncate mt-1">Welcome back, {profileName || 'Creator'}</h3>
-              <p className="text-sm text-slate-300 truncate mt-1">
+              <p className={cn('text-[10px] uppercase tracking-[0.2em] font-bold', isLightTheme ? 'text-indigo-700' : 'text-indigo-200/80')}>
+                Personal Workspace
+              </p>
+              <h3 className={cn('text-xl font-bold truncate mt-1', isLightTheme ? 'text-slate-900' : 'text-white')}>
+                Welcome back, {profileName || 'Creator'}
+              </h3>
+              <p className={cn('text-sm truncate mt-1', isLightTheme ? 'text-slate-600' : 'text-slate-300')}>
                 {channel?.title ? `${channel.title} is now your active dashboard.` : 'Your connected account is active.'}
               </p>
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-2 w-full md:w-auto">
-            <div className="rounded-lg border border-white/15 bg-black/25 px-3 py-2 min-w-[130px]">
-              <p className="text-[10px] uppercase tracking-[0.18em] text-slate-400">Role</p>
-              <p className="text-sm font-semibold text-white mt-1">Workspace Owner</p>
+            <div
+              className={cn(
+                'rounded-lg border px-3 py-2 min-w-[130px]',
+                isLightTheme ? 'border-slate-300 bg-white/85' : 'border-white/15 bg-black/25'
+              )}
+            >
+              <p className={cn('text-[10px] uppercase tracking-[0.18em]', isLightTheme ? 'text-slate-500' : 'text-slate-400')}>Role</p>
+              <p className={cn('text-sm font-semibold mt-1', isLightTheme ? 'text-slate-900' : 'text-white')}>Workspace Owner</p>
             </div>
-            <div className="rounded-lg border border-white/15 bg-black/25 px-3 py-2 min-w-[130px]">
-              <p className="text-[10px] uppercase tracking-[0.18em] text-slate-400">Active Account</p>
-              <p className="text-sm font-semibold text-white mt-1">
+            <div
+              className={cn(
+                'rounded-lg border px-3 py-2 min-w-[130px]',
+                isLightTheme ? 'border-slate-300 bg-white/85' : 'border-white/15 bg-black/25'
+              )}
+            >
+              <p className={cn('text-[10px] uppercase tracking-[0.18em]', isLightTheme ? 'text-slate-500' : 'text-slate-400')}>Active Account</p>
+              <p className={cn('text-sm font-semibold mt-1', isLightTheme ? 'text-slate-900' : 'text-white')}>
                 {totalAccounts > 0 ? `${activeAccountIndex + 1} of ${totalAccounts}` : '1 of 1'}
               </p>
             </div>

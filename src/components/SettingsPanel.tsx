@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Moon, Sun, Palette, Key, Zap } from 'lucide-react';
 import { cn } from '../lib/utils';
 import BrandKit from './BrandKit';
@@ -6,15 +6,20 @@ import APIKeySettings from './APIKeySettings';
 import ModelSettingsPanel from './ModelSettingsPanel';
 
 type Theme = 'dark' | 'light';
-type SettingsTab = 'appearance' | 'brandkit' | 'apikeys' | 'models';
+export type SettingsTab = 'appearance' | 'brandkit' | 'apikeys' | 'models';
 
 interface SettingsPanelProps {
   theme: Theme;
   onThemeChange: (theme: Theme) => void;
+  initialTab?: SettingsTab;
 }
 
-export default function SettingsPanel({ theme, onThemeChange }: SettingsPanelProps) {
-  const [activeTab, setActiveTab] = useState<SettingsTab>('appearance');
+export default function SettingsPanel({ theme, onThemeChange, initialTab = 'appearance' }: SettingsPanelProps) {
+  const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab);
+
+  useEffect(() => {
+    setActiveTab(initialTab);
+  }, [initialTab]);
 
   const options: Array<{ id: Theme; label: string; description: string; icon: typeof Sun }> = [
     {
@@ -109,7 +114,7 @@ export default function SettingsPanel({ theme, onThemeChange }: SettingsPanelPro
       ) : activeTab === 'brandkit' ? (
         <BrandKit />
       ) : activeTab === 'models' ? (
-        <ModelSettingsPanel />
+        <ModelSettingsPanel theme={theme} />
       ) : (
         <APIKeySettings />
       )}

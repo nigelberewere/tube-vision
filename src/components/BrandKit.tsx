@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { Palette, Type as TypeIcon, Image as ImageIcon, Upload, Trash2, Plus, Save, Check, X, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { cn } from '../lib/utils';
 
 export interface BrandKitData {
+  enabled: boolean;
   colors: {
     primary: string;
     secondary: string;
@@ -21,6 +23,7 @@ export interface BrandKitData {
 }
 
 const DEFAULT_BRAND_KIT: BrandKitData = {
+  enabled: false,
   colors: {
     primary: '#6366f1',
     secondary: '#8b5cf6',
@@ -58,13 +61,32 @@ const POPULAR_FONTS = [
 
 const STORAGE_KEY = 'vidvision_brand_kit';
 
+function normalizeBrandKit(data: Partial<BrandKitData> | null | undefined): BrandKitData {
+  return {
+    enabled: data?.enabled === true,
+    colors: {
+      ...DEFAULT_BRAND_KIT.colors,
+      ...(data?.colors ?? {}),
+    },
+    fonts: {
+      ...DEFAULT_BRAND_KIT.fonts,
+      ...(data?.fonts ?? {}),
+    },
+    logos: {
+      main: data?.logos?.main ?? DEFAULT_BRAND_KIT.logos.main,
+      secondary: data?.logos?.secondary ?? DEFAULT_BRAND_KIT.logos.secondary,
+    },
+  };
+}
+
 export function loadBrandKit(): BrandKitData {
   if (typeof window === 'undefined') return DEFAULT_BRAND_KIT;
   
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
-      return JSON.parse(saved);
+      const parsed = JSON.parse(saved) as Partial<BrandKitData>;
+      return normalizeBrandKit(parsed);
     }
   } catch (e) {
     console.error('Failed to load brand kit:', e);
@@ -74,7 +96,7 @@ export function loadBrandKit(): BrandKitData {
 
 export function saveBrandKit(data: BrandKitData) {
   if (typeof window === 'undefined') return;
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(normalizeBrandKit(data)));
 }
 
 export default function BrandKit() {
@@ -148,6 +170,14 @@ export default function BrandKit() {
     setTimeout(() => setSaved(false), 2000);
   };
 
+  const handleToggleEnabled = () => {
+    setBrandKit((prev) => ({
+      ...prev,
+      enabled: !prev.enabled,
+    }));
+    setSaved(false);
+  };
+
   const resetToDefaults = () => {
     if (confirm('Are you sure you want to reset your brand kit to defaults? This cannot be undone.')) {
       setBrandKit(DEFAULT_BRAND_KIT);
@@ -178,7 +208,32 @@ export default function BrandKit() {
         <p className="text-slate-300 max-w-3xl">
           Define your brand identity once and use it across all generated content. Upload logos, set brand colors, and choose fonts to maintain consistency in thumbnails and social posts.
         </p>
-        
+
+        <div className="mt-5 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div className={cn(
+            'rounded-lg border px-4 py-3 text-sm',
+            brandKit.enabled
+              ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-200'
+              : 'border-amber-500/40 bg-amber-500/10 text-amber-200'
+          )}>
+            {brandKit.enabled
+              ? 'Brand Kit is ON. AI features can use your uploaded logos, colors, and fonts.'
+              : 'Brand Kit is OFF by default. Turn it on to use your logos, colors, and fonts in AI generation.'}
+          </div>
+
+          <button
+            onClick={handleToggleEnabled}
+            className={cn(
+              'inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-colors',
+              brandKit.enabled
+                ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                : 'bg-amber-500 text-zinc-950 hover:bg-amber-400'
+            )}
+          >
+            {brandKit.enabled ? 'Turn Off Brand Kit' : 'Turn On Brand Kit'}
+          </button>
+        </div>
+
         <div className="mt-4 flex gap-3">
           <button
             onClick={handleSave}
@@ -196,6 +251,17 @@ export default function BrandKit() {
           </button>
         </div>
       </div>
+
+      {!brandKit.enabled && (
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4">
+          <p className="text-sm font-semibold text-amber-200">Brand Kit is currently disabled</p>
+          <p className="mt-1 text-xs text-amber-100/90">
+            Enable Brand Kit above to start uploading logos and setting your brand colors/fonts. Until then, AI tools will ignore brand kit assets.
+          </p>
+        </div>
+      )}
+
+      <div className={cn('space-y-8 transition-opacity', !brandKit.enabled && 'pointer-events-none select-none opacity-55')}>
 
       {/* Brand Colors */}
       <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
@@ -429,26 +495,37 @@ export default function BrandKit() {
             <Sparkles className="text-indigo-400" size={20} />
           </div>
           <div>
-            <h3 className="text-sm font-medium text-indigo-300 mb-1">AI-Powered Brand Consistency</h3>
-            <p className="text-zinc-300 text-sm leading-relaxed">
-              Your brand kit is automatically applied when generating:
-            </p>
-            <ul className="mt-3 space-y-2 text-sm text-zinc-400">
-              <li className="flex items-center gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-indigo-400" />
-                <span><strong className="text-zinc-300">Thumbnail concepts</strong> - AI uses your colors, fonts, and logo placement recommendations</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-purple-400" />
-                <span><strong className="text-zinc-300">Social media posts</strong> - Generated copy maintains your brand voice and style</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-pink-400" />
-                <span><strong className="text-zinc-300">Content designs</strong> - All visual assets stay on-brand automatically</span>
-              </li>
-            </ul>
+            <h3 className="text-sm font-medium text-indigo-300 mb-1">
+              {brandKit.enabled ? 'AI-Powered Brand Consistency' : 'Brand Kit Usage is Paused'}
+            </h3>
+            {brandKit.enabled ? (
+              <>
+                <p className="text-zinc-300 text-sm leading-relaxed">
+                  Your brand kit is automatically applied when generating:
+                </p>
+                <ul className="mt-3 space-y-2 text-sm text-zinc-400">
+                  <li className="flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-indigo-400" />
+                    <span><strong className="text-zinc-300">Thumbnail concepts</strong> - AI uses your colors, fonts, and logo placement recommendations</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-purple-400" />
+                    <span><strong className="text-zinc-300">Social media posts</strong> - Generated copy maintains your brand voice and style</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-pink-400" />
+                    <span><strong className="text-zinc-300">Content designs</strong> - All visual assets stay on-brand automatically</span>
+                  </li>
+                </ul>
+              </>
+            ) : (
+              <p className="text-zinc-300 text-sm leading-relaxed">
+                Turn Brand Kit on to let AI apply your brand colors, fonts, and logos in generated outputs.
+              </p>
+            )}
           </div>
         </div>
+      </div>
       </div>
     </div>
   );

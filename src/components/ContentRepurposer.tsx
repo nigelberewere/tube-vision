@@ -7,6 +7,13 @@ import { loadBrandKit } from './BrandKit';
 
 function getBrandVoiceContext(): string {
   const brandKit = loadBrandKit();
+  if (!brandKit.enabled) {
+    return `
+BRAND VOICE GUIDELINES:
+- Brand Kit is disabled in Settings.
+- Do not enforce saved brand colors, fonts, or logo references unless the user explicitly asks.
+`.trim();
+  }
   
   return `
 BRAND VOICE GUIDELINES (Maintain consistency with these):

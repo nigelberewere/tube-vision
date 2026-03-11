@@ -8,6 +8,7 @@ import {
   hasGeminiKey,
   getUsageStats,
   getKeyFingerprint,
+  clearLastAPIError,
 } from '../lib/geminiKeyStorage';
 import { classifyGeminiError, getStatusMessage } from '../lib/geminiErrorClassifier';
 import { getModel } from '../lib/modelStorage';
@@ -59,6 +60,7 @@ export default function APIKeySettings() {
 
     try {
       await saveGeminiKey(apiKey);
+      clearLastAPIError();
       setApiKey(''); // Clear input for security
       setShowKey(false);
       setStatusMessage('API key saved successfully');
@@ -100,6 +102,7 @@ export default function APIKeySettings() {
         },
       });
 
+      clearLastAPIError();
       setStatus('connected');
       setStatusMessage('Connection successful');
     } catch (error) {

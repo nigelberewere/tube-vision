@@ -121,6 +121,10 @@ function toNumber(value: unknown): number {
 
 function getBrandKitPromptContext(): string {
   const brandKit = loadBrandKit();
+  if (!brandKit.enabled) {
+    return 'BRAND KIT: Disabled in Settings. Do not enforce brand colors, fonts, or logo placement unless explicitly requested by the user.';
+  }
+
   const hasLogos = brandKit.logos.main || brandKit.logos.secondary;
   
   return `

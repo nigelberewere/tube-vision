@@ -44,7 +44,12 @@ interface ModelSettings {
   hasChanges: boolean;
 }
 
-export default function ModelSettingsPanel() {
+interface ModelSettingsPanelProps {
+  theme?: 'dark' | 'light';
+}
+
+export default function ModelSettingsPanel({ theme = 'dark' }: ModelSettingsPanelProps) {
+  const isLightTheme = theme === 'light';
   const [settings, setSettings] = useState<ModelSettings>({
     preferences: { ...DEFAULT_MODELS },
     hasChanges: false,
@@ -132,31 +137,40 @@ export default function ModelSettingsPanel() {
   return (
     <div className="space-y-6 animate-in fade-in duration-500 pb-10">
       {/* Header */}
-      <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
+      <div className={cn(
+        'rounded-2xl border p-6',
+        isLightTheme ? 'border-slate-300 bg-slate-100/60' : 'border-white/10 bg-white/[0.03]'
+      )}>
         <p className="text-[10px] uppercase tracking-[0.2em] text-slate-500 font-bold">Settings</p>
-        <h2 className="text-2xl font-bold text-white mt-2">AI Models</h2>
-        <p className="text-slate-400 mt-2 max-w-2xl">
+        <h2 className={cn('text-2xl font-bold mt-2', isLightTheme ? 'text-slate-900' : 'text-white')}>AI Models</h2>
+        <p className={cn('mt-2 max-w-2xl', isLightTheme ? 'text-slate-700' : 'text-slate-400')}>
           Choose which AI model to use for each feature. Flash models are recommended for most users to minimize quota usage.
         </p>
       </div>
 
       {/* Quota Warning Banner */}
-      <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4">
+      <div className={cn(
+        'rounded-xl border p-4',
+        isLightTheme ? 'border-amber-300 bg-amber-50' : 'border-amber-500/30 bg-amber-500/10'
+      )}>
         <div className="flex gap-3">
-          <AlertCircle size={18} className="text-amber-400 flex-shrink-0 mt-0.5" />
-          <div className="text-sm text-amber-100">
+          <AlertCircle size={18} className={cn('flex-shrink-0 mt-0.5', isLightTheme ? 'text-amber-700' : 'text-amber-400')} />
+          <div className={cn('text-sm', isLightTheme ? 'text-amber-900' : 'text-amber-100')}>
             <p className="font-semibold">⚠️ Model Impact on Quota</p>
-            <p className="text-amber-200/80 mt-1">
+            <p className={cn('mt-1', isLightTheme ? 'text-amber-800' : 'text-amber-200/80')}>
               Switching from Flash to Pro models will <strong>significantly reduce your daily API quota</strong>. 
               Flash: ~1000 requests/day • Pro: ~50 requests/day
             </p>
-            <p className="text-amber-200/80 mt-1">
+            <p className={cn('mt-1', isLightTheme ? 'text-amber-800' : 'text-amber-200/80')}>
               Choose Pro models only for tasks where higher quality is critical. See{' '}
               <a
                 href="https://ai.google.dev/pricing"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="underline hover:no-underline text-amber-300"
+                className={cn(
+                  'underline hover:no-underline',
+                  isLightTheme ? 'font-medium text-amber-900' : 'text-amber-300'
+                )}
               >
                 pricing details
               </a>
@@ -176,21 +190,29 @@ export default function ModelSettingsPanel() {
           return (
             <div
               key={functionality}
-              className="rounded-2xl border border-zinc-800 bg-zinc-900 p-5 space-y-4"
+              className={cn(
+                'rounded-2xl border p-5 space-y-4',
+                isLightTheme ? 'border-slate-300 bg-white' : 'border-zinc-800 bg-zinc-900'
+              )}
             >
               {/* Functionality Header */}
               <div>
                 <div className="flex items-start justify-between">
                   <div>
-                    <h3 className="text-lg font-semibold text-white">
+                    <h3 className={cn('text-lg font-semibold', isLightTheme ? 'text-slate-900' : 'text-white')}>
                       {FUNCTIONALITY_NAMES[functionality].label}
                     </h3>
-                    <p className="text-sm text-zinc-400 mt-1">
+                    <p className={cn('text-sm mt-1', isLightTheme ? 'text-slate-600' : 'text-zinc-400')}>
                       {FUNCTIONALITY_NAMES[functionality].description}
                     </p>
                   </div>
                   {isDefault && (
-                    <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-indigo-300 bg-indigo-500/20 px-2.5 py-1 rounded">
+                    <span className={cn(
+                      'text-[10px] font-bold uppercase tracking-[0.2em] px-2.5 py-1 rounded',
+                      isLightTheme
+                        ? 'border border-indigo-200 bg-indigo-100 text-indigo-700'
+                        : 'bg-indigo-500/20 text-indigo-300'
+                    )}>
                       Default
                     </span>
                   )}
@@ -199,7 +221,7 @@ export default function ModelSettingsPanel() {
 
               {/* Model Selection */}
               <div className="space-y-3">
-                <label className="text-sm font-medium text-zinc-200 block">Select Model</label>
+                <label className={cn('text-sm font-medium block', isLightTheme ? 'text-slate-700' : 'text-zinc-200')}>Select Model</label>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {suitableModels.map(model => (
                     <button
@@ -209,28 +231,36 @@ export default function ModelSettingsPanel() {
                       className={cn(
                         'text-left rounded-lg border-2 p-3 transition-all',
                         config.model === model.id
-                          ? 'border-indigo-400 bg-indigo-500/10'
-                          : 'border-zinc-700 bg-zinc-800/50 hover:border-indigo-500/50 hover:bg-zinc-800'
+                          ? isLightTheme
+                            ? 'border-indigo-500 bg-indigo-50 shadow-[inset_0_0_0_1px_rgba(99,102,241,0.15)]'
+                            : 'border-indigo-400 bg-indigo-500/10'
+                          : isLightTheme
+                            ? 'border-slate-300 bg-slate-50 hover:border-indigo-400 hover:bg-indigo-50/40'
+                            : 'border-zinc-700 bg-zinc-800/50 hover:border-indigo-500/50 hover:bg-zinc-800'
                       )}
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex-1 min-w-0">
-                          <p className="font-medium text-white text-sm">{model.name}</p>
-                          <p className="text-xs text-zinc-400 mt-1">{model.description}</p>
+                          <p className={cn('font-medium text-sm', isLightTheme ? 'text-slate-900' : 'text-white')}>{model.name}</p>
+                          <p className={cn('text-xs mt-1', isLightTheme ? 'text-slate-600' : 'text-zinc-400')}>{model.description}</p>
                           <div className="flex items-center gap-2 mt-2">
                             <span className={cn(
                               'text-[10px] font-bold uppercase tracking-[0.1em] px-2 py-1 rounded',
                               model.tier === 'flash'
-                                ? 'bg-blue-500/20 text-blue-300'
-                                : 'bg-purple-500/20 text-purple-300'
+                                ? isLightTheme
+                                  ? 'border border-blue-200 bg-blue-100 text-blue-700'
+                                  : 'bg-blue-500/20 text-blue-300'
+                                : isLightTheme
+                                  ? 'border border-purple-200 bg-purple-100 text-purple-700'
+                                  : 'bg-purple-500/20 text-purple-300'
                             )}>
                               {model.tier}
                             </span>
-                            <span className="text-[10px] text-zinc-400">{model.quotaPerDay}</span>
+                            <span className={cn('text-[10px]', isLightTheme ? 'text-slate-600' : 'text-zinc-400')}>{model.quotaPerDay}</span>
                           </div>
                         </div>
                         {config.model === model.id && (
-                          <CheckCircle size={18} className="text-indigo-400 flex-shrink-0 mt-1" />
+                          <CheckCircle size={18} className={cn('flex-shrink-0 mt-1', isLightTheme ? 'text-indigo-600' : 'text-indigo-400')} />
                         )}
                       </div>
                     </button>
@@ -239,36 +269,48 @@ export default function ModelSettingsPanel() {
               </div>
 
               {/* Quota Warning Toggle */}
-              <div className="pt-3 border-t border-zinc-800">
+              <div className={cn('pt-3 border-t', isLightTheme ? 'border-slate-200' : 'border-zinc-800')}>
                 <label className="flex items-center gap-3 cursor-pointer group">
                   <input
                     type="checkbox"
                     checked={config.quotaWarning}
                     onChange={(e) => handleQuotaWarningChange(functionality, e.target.checked)}
-                    className="w-4 h-4 rounded border-zinc-700 bg-zinc-800 cursor-pointer accent-indigo-500"
+                    className={cn(
+                      'w-4 h-4 rounded cursor-pointer accent-indigo-500',
+                      isLightTheme ? 'border-slate-400 bg-white' : 'border-zinc-700 bg-zinc-800'
+                    )}
                   />
                   <div className="flex-1 min-w-0">
-                    <span className="text-sm font-medium text-zinc-200 group-hover:text-zinc-100">
+                    <span className={cn(
+                      'text-sm font-medium',
+                      isLightTheme ? 'text-slate-800 group-hover:text-slate-900' : 'text-zinc-200 group-hover:text-zinc-100'
+                    )}>
                       Show quota warning before using
                     </span>
-                    <p className="text-xs text-zinc-500">You'll be warned if this model may reach quota limits</p>
+                    <p className={cn('text-xs', isLightTheme ? 'text-slate-600' : 'text-zinc-500')}>You'll be warned if this model may reach quota limits</p>
                   </div>
                 </label>
               </div>
 
               {/* Model Warning */}
               {warningLevel === 'critical' && (
-                <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3">
-                  <p className="text-xs text-red-200 flex items-center gap-2">
-                    <AlertCircle size={14} className="flex-shrink-0" />
+                <div className={cn(
+                  'border rounded-lg p-3',
+                  isLightTheme ? 'bg-red-50 border-red-200' : 'bg-red-500/10 border-red-500/30'
+                )}>
+                  <p className={cn('text-xs flex items-center gap-2', isLightTheme ? 'text-red-800' : 'text-red-200')}>
+                    <AlertCircle size={14} className={cn('flex-shrink-0', isLightTheme ? 'text-red-700' : undefined)} />
                     <span>This model has very limited quota. Use for critical tasks only.</span>
                   </p>
                 </div>
               )}
               {warningLevel === 'warning' && (
-                <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3">
-                  <p className="text-xs text-amber-200 flex items-center gap-2">
-                    <Info size={14} className="flex-shrink-0" />
+                <div className={cn(
+                  'border rounded-lg p-3',
+                  isLightTheme ? 'bg-amber-50 border-amber-300' : 'bg-amber-500/10 border-amber-500/30'
+                )}>
+                  <p className={cn('text-xs flex items-center gap-2', isLightTheme ? 'text-amber-800' : 'text-amber-200')}>
+                    <Info size={14} className={cn('flex-shrink-0', isLightTheme ? 'text-amber-700' : undefined)} />
                     <span>This model may reach quota limits with heavy daily use.</span>
                   </p>
                 </div>
@@ -279,7 +321,7 @@ export default function ModelSettingsPanel() {
       </div>
 
       {/* Action Buttons */}
-      <div className="flex gap-3 pt-4 border-t border-zinc-800">
+      <div className={cn('flex gap-3 pt-4 border-t', isLightTheme ? 'border-slate-300' : 'border-zinc-800')}>
         <button
           onClick={handleSave}
           disabled={!settings.hasChanges || isSaving}
@@ -287,7 +329,9 @@ export default function ModelSettingsPanel() {
             'flex-1 px-4 py-2.5 rounded-lg font-medium transition-all',
             settings.hasChanges && !isSaving
               ? 'bg-indigo-500 text-white hover:bg-indigo-600'
-              : 'bg-zinc-800 text-zinc-400 cursor-not-allowed'
+              : isLightTheme
+                ? 'bg-slate-200 text-slate-500 cursor-not-allowed'
+                : 'bg-zinc-800 text-zinc-400 cursor-not-allowed'
           )}
         >
           {isSaving ? 'Saving...' : 'Save Changes'}
@@ -296,7 +340,12 @@ export default function ModelSettingsPanel() {
         <button
           onClick={handleReset}
           disabled={isSaving}
-          className="px-4 py-2.5 rounded-lg font-medium bg-zinc-800 text-zinc-300 hover:bg-zinc-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+          className={cn(
+            'px-4 py-2.5 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2',
+            isLightTheme
+              ? 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-100'
+              : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'
+          )}
         >
           <RotateCcw size={16} />
           Reset
@@ -308,8 +357,12 @@ export default function ModelSettingsPanel() {
         <div className={cn(
           'rounded-lg p-3 text-sm font-medium flex items-center gap-2 animate-in fade-in',
           saveMessage.type === 'success'
-            ? 'bg-green-500/10 text-green-200 border border-green-500/30'
-            : 'bg-red-500/10 text-red-200 border border-red-500/30'
+            ? isLightTheme
+              ? 'bg-green-50 text-green-800 border border-green-200'
+              : 'bg-green-500/10 text-green-200 border border-green-500/30'
+            : isLightTheme
+              ? 'bg-red-50 text-red-800 border border-red-200'
+              : 'bg-red-500/10 text-red-200 border border-red-500/30'
         )}>
           {saveMessage.type === 'success' ? (
             <CheckCircle size={16} />
@@ -321,16 +374,19 @@ export default function ModelSettingsPanel() {
       )}
 
       {/* Info Box */}
-      <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 p-4">
+      <div className={cn(
+        'rounded-xl border p-4',
+        isLightTheme ? 'border-blue-200 bg-blue-50' : 'border-blue-500/20 bg-blue-500/5'
+      )}>
         <div className="flex gap-3">
-          <Info size={18} className="text-blue-400 flex-shrink-0 mt-0.5" />
-          <div className="text-sm text-blue-200">
+          <Info size={18} className={cn('flex-shrink-0 mt-0.5', isLightTheme ? 'text-blue-700' : 'text-blue-400')} />
+          <div className={cn('text-sm', isLightTheme ? 'text-blue-900' : 'text-blue-200')}>
             <p className="font-semibold">About Model Selection</p>
-            <p className="text-blue-300/80 mt-1">
+            <p className={cn('mt-1', isLightTheme ? 'text-blue-800' : 'text-blue-300/80')}>
               Each feature can use a different model. Flash models are optimized for speed and quota efficiency. 
               Pro models offer higher quality but have lower quota limits. Choose based on your API limits and quality needs.
             </p>
-            <p className="text-blue-300/80 mt-2">
+            <p className={cn('mt-2', isLightTheme ? 'text-blue-800' : 'text-blue-300/80')}>
               Changes are saved to your browser only. Your preferences won't affect other users.
             </p>
           </div>

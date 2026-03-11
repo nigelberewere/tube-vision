@@ -253,6 +253,23 @@ export function recordAPIError(type: 'rate_limited' | 'quota_exhausted' | 'inval
   }
 }
 
+export function clearLastAPIError(): void {
+  if (typeof window === 'undefined') return;
+
+  try {
+    const stored = localStorage.getItem(USAGE_KEY);
+    if (!stored) return;
+
+    const stats: UsageStats = JSON.parse(stored);
+    if (stats.lastError) {
+      delete stats.lastError;
+      localStorage.setItem(USAGE_KEY, JSON.stringify(stats));
+    }
+  } catch {
+    // Ignore malformed usage state.
+  }
+}
+
 export function getUsageStats(): UsageStats | null {
   if (typeof window === 'undefined') return null;
   
