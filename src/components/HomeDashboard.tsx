@@ -560,7 +560,7 @@ Return valid JSON only.`;
     ? 'border-slate-200 bg-white shadow-sm'
     : 'border-white/15 bg-black/25';
   const primaryActionClass = isLightTheme
-    ? 'bg-slate-900 text-white hover:bg-slate-800 shadow-sm'
+    ? 'bg-slate-900 text-slate-50 hover:bg-slate-800 shadow-sm'
     : 'bg-white text-black hover:bg-slate-200';
   const copyActionClass = isLightTheme
     ? 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100'

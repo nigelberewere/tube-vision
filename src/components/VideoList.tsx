@@ -92,6 +92,22 @@ export default function VideoList({ onOptimizeSEO }: VideoListProps = {}) {
   const activeVideos = videoTypeFilter === 'shorts' ? shortsVideos : longFormVideos;
   const activeVideoLabel = videoTypeFilter === 'shorts' ? 'Shorts' : 'Long-Form Videos';
   const emptyActiveMessage = videoTypeFilter === 'shorts' ? 'No Shorts in this view.' : 'No long-form videos in this view.';
+  const videoTypeTabs = [
+    {
+      id: 'long-form' as const,
+      label: 'Long-Form',
+      icon: Clock,
+      description: 'Standard uploads',
+      count: longFormVideos.length,
+    },
+    {
+      id: 'shorts' as const,
+      label: 'Shorts',
+      icon: Play,
+      description: 'Vertical short videos',
+      count: shortsVideos.length,
+    },
+  ];
 
   const formatDuration = (pt: string) => {
     // Basic ISO 8601 duration parser (e.g., PT5M30S -> 5:30)
@@ -221,12 +237,12 @@ export default function VideoList({ onOptimizeSEO }: VideoListProps = {}) {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500 pb-10">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-zinc-100">My Videos</h1>
-          <p className="text-zinc-400 mt-2">Manage and analyze your recent uploads.</p>
-        </div>
-        <div className="flex w-full flex-col gap-3 md:w-auto md:items-end">
+      <div className="space-y-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight text-zinc-100">My Videos</h1>
+            <p className="text-zinc-400 mt-2">Manage and analyze your recent uploads.</p>
+          </div>
           <div className="relative w-full md:w-72">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" size={18} />
             <input 
@@ -237,29 +253,38 @@ export default function VideoList({ onOptimizeSEO }: VideoListProps = {}) {
               className="w-full bg-zinc-900 border border-zinc-800 rounded-xl pl-10 pr-4 py-2 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all"
             />
           </div>
-          <div className="inline-flex w-full md:w-auto rounded-xl border border-zinc-800 bg-zinc-900 p-1">
-            <button
-              onClick={() => setVideoTypeFilter('long-form')}
-              className={cn(
-                'flex-1 rounded-lg px-3 py-1.5 text-xs font-bold uppercase tracking-wider transition-colors md:flex-none',
-                videoTypeFilter === 'long-form'
-                  ? 'bg-white text-black shadow-sm'
-                  : 'text-zinc-300 hover:bg-white/5 hover:text-white'
-              )}
-            >
-              Long-Form ({longFormVideos.length})
-            </button>
-            <button
-              onClick={() => setVideoTypeFilter('shorts')}
-              className={cn(
-                'flex-1 rounded-lg px-3 py-1.5 text-xs font-bold uppercase tracking-wider transition-colors md:flex-none',
-                videoTypeFilter === 'shorts'
-                  ? 'bg-white text-black shadow-sm'
-                  : 'text-zinc-300 hover:bg-white/5 hover:text-white'
-              )}
-            >
-              Shorts ({shortsVideos.length})
-            </button>
+        </div>
+
+        <div className="border-b border-white/10">
+          <div className="flex gap-1 overflow-x-auto">
+            {videoTypeTabs.map((tab) => {
+              const Icon = tab.icon;
+              const isActive = videoTypeFilter === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setVideoTypeFilter(tab.id)}
+                  className={cn(
+                    'flex items-center gap-2 px-4 py-3 border-b-2 transition-all whitespace-nowrap',
+                    isActive
+                      ? 'border-purple-500 text-white'
+                      : 'border-transparent text-slate-400 hover:text-slate-300 hover:border-slate-600'
+                  )}
+                >
+                  <Icon size={16} />
+                  <span className="font-medium text-sm">{tab.label}</span>
+                  <span className="hidden sm:inline text-xs text-slate-500">{tab.description}</span>
+                  <span
+                    className={cn(
+                      'rounded-full px-2 py-0.5 text-[10px] font-bold',
+                      isActive ? 'bg-white/10 text-slate-200' : 'bg-zinc-800 text-zinc-400'
+                    )}
+                  >
+                    {tab.count}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         </div>
       </div>
