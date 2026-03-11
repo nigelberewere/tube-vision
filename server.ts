@@ -980,9 +980,21 @@ For every video provided, evaluate segments based on:
       `);
     }
 
-    const bridgeUrl = buildYouTubeAuthBridgeUrl(postAuthRedirect);
-    console.log(`[YouTube Auth Entry] Redirecting to app bridge: ${bridgeUrl}`);
-    res.redirect(bridgeUrl);
+    // Direct Google OAuth with identity + YouTube scopes in a single request.
+    // Using our redirect_uri means the consent screen shows app.janso.studio.
+    const url = oauth2Client.generateAuthUrl({
+      access_type: "offline",
+      scope: [
+        "https://www.googleapis.com/auth/userinfo.email",
+        "https://www.googleapis.com/auth/userinfo.profile",
+        "https://www.googleapis.com/auth/youtube.readonly",
+        "https://www.googleapis.com/auth/yt-analytics.readonly",
+      ],
+      prompt: "consent",
+      state: encodeOAuthState(postAuthRedirect, null),
+    });
+    console.log(`[YouTube Auth Entry] Redirecting to Google OAuth with combined scopes`);
+    res.redirect(url);
   });
 
   app.get(["/auth/google/callback", "/api/auth/google/callback"], async (req, res) => {
@@ -995,56 +1007,6 @@ For every video provided, evaluate segments based on:
       return res.status(400).send("No code provided");
     }
 
-    if (!supabaseUserId) {
-      return res.status(400).send(`
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <meta charset="UTF-8">
-            <title>Authentication Required</title>
-            <style>
-              body {
-                margin: 0;
-                font-family: system-ui, -apple-system, sans-serif;
-                background: #0f172a;
-                color: white;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                min-height: 100vh;
-                text-align: center;
-                padding: 24px;
-              }
-              .container {
-                max-width: 520px;
-                background: rgba(15, 23, 42, 0.92);
-                border: 1px solid rgba(148, 163, 184, 0.25);
-                border-radius: 16px;
-                padding: 32px;
-              }
-              h1 { margin: 0 0 12px 0; font-size: 24px; }
-              p { margin: 0 0 16px 0; color: #cbd5e1; line-height: 1.5; }
-              a {
-                color: white;
-                text-decoration: none;
-                display: inline-block;
-                background: #2563eb;
-                padding: 12px 18px;
-                border-radius: 999px;
-              }
-            </style>
-          </head>
-          <body>
-            <div class="container">
-              <h1>Sign in before connecting YouTube</h1>
-              <p>Your YouTube connection now attaches to a Supabase account first. Return to the app and sign in, then retry the connection.</p>
-              <a href=${JSON.stringify(buildYouTubeAuthBridgeUrl(postAuthRedirect))}>Return to app</a>
-            </div>
-          </body>
-        </html>
-      `);
-    }
-
     try {
       const { tokens } = await oauth2Client.getToken(code as string);
       oauth2Client.setCredentials(tokens);
@@ -1055,6 +1017,10 @@ For every video provided, evaluate segments based on:
       });
       const userInfo = await userInfoResponse.json();
 
+      if (!userInfo.email) {
+        return res.status(400).send("Google did not return an email address. Please try again.");
+      }
+
       const youtubeResponse = await fetch(
         "https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics&mine=true",
         {
@@ -1064,6 +1030,32 @@ For every video provided, evaluate segments based on:
       const youtubeData = await youtubeResponse.json();
       const channel = youtubeData.items?.[0];
 
+      if (!supabaseUserId) {
+        // Combined flow (from /auth/youtube): create/find Supabase user via admin magic link,
+        // persist the YouTube account, then redirect to establish the browser session.
+        const { data: linkData, error: linkError } = await supabaseServer.auth.admin.generateLink({
+          type: 'magiclink',
+          email: userInfo.email,
+          options: {
+            data: {
+              full_name: userInfo.name || null,
+              avatar_url: userInfo.picture || null,
+            },
+            redirectTo: `${appUrl}/auth/callback`,
+          },
+        });
+
+        if (linkError || !linkData?.properties?.action_link || !linkData?.user?.id) {
+          console.error("[OAuth Callback] Failed to generate magic link:", linkError);
+          return res.status(500).send("Authentication error - could not create your account. Please try again.");
+        }
+
+        await persistYouTubeAccountToSupabase(linkData.user.id, userInfo, channel, tokens);
+        console.log(`[OAuth Callback] Combined flow: magic link generated for ${userInfo.email}`);
+        return res.redirect(307, linkData.properties.action_link);
+      }
+
+      // In-app YouTube connect flow: supabaseUserId is present, user already has a Supabase session.
       const newUserData = {
         id: userInfo.id,
         name: userInfo.name,

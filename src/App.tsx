@@ -482,7 +482,7 @@ export default function App() {
     const continueConnect = async () => {
       try {
         if (!supabaseUser || !supabaseSession?.access_token) {
-          await signInWithGoogle({ redirectTo: buildYouTubeConnectResumeUrl(intent.next) });
+            window.location.href = '/auth/youtube';
           return;
         }
 
@@ -499,7 +499,8 @@ export default function App() {
     };
 
     void continueConnect();
-  }, [currentPage, requestYouTubeAuthUrl, signInWithGoogle, supabaseLoading, supabaseSession?.access_token, supabaseUser]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPage, requestYouTubeAuthUrl, supabaseLoading, supabaseSession?.access_token, supabaseUser]);
 
   // Redirect unauthenticated users to marketing site (unless viewing legal pages)
   useEffect(() => {
@@ -607,7 +608,7 @@ export default function App() {
   const handleConnect = async () => {
     try {
       if (!supabaseUser || !supabaseSession?.access_token) {
-        await signInWithGoogle({ redirectTo: buildYouTubeConnectResumeUrl(null) });
+        window.location.href = '/auth/youtube';
         return;
       }
 

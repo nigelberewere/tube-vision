@@ -22,7 +22,7 @@ export function AuthCallback() {
   useEffect(() => {
     // Listen for auth state changes - Supabase will emit when session is exchanged
     let mounted = true;
-    let unsubscribe: (() => void) | null = null;
+    let subscription: { unsubscribe: () => void } | null = null;
     let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
     const setupAuthListener = async () => {
@@ -35,7 +35,7 @@ export function AuthCallback() {
         }, 10000); // 10 second timeout
 
         // Subscribe to auth state changes
-        unsubscribe = supabase.auth.onAuthStateChange(async (event, session) => {
+        const { data } = supabase.auth.onAuthStateChange(async (event, session) => {
           if (!mounted) return;
 
           console.log('Auth state changed:', event, session ? 'session present' : 'no session');
@@ -63,6 +63,7 @@ export function AuthCallback() {
             window.location.href = nextUrl;
           }
         });
+        subscription = data.subscription;
       } catch (err) {
         console.error('Exception in auth callback setup:', err);
         if (mounted) {
@@ -76,8 +77,8 @@ export function AuthCallback() {
     // Cleanup
     return () => {
       mounted = false;
-      if (unsubscribe) {
-        unsubscribe();
+      if (subscription) {
+        subscription.unsubscribe();
       }
       if (timeoutId) {
         clearTimeout(timeoutId);
