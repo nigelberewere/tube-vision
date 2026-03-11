@@ -2255,6 +2255,31 @@ Return JSON with:
           headers: { Authorization: `Bearer ${user.tokens.access_token}` },
         }
       );
+
+      if (!searchResponse.ok) {
+        const errorData = await searchResponse.json().catch(() => ({}));
+        console.error("YouTube search API error:", errorData);
+        const upstreamCode = errorData?.error?.code || searchResponse.status;
+        const upstreamStatus = errorData?.error?.status || null;
+        const upstreamReason = errorData?.error?.errors?.[0]?.reason || null;
+        const upstreamMessage =
+          errorData?.error?.message ||
+          errorData?.error_description ||
+          "Failed to fetch your channel videos from YouTube";
+
+        return res.status(502).json({
+          error: `YouTube search failed (${upstreamCode}${upstreamStatus ? ` ${upstreamStatus}` : ""}): ${upstreamMessage}`,
+          upstream: {
+            source: "youtube",
+            step: "search",
+            code: upstreamCode,
+            status: upstreamStatus,
+            reason: upstreamReason,
+            message: upstreamMessage,
+          },
+        });
+      }
+
       const searchData = await searchResponse.json();
       const videoIds = searchData.items?.map((item: any) => item.id.videoId).filter(Boolean).join(",");
 
@@ -2272,7 +2297,25 @@ Return JSON with:
         if (!videosResponse.ok) {
           const errorData = await videosResponse.json().catch(() => ({}));
           console.error("YouTube videos API error:", errorData);
-          throw new Error(errorData.error?.message || "Failed to fetch video details from YouTube");
+          const upstreamCode = errorData?.error?.code || videosResponse.status;
+          const upstreamStatus = errorData?.error?.status || null;
+          const upstreamReason = errorData?.error?.errors?.[0]?.reason || null;
+          const upstreamMessage =
+            errorData?.error?.message ||
+            errorData?.error_description ||
+            "Failed to fetch video details from YouTube";
+
+          return res.status(502).json({
+            error: `YouTube video details failed (${upstreamCode}${upstreamStatus ? ` ${upstreamStatus}` : ""}): ${upstreamMessage}`,
+            upstream: {
+              source: "youtube",
+              step: "videos",
+              code: upstreamCode,
+              status: upstreamStatus,
+              reason: upstreamReason,
+              message: upstreamMessage,
+            },
+          });
         }
       
       const videosData = await videosResponse.json();
