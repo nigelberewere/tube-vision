@@ -695,30 +695,23 @@ export default function App() {
     }
   };
 
-  const handleLogout = async () => {
-    try {
-      await Promise.allSettled([
-        fetch('/api/auth/logout', {
-          method: 'POST',
-          credentials: 'include',
-        }),
-        signOutSupabase(),
-      ]);
-
-      setUser(null);
-      setAccounts([]);
-      setActiveAccountIndex(0);
-      if (CHANNEL_REQUIRED_TABS.includes(activeTab)) {
-        setActiveTab('voiceover');
-      }
-
-      setCurrentPage('login');
-    } catch (error) {
-      console.error('Logout error:', error);
-
-      // Fallback to show login page if logout fails unexpectedly.
-      setCurrentPage('login');
+  const handleLogout = () => {
+    // Show login page immediately — don't block on network round-trips.
+    setUser(null);
+    setAccounts([]);
+    setActiveAccountIndex(0);
+    if (CHANNEL_REQUIRED_TABS.includes(activeTab)) {
+      setActiveTab('voiceover');
     }
+    setCurrentPage('login');
+
+    // Fire-and-forget server-side cleanup in the background.
+    Promise.allSettled([
+      fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }),
+      signOutSupabase(),
+    ]).catch(() => {
+      // Already on login page; ignore background errors.
+    });
   };
 
   const handleSwitchAccount = async (index: number) => {
