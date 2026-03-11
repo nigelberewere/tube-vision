@@ -348,6 +348,7 @@ export default function App() {
   const growthTabs = tabs.filter((tab) => tab.section === 'growth');
   const requiresChannelConnection = CHANNEL_REQUIRED_TABS.includes(activeTab);
   const showMyVideosConnectIcon = activeTab === 'videos';
+  const isSupabaseAuthenticated = Boolean(supabaseUser && supabaseSession?.access_token);
 
   const getSupabaseAuthHeaders = () => {
     const token = supabaseSession?.access_token;
@@ -395,6 +396,14 @@ export default function App() {
   };
 
   const fetchUser = async () => {
+    if (!supabaseSession?.access_token) {
+      setUser(null);
+      setAccounts([]);
+      setActiveAccountIndex(0);
+      setLoadingUser(false);
+      return;
+    }
+
     try {
       const authHeaders = getSupabaseAuthHeaders();
 
@@ -505,12 +514,11 @@ export default function App() {
 
   // Redirect unauthenticated users to marketing site (unless viewing legal pages)
   useEffect(() => {
-    const isAuthenticated = Boolean(user || supabaseUser);
     const hasPendingYouTubeConnect = Boolean(currentPage === 'app' && readYouTubeConnectIntent());
-    if (!loadingUser && !supabaseLoading && !isAuthenticated && currentPage === 'app' && !hasPendingYouTubeConnect) {
+    if (!loadingUser && !supabaseLoading && !isSupabaseAuthenticated && currentPage === 'app' && !hasPendingYouTubeConnect) {
       setCurrentPage('login');
     }
-  }, [loadingUser, supabaseLoading, user, supabaseUser, currentPage]);
+  }, [loadingUser, supabaseLoading, isSupabaseAuthenticated, currentPage]);
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -696,6 +704,20 @@ export default function App() {
   };
 
   const handleLogout = () => {
+    // Remove persisted Supabase session tokens before any async work.
+    if (typeof window !== 'undefined') {
+      const clearSupabaseTokens = (storage: Storage) => {
+        for (const key of Object.keys(storage)) {
+          if (key.startsWith('sb-') && key.endsWith('-auth-token')) {
+            storage.removeItem(key);
+          }
+        }
+      };
+
+      clearSupabaseTokens(window.localStorage);
+      clearSupabaseTokens(window.sessionStorage);
+    }
+
     // Show login page immediately — don't block on network round-trips.
     setUser(null);
     setAccounts([]);
@@ -707,7 +729,7 @@ export default function App() {
 
     // Fire-and-forget server-side cleanup in the background.
     Promise.allSettled([
-      fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }),
+      fetch('/api/auth/logout', { method: 'POST', credentials: 'include', keepalive: true }),
       signOutSupabase(),
     ]).catch(() => {
       // Already on login page; ignore background errors.
@@ -960,7 +982,7 @@ export default function App() {
     return <AuthCallback />;
   }
 
-  if (currentPage === 'login') {
+  if (currentPage === 'login' || (currentPage === 'app' && !supabaseLoading && !isSupabaseAuthenticated)) {
     return (
       <LoginPage
         onConnect={() => {
