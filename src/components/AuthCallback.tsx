@@ -20,13 +20,12 @@ export function AuthCallback() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Handle OAuth callback across both code-exchange and hash-token flows.
     let mounted = true;
     let subscription: { unsubscribe: () => void } | null = null;
     let timeoutId: ReturnType<typeof setTimeout> | null = null;
     let completed = false;
 
-    const completeAuth = () => {
+    const finishRedirect = () => {
       if (!mounted || completed) {
         return;
       }
@@ -35,8 +34,6 @@ export function AuthCallback() {
       if (timeoutId) {
         clearTimeout(timeoutId);
       }
-
-      console.log('Authentication successful!');
 
       const searchParams = new URLSearchParams(window.location.search);
       const shouldResumeYouTubeConnect = searchParams.get('connect_youtube') === '1';
@@ -48,74 +45,77 @@ export function AuthCallback() {
         if (next) {
           redirectUrl.searchParams.set('next', next);
         }
-        window.location.href = redirectUrl.toString();
+        window.location.replace(redirectUrl.toString());
         return;
       }
 
       const nextUrl = next ? decodeURIComponent(next) : '/';
-      window.location.href = nextUrl;
+      window.location.replace(nextUrl);
     };
 
-    const setupAuthListener = async () => {
+    const run = async () => {
       try {
-        // Give auth providers time to finish token exchange before failing.
         timeoutId = setTimeout(() => {
           if (mounted && !completed) {
             setError('Authentication timeout - please try again');
           }
-        }, 20000);
+        }, 25000);
 
-        // Subscribe before checking session to avoid missing early events.
-        const { data } = supabase.auth.onAuthStateChange(async (event, session) => {
-          if (!mounted) return;
-
-          console.log('Auth state changed:', event, session ? 'session present' : 'no session');
+        const { data } = supabase.auth.onAuthStateChange((event, session) => {
+          if (!mounted || completed) {
+            return;
+          }
 
           if ((event === 'INITIAL_SESSION' || event === 'SIGNED_IN') && session) {
-            completeAuth();
+            finishRedirect();
           }
         });
         subscription = data.subscription;
 
-        // If a session is already present, complete immediately.
-        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-        if (sessionError) {
-          console.error('Auth callback session error:', sessionError);
-        } else if (sessionData.session) {
-          completeAuth();
-          return;
-        }
-
-        // Recovery path: if tokens are in hash but session did not hydrate yet, set it manually.
-        const hashParams = new URLSearchParams(window.location.hash.startsWith('#')
+        const hashValue = window.location.hash.startsWith('#')
           ? window.location.hash.slice(1)
-          : window.location.hash);
+          : window.location.hash;
+        const hashParams = new URLSearchParams(hashValue);
         const accessToken = hashParams.get('access_token');
         const refreshToken = hashParams.get('refresh_token');
 
-        if (accessToken && refreshToken && !completed) {
+        // Deterministic path for magic-link callback URLs containing hash tokens.
+        if (accessToken && refreshToken) {
           const { data: setSessionData, error: setSessionError } = await supabase.auth.setSession({
             access_token: accessToken,
             refresh_token: refreshToken,
           });
 
           if (setSessionError) {
-            console.error('Auth callback setSession error:', setSessionError);
-          } else if (setSessionData.session) {
-            completeAuth();
+            setError(`Authentication failed: ${setSessionError.message}`);
+            return;
+          }
+
+          if (setSessionData.session) {
+            finishRedirect();
+            return;
           }
         }
+
+        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError) {
+          setError(`Authentication failed: ${sessionError.message}`);
+          return;
+        }
+
+        if (sessionData.session) {
+          finishRedirect();
+        }
       } catch (err) {
-        console.error('Exception in auth callback setup:', err);
+        console.error('Auth callback exception:', err);
         if (mounted) {
           setError('An unexpected error occurred during authentication');
         }
       }
     };
 
-    setupAuthListener();
+    void run();
 
-    // Cleanup
     return () => {
       mounted = false;
       if (subscription) {
