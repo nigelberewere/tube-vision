@@ -804,10 +804,10 @@ export default function VoiceOver() {
                   onChange={(e) => setSpeed(parseFloat(e.target.value))}
                   className="w-full h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-white hover:accent-slate-200 transition-colors"
                 />
-                <div className="flex justify-between mt-2">
-                  <span className="text-[10px] font-bold text-slate-500 uppercase">Slow</span>
-                  <span className="text-[10px] font-bold text-slate-500 uppercase">1.0x</span>
-                  <span className="text-[10px] font-bold text-slate-500 uppercase">Fast</span>
+                <div className="relative mt-2 h-4 text-[10px] font-bold text-slate-500">
+                  <span className="absolute left-0 uppercase">Slow</span>
+                  <span className="absolute left-1/3 -translate-x-1/2">1.0x</span>
+                  <span className="absolute right-0 uppercase">Fast</span>
                 </div>
               </div>
 

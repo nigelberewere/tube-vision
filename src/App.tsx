@@ -1103,7 +1103,7 @@ export default function App() {
           )}
         >
           <div className="w-8 h-8 rounded-lg bg-white/10 border border-white/20 flex items-center justify-center flex-shrink-0">
-            <img src="/favicon.svg" alt="Janso Studio logo" className="w-5 h-5 sm:w-[18px] sm:h-[18px]" />
+            <img src="/favicon.svg" alt="Janso Studio logo" className="w-full h-full object-contain" />
           </div>
           <div className="min-w-0">
             <p className="text-sm sm:text-base font-bold tracking-tight text-white">Janso Studio</p>
