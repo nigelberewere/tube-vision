@@ -60,15 +60,53 @@ html[data-theme='light'] body {
   background-color: #f8fafc !important;
 }
 
+.theme-light [class*='bg-zinc-800'],
+.theme-light [class*='bg-zinc-700'],
+.theme-light [class*='bg-zinc-600'],
+.theme-light [class*='bg-gray-900'],
+.theme-light [class*='bg-gray-800'],
+.theme-light [class*='bg-gray-700'] {
+  background-color: #f8fafc !important;
+}
+
 .theme-light [class*='bg-black/'] {
   background-color: rgba(15, 23, 42, 0.04) !important;
+}
+
+.theme-light [class*='bg-black'] {
+  background-color: rgba(15, 23, 42, 0.08) !important;
 }
 
 .theme-light [class*='bg-white/'] {
   background-color: rgba(15, 23, 42, 0.05) !important;
 }
 
+.theme-light [class*='from-slate-900'],
+.theme-light [class*='from-zinc-900'],
+.theme-light [class*='from-black'] {
+  --tw-gradient-from: rgba(241, 245, 249, 0.95) var(--tw-gradient-from-position) !important;
+  --tw-gradient-to: rgba(241, 245, 249, 0) var(--tw-gradient-to-position) !important;
+}
+
+.theme-light [class*='via-slate-900'],
+.theme-light [class*='via-zinc-900'],
+.theme-light [class*='via-black'] {
+  --tw-gradient-via: rgba(255, 255, 255, 0.92) var(--tw-gradient-via-position) !important;
+  --tw-gradient-to: rgba(255, 255, 255, 0) var(--tw-gradient-to-position) !important;
+}
+
+.theme-light [class*='to-slate-900'],
+.theme-light [class*='to-zinc-900'],
+.theme-light [class*='to-black'] {
+  --tw-gradient-to: rgba(241, 245, 249, 0.95) var(--tw-gradient-to-position) !important;
+}
+
+.theme-light [class*='border-zinc-600'],
+.theme-light [class*='border-zinc-700'],
 .theme-light [class*='border-zinc-800'],
+.theme-light [class*='border-zinc-900'],
+.theme-light [class*='border-gray-700'],
+.theme-light [class*='border-gray-800'],
 .theme-light [class*='border-white/'],
 .theme-light [class*='border-white'] {
   border-color: #cbd5e1 !important;
@@ -77,13 +115,77 @@ html[data-theme='light'] body {
 .theme-light [class*='text-zinc-100'],
 .theme-light [class*='text-zinc-200'],
 .theme-light [class*='text-zinc-300'],
-.theme-light [class*='text-zinc-400'],
 .theme-light [class*='text-slate-200'],
 .theme-light [class*='text-slate-300'],
-.theme-light [class*='text-slate-400'],
-.theme-light [class*='text-slate-500'],
 .theme-light [class*='text-white'] {
   color: #0f172a !important;
+}
+
+.theme-light [class*='text-zinc-400'],
+.theme-light [class*='text-zinc-500'],
+.theme-light [class*='text-slate-400'],
+.theme-light [class*='text-slate-500'],
+.theme-light [class*='text-gray-400'],
+.theme-light [class*='text-gray-500'] {
+  color: #475569 !important;
+}
+
+.theme-light [class*='text-indigo-300'],
+.theme-light [class*='text-indigo-400'] {
+  color: #3730a3 !important;
+}
+
+.theme-light [class*='text-blue-300'],
+.theme-light [class*='text-blue-400'] {
+  color: #1d4ed8 !important;
+}
+
+.theme-light [class*='text-emerald-300'],
+.theme-light [class*='text-emerald-400'] {
+  color: #047857 !important;
+}
+
+.theme-light [class*='text-amber-300'],
+.theme-light [class*='text-yellow-300'] {
+  color: #92400e !important;
+}
+
+.theme-light [class*='text-red-300'],
+.theme-light [class*='text-red-400'] {
+  color: #b91c1c !important;
+}
+
+.theme-light [class*='text-purple-300'],
+.theme-light [class*='text-violet-300'],
+.theme-light [class*='text-violet-400'] {
+  color: #6d28d9 !important;
+}
+
+.theme-light [class*='text-pink-300'],
+.theme-light [class*='text-pink-400'] {
+  color: #be185d !important;
+}
+
+.theme-light [class*='text-cyan-300'],
+.theme-light [class*='text-cyan-400'] {
+  color: #0e7490 !important;
+}
+
+.theme-light [class*='bg-indigo-500'][class*='text-white'],
+.theme-light [class*='bg-indigo-600'][class*='text-white'],
+.theme-light [class*='bg-blue-500'][class*='text-white'],
+.theme-light [class*='bg-blue-600'][class*='text-white'],
+.theme-light [class*='bg-emerald-500'][class*='text-white'],
+.theme-light [class*='bg-emerald-600'][class*='text-white'],
+.theme-light [class*='bg-purple-500'][class*='text-white'],
+.theme-light [class*='bg-purple-600'][class*='text-white'],
+.theme-light [class*='bg-pink-500'][class*='text-white'],
+.theme-light [class*='bg-pink-600'][class*='text-white'],
+.theme-light [class*='bg-red-500'][class*='text-white'],
+.theme-light [class*='bg-red-600'][class*='text-white'],
+.theme-light [class*='bg-amber-500'][class*='text-white'],
+.theme-light [class*='bg-amber-600'][class*='text-white'] {
+  color: #ffffff !important;
 }
 
 .theme-light input,
