@@ -40,6 +40,7 @@ import OnboardingTour, { type OnboardingStep } from './components/OnboardingTour
 import SettingsPanel from './components/SettingsPanel';
 import { LegalViewer } from './components/LegalViewer';
 import { AuthCallback } from './components/AuthCallback';
+import LoginPage from './components/LoginPage';
 import YouTubeShortsIcon from './components/icons/YouTubeShortsIcon';
 import YouTubeLogoIcon from './components/icons/YouTubeLogoIcon';
 import YouTubeMyVideosIcon from './components/icons/YouTubeMyVideosIcon';
@@ -195,7 +196,7 @@ export default function App() {
   const [seoVideoTopic, setSeoVideoTopic] = useState<string>('');
   const [scriptTopic, setScriptTopic] = useState<string>('');
   const [geminiErrorToast, setGeminiErrorToast] = useState<GeminiUserErrorDetail | null>(null);
-  const [currentPage, setCurrentPage] = useState<'app' | 'privacy' | 'terms' | 'authCallback'>('app');
+  const [currentPage, setCurrentPage] = useState<'app' | 'privacy' | 'terms' | 'authCallback' | 'login'>('app');
   const youtubeConnectIntentRef = useRef<string | null>(null);
 
   // Handle URL-based routing for legal pages
@@ -507,7 +508,7 @@ export default function App() {
     const isAuthenticated = Boolean(user || supabaseUser);
     const hasPendingYouTubeConnect = Boolean(currentPage === 'app' && readYouTubeConnectIntent());
     if (!loadingUser && !supabaseLoading && !isAuthenticated && currentPage === 'app' && !hasPendingYouTubeConnect) {
-      window.location.replace('https://janso.studio');
+      setCurrentPage('login');
     }
   }, [loadingUser, supabaseLoading, user, supabaseUser, currentPage]);
 
@@ -711,12 +712,12 @@ export default function App() {
         setActiveTab('voiceover');
       }
 
-      window.location.replace('https://janso.studio');
+      setCurrentPage('login');
     } catch (error) {
       console.error('Logout error:', error);
 
-      // Fallback to force exit the app shell if logout fails unexpectedly.
-      window.location.replace('https://janso.studio');
+      // Fallback to show login page if logout fails unexpectedly.
+      setCurrentPage('login');
     }
   };
 
@@ -964,6 +965,16 @@ export default function App() {
 
   if (currentPage === 'authCallback') {
     return <AuthCallback />;
+  }
+
+  if (currentPage === 'login') {
+    return (
+      <LoginPage
+        onConnect={() => {
+          window.location.href = '/auth/youtube';
+        }}
+      />
+    );
   }
 
   return (
