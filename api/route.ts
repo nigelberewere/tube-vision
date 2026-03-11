@@ -933,35 +933,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const youtubeData = await youtubeResponse.json();
       const channel = youtubeData.items?.[0];
 
-      if (!supabaseUserId) {
-        // Combined flow (from /auth/youtube): create/find Supabase user via admin magic link,
-        // persist the YouTube account, then redirect to establish the browser session.
-        if (!supabaseServer) {
-          return res.status(500).send('Authentication error - server not configured.');
-        }
-        const { data: linkData, error: linkError } = await supabaseServer.auth.admin.generateLink({
-          type: 'magiclink',
-          email: userInfo.email,
-          options: {
-            data: {
-              full_name: userInfo.name || null,
-              avatar_url: userInfo.picture || null,
-            },
-            redirectTo: `${APP_URL}/auth/callback`,
-          },
-        });
-
-        if (linkError || !linkData?.properties?.action_link || !linkData?.user?.id) {
-          console.error('[OAuth Callback] Failed to generate magic link:', linkError);
-          return res.status(500).send('Authentication error - could not create your account. Please try again.');
-        }
-
-        await persistYouTubeAccountToSupabase(linkData.user.id, userInfo, channel, tokens);
-        console.log(`[OAuth Callback] Combined flow: magic link generated for ${userInfo.email}`);
-        return res.redirect(307, linkData.properties.action_link);
-      }
-
-      // In-app YouTube connect flow: supabaseUserId is present, user already has a Supabase session.
       const { accounts } = readAccountsFromCookies(req);
       const existingAccount = accounts.find((acc: any) => {
         if (channel?.id && acc.channel?.id) {
@@ -970,7 +941,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return acc.id === userInfo.id;
       });
 
-      // Store refresh token only to keep cookie small enough for multi-account support.
+      // Store refresh token when available, else keep a short-lived access token fallback.
       const compactTokens = tokens.refresh_token
         ? { refresh_token: tokens.refresh_token }
         : existingAccount?.tokens?.refresh_token
@@ -1007,44 +978,54 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       console.log('[OAuth Callback] Existing accounts count:', accounts.length);
       console.log('[OAuth Callback] New channel ID:', newUserData.channel?.id || 'NO_CHANNEL');
-      const existingIds = accounts.map((a: any) => a.channel?.id || 'NO_CHANNEL').join(', ');
-      console.log('[OAuth Callback] Existing channel IDs:', existingIds);
 
       // Deduplicate by channel ID when available so one Google login can keep multiple channels.
       const updatedAccounts = accounts.filter((acc: any) => {
         if (newUserData.channel && acc.channel) {
-          const isDuplicate = acc.channel.id === newUserData.channel.id;
-          console.log('[OAuth Callback] Comparing channels - old=' + acc.channel.id + ' new=' + newUserData.channel.id + ' duplicate=' + isDuplicate);
-          return !isDuplicate;
+          return acc.channel.id !== newUserData.channel.id;
         }
         if (!newUserData.channel && !acc.channel) {
-          const isDuplicate = acc.id === newUserData.id;
-          console.log('[OAuth Callback] Comparing user IDs - duplicate=' + isDuplicate);
-          return !isDuplicate;
+          return acc.id !== newUserData.id;
         }
-        console.log('[OAuth Callback] Mixed channel/no-channel - keeping both');
         return true;
       });
       updatedAccounts.unshift(newUserData);
-      
-      console.log('[OAuth Callback] Final account count after dedup:', updatedAccounts.length);
-      console.log('[OAuth Callback] Final channel IDs:', updatedAccounts.map((a: any) => a.channel?.id || 'NO_CHANNEL').join(', '));
 
-      // Keep account list bounded to prevent cookie bloat.
       const boundedAccounts = updatedAccounts.slice(0, 5);
-
-      console.log('[OAuth Callback] Bounded account count:', boundedAccounts.length);
-      
-      // Store all accounts and set the active account index
       const cookieValue = encodeURIComponent(JSON.stringify(boundedAccounts));
-      console.log('[OAuth Callback] Cookie value length:', cookieValue.length);
-      
+
       res.setHeader('Set-Cookie', [
         `tube_vision_accounts=${cookieValue}; ${COOKIE_BASE_OPTIONS}`,
         `tube_vision_active=0; ${COOKIE_BASE_OPTIONS}`
       ]);
-      
-      console.log('[OAuth Callback] Cookies set successfully');
+
+      if (!supabaseUserId) {
+        // Combined flow (from /auth/youtube): create/find Supabase user via admin magic link,
+        // persist the YouTube account, then redirect to establish the browser session.
+        if (!supabaseServer) {
+          return res.status(500).send('Authentication error - server not configured.');
+        }
+        const { data: linkData, error: linkError } = await supabaseServer.auth.admin.generateLink({
+          type: 'magiclink',
+          email: userInfo.email,
+          options: {
+            data: {
+              full_name: userInfo.name || null,
+              avatar_url: userInfo.picture || null,
+            },
+            redirectTo: `${APP_URL}/auth/callback`,
+          },
+        });
+
+        if (linkError || !linkData?.properties?.action_link || !linkData?.user?.id) {
+          console.error('[OAuth Callback] Failed to generate magic link:', linkError);
+          return res.status(500).send('Authentication error - could not create your account. Please try again.');
+        }
+
+        await persistYouTubeAccountToSupabase(linkData.user.id, userInfo, channel, tokens);
+        console.log(`[OAuth Callback] Combined flow: magic link generated for ${userInfo.email}`);
+        return res.redirect(307, linkData.properties.action_link);
+      }
 
       await persistYouTubeAccountToSupabase(supabaseUserId, userInfo, channel, tokens);
 

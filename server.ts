@@ -1030,6 +1030,62 @@ For every video provided, evaluate segments based on:
       const youtubeData = await youtubeResponse.json();
       const channel = youtubeData.items?.[0];
 
+      const { accounts } = getSessionAccountsAndActiveIndex(req);
+      const existingAccount = accounts.find((account: any) => {
+        if (channel?.id && account.channel?.id) {
+          return account.channel.id === channel.id;
+        }
+        return account.id === userInfo.id;
+      });
+
+      // Keep session payload compact so account switching remains stable.
+      const compactTokens = tokens.refresh_token
+        ? { refresh_token: tokens.refresh_token }
+        : existingAccount?.tokens?.refresh_token
+          ? { refresh_token: existingAccount.tokens.refresh_token }
+          : tokens.access_token
+            ? { access_token: tokens.access_token }
+            : null;
+
+      if (!compactTokens) {
+        return res.status(400).send("Google did not return a usable OAuth token.");
+      }
+
+      const newUserData = {
+        id: userInfo.id,
+        name: userInfo.name,
+        picture: userInfo.picture,
+        tokens: compactTokens,
+        channel: channel
+          ? {
+              id: channel.id,
+              title: channel.snippet.title,
+              description: (channel.snippet.description || "").slice(0, 300),
+              thumbnails: channel.snippet.thumbnails?.default
+                ? { default: channel.snippet.thumbnails.default }
+                : channel.snippet.thumbnails,
+              statistics: {
+                subscriberCount: channel.statistics?.subscriberCount || "0",
+                viewCount: channel.statistics?.viewCount || "0",
+                videoCount: channel.statistics?.videoCount || "0",
+              },
+            }
+          : null,
+      };
+
+      // Deduplicate by channel ID when available so one Google login can keep multiple channels.
+      const dedupedAccounts = accounts.filter((account: any) => {
+        if (newUserData.channel && account.channel) {
+          return account.channel.id !== newUserData.channel.id;
+        }
+        if (!newUserData.channel && !account.channel) {
+          return account.id !== newUserData.id;
+        }
+        return true;
+      });
+      dedupedAccounts.unshift(newUserData);
+      setSessionAccountsAndActiveIndex(req, dedupedAccounts.slice(0, 5), 0);
+
       if (!supabaseUserId) {
         // Combined flow (from /auth/youtube): create/find Supabase user via admin magic link,
         // persist the YouTube account, then redirect to establish the browser session.
@@ -1054,38 +1110,6 @@ For every video provided, evaluate segments based on:
         console.log(`[OAuth Callback] Combined flow: magic link generated for ${userInfo.email}`);
         return res.redirect(307, linkData.properties.action_link);
       }
-
-      // In-app YouTube connect flow: supabaseUserId is present, user already has a Supabase session.
-      const newUserData = {
-        id: userInfo.id,
-        name: userInfo.name,
-        picture: userInfo.picture,
-        tokens: tokens,
-        channel: channel ? {
-          id: channel.id,
-          title: channel.snippet.title,
-          description: channel.snippet.description,
-          thumbnails: channel.snippet.thumbnails,
-          statistics: channel.statistics,
-        } : null,
-      };
-
-      const { accounts } = getSessionAccountsAndActiveIndex(req);
-      // Deduplicate based on channel ID (if available) or Google account ID
-      // This allows multiple YouTube channels under the same Google account
-      const dedupedAccounts = accounts.filter((account: any) => {
-        if (newUserData.channel && account.channel) {
-          // Both have channels - compare channel IDs
-          return account.channel.id !== newUserData.channel.id;
-        } else if (!newUserData.channel && !account.channel) {
-          // Neither has a channel - compare Google account IDs
-          return account.id !== newUserData.id;
-        }
-        // One has channel, one doesn't - keep both
-        return true;
-      });
-      dedupedAccounts.unshift(newUserData);
-      setSessionAccountsAndActiveIndex(req, dedupedAccounts, 0);
 
       await persistYouTubeAccountToSupabase(supabaseUserId, userInfo, channel, tokens);
 
