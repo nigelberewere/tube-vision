@@ -536,10 +536,14 @@ export async function createApp(options: CreateAppOptions = {}) {
         console.error("Supabase existing account fetch error:", existingAccountError);
       }
 
-      const refreshToken = tokens.refresh_token || existingAccount?.refresh_token;
-      if (!tokens.access_token || !refreshToken) {
-        console.warn("Skipping Supabase YouTube account persistence because OAuth tokens are incomplete.");
+      const refreshToken = tokens.refresh_token || existingAccount?.refresh_token || "";
+      if (!tokens.access_token) {
+        console.warn("Skipping Supabase YouTube account persistence because OAuth access token is missing.");
         return;
+      }
+
+      if (!refreshToken) {
+        console.warn("Persisting Supabase YouTube account without refresh token; reconnect may be required after access token expiry.");
       }
 
       const channelThumbnail =

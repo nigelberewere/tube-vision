@@ -415,11 +415,13 @@ export default function App() {
       });
       if (accountsResponse.ok) {
         const accountsData = await accountsResponse.json();
-        setAccounts(accountsData.accounts || []);
-        setActiveAccountIndex(accountsData.activeIndex || 0);
+        const nextAccounts = Array.isArray(accountsData.accounts) ? accountsData.accounts : [];
+        const nextActiveIndex = Number.isInteger(accountsData.activeIndex) ? accountsData.activeIndex : 0;
+        setAccounts(nextAccounts);
+        setActiveAccountIndex(nextActiveIndex);
         
         // Fetch active account details
-        if (accountsData.accounts && accountsData.accounts.length > 0) {
+        if (nextAccounts.length > 0) {
           const channelResponse = await fetch('/api/user/channel', {
             headers: authHeaders,
           });
@@ -427,7 +429,8 @@ export default function App() {
             const channelData = await channelResponse.json();
             setUser(channelData);
           } else {
-            setUser(null);
+            const fallbackIndex = Math.min(Math.max(nextActiveIndex, 0), nextAccounts.length - 1);
+            setUser(nextAccounts[fallbackIndex] || nextAccounts[0] || null);
           }
         } else {
           setUser(null);
