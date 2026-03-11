@@ -39,6 +39,8 @@ interface Translation {
   duration: number;
 }
 
+type ControlPanelId = 'tags' | 'voice' | 'parameters';
+
 function writeString(view: DataView, offset: number, string: string) {
   for (let i = 0; i < string.length; i++) {
     view.setUint8(offset + i, string.charCodeAt(i));
@@ -134,7 +136,7 @@ export default function VoiceOver() {
   const [translations, setTranslations] = useState<Translation[]>([]);
   const [isTranslating, setIsTranslating] = useState(false);
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>([]);
-  const [activeControlPanel, setActiveControlPanel] = useState<'tags' | 'voice' | 'parameters'>('tags');
+  const [activeControlPanel, setActiveControlPanel] = useState<ControlPanelId>('tags');
   
   const audioRef = useRef<HTMLAudioElement>(null);
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
@@ -510,23 +512,36 @@ export default function VoiceOver() {
   const controlPanels = [
     {
       id: 'tags' as const,
-      label: 'Tags',
+      step: 1,
+      label: 'Smart Tags',
       icon: Tags,
-      description: 'Insert delivery cues',
+      description: 'Insert emotional and pacing cues into your script.',
     },
     {
       id: 'voice' as const,
+      step: 2,
       label: 'Voice Model',
       icon: Volume2,
-      description: 'Choose and preview',
+      description: 'Pick a voice and preview it before full generation.',
     },
     {
       id: 'parameters' as const,
-      label: 'Parameters',
+      step: 3,
+      label: 'Tune Delivery',
       icon: Sliders,
-      description: 'Tune delivery',
+      description: 'Adjust pitch, speed, and volume for final output.',
     },
   ];
+
+  const getNextControlPanel = (panel: ControlPanelId): ControlPanelId => {
+    if (panel === 'tags') return 'voice';
+    if (panel === 'voice') return 'parameters';
+    return 'tags';
+  };
+
+  const currentControlPanel = controlPanels.find((panel) => panel.id === activeControlPanel) ?? controlPanels[0];
+  const nextControlPanelId = getNextControlPanel(activeControlPanel);
+  const nextControlPanel = controlPanels.find((panel) => panel.id === nextControlPanelId) ?? controlPanels[0];
 
   return (
     <div className="flex flex-col gap-6">
@@ -698,42 +713,63 @@ export default function VoiceOver() {
           className="xl:col-span-4 xl:sticky xl:top-6 glass-card rounded-3xl p-6 flex flex-col h-[420px] lg:h-[520px] xl:h-[640px] backdrop-blur-xl bg-white/5 border border-white/10"
         >
           <div className="mb-4">
-            <h3 className="text-sm font-medium text-slate-300">Editor Controls</h3>
+            <h3 className="text-sm font-medium text-slate-300">Script Controls</h3>
             <p className="mt-1 text-xs text-slate-500">
-              Keep your script visible while inserting tags, choosing a voice, or tuning delivery.
+              Follow 3 simple steps without leaving the script editor.
             </p>
           </div>
 
-          <div className="border-b border-white/10 mb-4">
-            <div className="flex gap-1 overflow-x-auto">
-              {controlPanels.map((panel) => {
-                const Icon = panel.icon;
-                const isActive = activeControlPanel === panel.id;
+          <div className="mb-4 space-y-2">
+            {controlPanels.map((panel) => {
+              const Icon = panel.icon;
+              const isActive = activeControlPanel === panel.id;
 
-                return (
-                  <button
-                    key={panel.id}
-                    onClick={() => setActiveControlPanel(panel.id)}
-                    className={cn(
-                      'flex items-center gap-2 px-3 py-3 border-b-2 transition-all whitespace-nowrap',
-                      isActive
-                        ? 'border-blue-500 text-white'
-                        : 'border-transparent text-slate-400 hover:text-slate-300 hover:border-slate-600'
-                    )}
-                  >
-                    <Icon size={15} />
-                    <span className="font-medium text-sm">{panel.label}</span>
-                    <span className="hidden sm:inline text-[11px] text-slate-500">{panel.description}</span>
-                  </button>
-                );
-              })}
-            </div>
+              return (
+                <button
+                  key={panel.id}
+                  onClick={() => setActiveControlPanel(panel.id)}
+                  className={cn(
+                    'w-full rounded-xl border px-3 py-3 text-left transition-colors',
+                    isActive
+                      ? 'border-blue-400/60 bg-blue-500/10 text-white'
+                      : 'border-white/10 bg-white/[0.03] text-slate-300 hover:bg-white/10 hover:border-white/20'
+                  )}
+                >
+                  <div className="flex items-start gap-3">
+                    <span
+                      className={cn(
+                        'h-7 w-7 shrink-0 rounded-lg flex items-center justify-center text-[11px] font-semibold',
+                        isActive ? 'bg-blue-500 text-white' : 'bg-white/10 text-slate-400'
+                      )}
+                    >
+                      {panel.step}
+                    </span>
+
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="inline-flex items-center gap-2 min-w-0">
+                          <Icon size={14} className={isActive ? 'text-blue-300' : 'text-slate-400'} />
+                          <span className="text-sm font-medium truncate">{panel.label}</span>
+                        </span>
+                        {isActive && <span className="text-[10px] uppercase tracking-wide text-blue-300">Active</span>}
+                      </div>
+                      <p className="mt-1 text-xs text-slate-500">{panel.description}</p>
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
           </div>
 
           <div className="flex-1 overflow-y-auto pr-2">
+            <div className="mb-3 rounded-xl border border-white/10 bg-black/20 px-3 py-2">
+              <p className="text-[10px] uppercase tracking-[0.14em] text-slate-500">Step {currentControlPanel.step} of 3</p>
+              <p className="mt-1 text-xs text-slate-400">{currentControlPanel.description}</p>
+            </div>
+
             {activeControlPanel === 'tags' && (
               <div className="flex flex-col h-full">
-                <p className="text-xs text-slate-500 mb-3">Click a tag to insert it at your current cursor position in the script editor.</p>
+                <p className="text-xs text-slate-500 mb-3">Click any tag to place it where your cursor is in the script.</p>
                 <div className="flex-1 overflow-y-auto pr-1 flex flex-col gap-2">
                   {TAGS.map((tag) => (
                     <motion.button
@@ -753,7 +789,7 @@ export default function VoiceOver() {
 
             {activeControlPanel === 'voice' && (
               <div className="flex flex-col h-full">
-                <p className="text-xs text-slate-500 mb-3">Switch voice models and preview them without leaving the script editor.</p>
+                <p className="text-xs text-slate-500 mb-3">Select a voice and use the speaker icon to preview it quickly.</p>
                 <div className="flex-1 overflow-y-auto pr-1 flex flex-col gap-2">
                   {VOICES.map((v) => (
                     <motion.button
@@ -795,7 +831,7 @@ export default function VoiceOver() {
 
             {activeControlPanel === 'parameters' && (
               <div className="flex flex-col gap-8">
-                <p className="text-xs text-slate-500">Tune the generated performance while keeping the script in view.</p>
+                <p className="text-xs text-slate-500">Fine-tune how your generated narration should sound.</p>
 
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
@@ -861,6 +897,15 @@ export default function VoiceOver() {
                 </div>
               </div>
             )}
+          </div>
+
+          <div className="mt-4 pt-3 border-t border-white/10">
+            <button
+              onClick={() => setActiveControlPanel(nextControlPanelId)}
+              className="w-full px-4 py-2.5 rounded-xl text-sm font-medium bg-white/10 text-slate-200 hover:bg-white/15 transition-colors border border-white/10"
+            >
+              {activeControlPanel === 'parameters' ? 'Back to Smart Tags' : `Next: ${nextControlPanel.label}`}
+            </button>
           </div>
         </motion.div>
       </div>
