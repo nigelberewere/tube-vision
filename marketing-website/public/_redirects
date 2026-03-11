@@ -1,2 +1,3 @@
 /favicon.ico  /favicon.svg  301
+/favicon.*   /favicon.:splat  200
 /*            /index.html   200

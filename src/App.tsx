@@ -747,11 +747,28 @@ export default function App() {
     setCurrentPage('login');
     setIsLogoutPending(true);
 
-    // Run server-side cleanup and keep a reference so login can wait for completion.
-    const cleanup = Promise.allSettled([
-      fetch('/api/auth/logout', { method: 'POST', credentials: 'include', keepalive: true }),
-      signOutSupabase(),
-    ])
+    // Run cleanup with a hard timeout so the login CTA never stays disabled forever.
+    const withTimeout = <T,>(promise: Promise<T>, timeoutMs: number): Promise<T | null> => {
+      let timer: ReturnType<typeof setTimeout> | null = null;
+
+      const timeoutPromise = new Promise<null>((resolve) => {
+        timer = setTimeout(() => resolve(null), timeoutMs);
+      });
+
+      return Promise.race([promise, timeoutPromise]).finally(() => {
+        if (timer) {
+          clearTimeout(timer);
+        }
+      });
+    };
+
+    const cleanup = withTimeout(
+      Promise.allSettled([
+        fetch('/api/auth/logout', { method: 'POST', credentials: 'include', keepalive: true }),
+        signOutSupabase(),
+      ]),
+      6000,
+    )
       .then(() => undefined)
       .finally(() => {
         logoutCleanupRef.current = null;

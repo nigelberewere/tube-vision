@@ -1,4 +1,3 @@
-import { Sparkles } from "lucide-react";
 import { motion } from "motion/react";
 
 import { ThemeToggle } from "@/src/components/ThemeToggle";
@@ -57,16 +56,7 @@ export function Navigation({
         )}
       >
         <a href="/" className="inline-flex items-center gap-2">
-          <span
-            className={cn(
-              "inline-flex h-9 w-9 items-center justify-center rounded-xl",
-              isDark
-                ? "bg-gradient-to-br from-indigo-500/80 to-red-500/70"
-                : "bg-gradient-to-br from-indigo-500 to-red-500"
-            )}
-          >
-            <Sparkles className="h-4 w-4 text-white" />
-          </span>
+          <img src="/favicon.svg" alt="Janso Studio" className="h-9 w-9 rounded-xl" />
           <div>
             <p className="text-sm leading-none font-semibold md:text-base">Janso Studio</p>
             <p className={cn("text-xs", isDark ? "text-slate-400" : "text-slate-600")}>AI Creator Platform</p>
