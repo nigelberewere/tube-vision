@@ -2,7 +2,6 @@ import React, { useState, useRef, useEffect } from 'react';
 import { GoogleGenAI, Modality } from '@google/genai';
 import { Play, Square, Download, Loader2, Volume2, Sparkles, Pause, Tags, Plus, Wand2, Sliders, Trash2, Globe, Languages, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { cn } from '../lib/utils';
 
 const VOICES = ['Algenib', 'Kore', 'Puck', 'Charon', 'Fenrir', 'Zephyr', 'Aoede', 'Orus'];
 const TAGS = [
@@ -686,9 +685,9 @@ export default function VoiceOver() {
           </p>
         </div>
 
-        <div className="space-y-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
           {/* Smart Tags Section */}
-          <div>
+          <div className="rounded-2xl border border-white/10 bg-black/20 p-4 sm:p-5 flex flex-col min-h-[420px]">
             <div className="flex items-center gap-2 mb-3">
               <div className="h-6 w-6 rounded-lg bg-white/10 flex items-center justify-center text-[11px] font-semibold text-slate-300">
                 <Tags size={14} />
@@ -696,7 +695,7 @@ export default function VoiceOver() {
               <h4 className="text-sm font-medium text-white">Smart Tags</h4>
             </div>
             <p className="text-xs text-slate-500 mb-3">Click any tag to place it where your cursor is in the script.</p>
-            <div className="flex flex-col gap-2">
+            <div className="flex-1 overflow-y-auto pr-1 flex flex-col gap-2 max-h-[360px]">
               {TAGS.map((tag) => (
                 <motion.button
                   whileHover={{ scale: 1.02, x: 4 }}
@@ -712,10 +711,8 @@ export default function VoiceOver() {
             </div>
           </div>
 
-          <div className="border-t border-white/10" />
-
           {/* Voice Model Section */}
-          <div>
+          <div className="rounded-2xl border border-white/10 bg-black/20 p-4 sm:p-5 flex flex-col min-h-[420px]">
             <div className="flex items-center gap-2 mb-3">
               <div className="h-6 w-6 rounded-lg bg-white/10 flex items-center justify-center text-[11px] font-semibold text-slate-300">
                 <Volume2 size={14} />
@@ -723,7 +720,7 @@ export default function VoiceOver() {
               <h4 className="text-sm font-medium text-white">Voice Model</h4>
             </div>
             <p className="text-xs text-slate-500 mb-3">Select a voice and use the speaker icon to preview it quickly.</p>
-            <div className="flex flex-col gap-2">
+            <div className="flex-1 overflow-y-auto pr-1 flex flex-col gap-2 max-h-[360px]">
               {VOICES.map((v) => (
                 <motion.button
                   whileHover={{ scale: 1.02 }}
@@ -731,19 +728,19 @@ export default function VoiceOver() {
                   key={v}
                   onClick={() => setVoice(v)}
                   className={`px-4 py-3 rounded-xl text-sm font-medium transition-colors border flex items-center justify-between group ${
-                    voice === v 
-                      ? 'bg-white/10 text-white border-white/20' 
+                    voice === v
+                      ? 'bg-white/10 text-white border-white/20'
                       : 'bg-transparent border-transparent text-slate-400 hover:bg-white/5 hover:text-slate-200'
                   }`}
                 >
                   <span>{v}</span>
-                  <div 
+                  <div
                     onClick={(e) => handlePreviewVoice(e, v)}
                     className={`p-1.5 rounded-lg transition-colors ${
                       playingPreview === v || previewingVoice === v
                         ? 'text-black bg-white'
-                        : voice === v 
-                          ? 'text-white hover:bg-white/20' 
+                        : voice === v
+                          ? 'text-white hover:bg-white/20'
                           : 'text-slate-500 hover:bg-white/10 hover:text-white opacity-0 group-hover:opacity-100'
                     }`}
                     title="Preview voice"
@@ -761,10 +758,8 @@ export default function VoiceOver() {
             </div>
           </div>
 
-          <div className="border-t border-white/10" />
-
           {/* Tune Delivery Section */}
-          <div>
+          <div className="rounded-2xl border border-white/10 bg-black/20 p-4 sm:p-5 flex flex-col min-h-[420px]">
             <div className="flex items-center gap-2 mb-3">
               <div className="h-6 w-6 rounded-lg bg-white/10 flex items-center justify-center text-[11px] font-semibold text-slate-300">
                 <Sliders size={14} />
@@ -779,10 +774,10 @@ export default function VoiceOver() {
                   <label className="text-sm font-medium text-slate-300">Pitch</label>
                   <span className="text-xs font-mono text-slate-500 bg-black/20 px-2 py-1 rounded-md">{pitch > 0 ? '+' : ''}{pitch.toFixed(1)}</span>
                 </div>
-                <input 
-                  type="range" 
-                  min="-1.0" 
-                  max="1.0" 
+                <input
+                  type="range"
+                  min="-1.0"
+                  max="1.0"
                   step="0.1"
                   value={pitch}
                   onChange={(e) => setPitch(parseFloat(e.target.value))}
@@ -800,10 +795,10 @@ export default function VoiceOver() {
                   <label className="text-sm font-medium text-slate-300">Speed</label>
                   <span className="text-xs font-mono text-slate-500 bg-black/20 px-2 py-1 rounded-md">{speed.toFixed(1)}x</span>
                 </div>
-                <input 
-                  type="range" 
-                  min="0.5" 
-                  max="2.0" 
+                <input
+                  type="range"
+                  min="0.5"
+                  max="2.0"
                   step="0.1"
                   value={speed}
                   onChange={(e) => setSpeed(parseFloat(e.target.value))}
@@ -821,10 +816,10 @@ export default function VoiceOver() {
                   <label className="text-sm font-medium text-slate-300">Volume</label>
                   <span className="text-xs font-mono text-slate-500 bg-black/20 px-2 py-1 rounded-md">{Math.round(volume * 100)}%</span>
                 </div>
-                <input 
-                  type="range" 
-                  min="0.5" 
-                  max="1.5" 
+                <input
+                  type="range"
+                  min="0.5"
+                  max="1.5"
                   step="0.1"
                   value={volume}
                   onChange={(e) => setVolume(parseFloat(e.target.value))}
