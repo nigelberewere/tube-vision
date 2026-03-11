@@ -989,6 +989,22 @@ export default function App() {
     return <AuthCallback />;
   }
 
+  if (currentPage === 'app' && (supabaseLoading || loadingUser)) {
+    return (
+      <div
+        className={cn(
+          'min-h-screen flex items-center justify-center',
+          theme === 'light' ? 'bg-slate-100 text-slate-700' : 'bg-[#050505] text-slate-300'
+        )}
+      >
+        <div className="flex items-center gap-3">
+          <span className="inline-block w-4 h-4 rounded-full border-2 border-current border-t-transparent animate-spin" />
+          <span className="text-sm font-medium">Checking your session...</span>
+        </div>
+      </div>
+    );
+  }
+
   if (currentPage === 'login' || (currentPage === 'app' && !supabaseLoading && !loadingUser && !isAppAuthenticated)) {
     return (
       <LoginPage
