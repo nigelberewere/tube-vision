@@ -8,6 +8,7 @@ export type GeminiErrorType =
   | 'invalid_key'
   | 'rate_limited'
   | 'quota_exhausted'
+  | 'service_unavailable'
   | 'network'
   | 'unknown';
 
@@ -70,6 +71,22 @@ export function classifyGeminiError(error: unknown): ClassifiedError {
       retryable: true,
     };
   }
+
+  // Temporary Gemini service unavailability
+  if (
+    errorStr.includes('503') ||
+    errorStr.includes('service unavailable') ||
+    errorStr.includes('unavailable') ||
+    errorStr.includes('backend error') ||
+    errorStr.includes('model is overloaded')
+  ) {
+    return {
+      type: 'service_unavailable',
+      message: errorMessage,
+      userMessage: 'Gemini is temporarily unavailable (503). Please retry in a moment.',
+      retryable: true,
+    };
+  }
   
   // Quota exhausted
   if (
@@ -125,6 +142,8 @@ export function getStatusMessage(errorType: GeminiErrorType | null): string {
       return 'Rate Limited';
     case 'quota_exhausted':
       return 'Quota Exhausted';
+    case 'service_unavailable':
+      return 'Service Unavailable';
     case 'network':
       return 'Network Error';
     case 'unknown':
@@ -145,6 +164,8 @@ export function getGuidanceUrl(errorType: GeminiErrorType): string | null {
       return 'https://console.cloud.google.com/apis/api/generativelanguage.googleapis.com/quotas';
     case 'rate_limited':
       return 'https://ai.google.dev/gemini-api/docs/quota-rate-limits';
+    case 'service_unavailable':
+      return 'https://status.cloud.google.com/';
     default:
       return null;
   }

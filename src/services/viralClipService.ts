@@ -3,6 +3,30 @@ import { loadGeminiKey, recordAPIRequest, recordAPIError, redactKey } from "../l
 import { classifyGeminiError } from "../lib/geminiErrorClassifier";
 import { emitGeminiUserError, messageRequiresApiKey } from "../lib/geminiErrorEvents";
 
+const GEMINI_RETRY_DELAYS_MS = [1500, 3500];
+
+async function runWithGeminiRetry<T>(operation: () => Promise<T>): Promise<T> {
+  let lastError: unknown = null;
+
+  for (let attempt = 0; attempt <= GEMINI_RETRY_DELAYS_MS.length; attempt += 1) {
+    try {
+      return await operation();
+    } catch (error) {
+      lastError = error;
+      const classified = classifyGeminiError(error);
+      const hasNextAttempt = attempt < GEMINI_RETRY_DELAYS_MS.length;
+
+      if (!classified.retryable || !hasNextAttempt) {
+        break;
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, GEMINI_RETRY_DELAYS_MS[attempt]));
+    }
+  }
+
+  throw lastError;
+}
+
 async function getAIClient() {
   const apiKey = await loadGeminiKey();
   if (!apiKey) {
@@ -51,37 +75,39 @@ For every video provided, evaluate segments based on:
     // Record API request for usage tracking
     recordAPIRequest();
 
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: transcript,
-      config: {
-        systemInstruction,
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.ARRAY,
-          items: {
-            type: Type.OBJECT,
-            properties: {
-              clipNumber: { type: Type.INTEGER },
-              title: { type: Type.STRING },
-              startTime: { type: Type.STRING, description: "MM:SS" },
-              endTime: { type: Type.STRING, description: "MM:SS" },
-              duration: { type: Type.INTEGER, description: "Duration in seconds" },
-              score: { type: Type.INTEGER, description: "Score out of 100" },
-              rationale: { type: Type.STRING },
-              hookText: { type: Type.STRING },
-              visualEditNotes: { type: Type.STRING },
-              headline: { type: Type.STRING },
-              hashtags: { 
-                type: Type.ARRAY,
-                items: { type: Type.STRING }
-              }
-            },
-            required: ["clipNumber", "title", "startTime", "endTime", "duration", "score", "rationale", "hookText", "visualEditNotes", "headline", "hashtags"]
+    const response = await runWithGeminiRetry(() =>
+      ai.models.generateContent({
+        model: "gemini-2.5-flash",
+        contents: transcript,
+        config: {
+          systemInstruction,
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                clipNumber: { type: Type.INTEGER },
+                title: { type: Type.STRING },
+                startTime: { type: Type.STRING, description: "MM:SS" },
+                endTime: { type: Type.STRING, description: "MM:SS" },
+                duration: { type: Type.INTEGER, description: "Duration in seconds" },
+                score: { type: Type.INTEGER, description: "Score out of 100" },
+                rationale: { type: Type.STRING },
+                hookText: { type: Type.STRING },
+                visualEditNotes: { type: Type.STRING },
+                headline: { type: Type.STRING },
+                hashtags: {
+                  type: Type.ARRAY,
+                  items: { type: Type.STRING }
+                }
+              },
+              required: ["clipNumber", "title", "startTime", "endTime", "duration", "score", "rationale", "hookText", "visualEditNotes", "headline", "hashtags"]
+            }
           }
         }
-      }
-    });
+      })
+    );
 
     if (!response.text) {
       throw new Error("No response from Gemini");
@@ -158,18 +184,20 @@ export async function analyzeVideoByUri(fileUri: string, mimeType: string): Prom
     const ai = await getAIClient();
     recordAPIRequest();
 
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: [
-        { fileData: { fileUri, mimeType } },
-        { text: "Analyze this video and find 5 viral short-form clip opportunities." },
-      ],
-      config: {
-        systemInstruction: VIDEO_SYSTEM_INSTRUCTION,
-        responseMimeType: "application/json",
-        responseSchema: VIDEO_RESPONSE_SCHEMA,
-      },
-    });
+    const response = await runWithGeminiRetry(() =>
+      ai.models.generateContent({
+        model: "gemini-2.5-flash",
+        contents: [
+          { fileData: { fileUri, mimeType } },
+          { text: "Analyze this video and find 5 viral short-form clip opportunities." },
+        ],
+        config: {
+          systemInstruction: VIDEO_SYSTEM_INSTRUCTION,
+          responseMimeType: "application/json",
+          responseSchema: VIDEO_RESPONSE_SCHEMA,
+        },
+      })
+    );
 
     if (!response.text) throw new Error("No response from Gemini");
     return JSON.parse(response.text) as Clip[];
@@ -192,18 +220,20 @@ export async function analyzeYouTubeVideo(youtubeUrl: string): Promise<Clip[]> {
     const ai = await getAIClient();
     recordAPIRequest();
 
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: [
-        { fileData: { fileUri: youtubeUrl, mimeType: "video/mp4" } },
-        { text: "Analyze this video and find 5 viral short-form clip opportunities." },
-      ],
-      config: {
-        systemInstruction: VIDEO_SYSTEM_INSTRUCTION,
-        responseMimeType: "application/json",
-        responseSchema: VIDEO_RESPONSE_SCHEMA,
-      },
-    });
+    const response = await runWithGeminiRetry(() =>
+      ai.models.generateContent({
+        model: "gemini-2.5-flash",
+        contents: [
+          { fileData: { fileUri: youtubeUrl, mimeType: "video/mp4" } },
+          { text: "Analyze this video and find 5 viral short-form clip opportunities." },
+        ],
+        config: {
+          systemInstruction: VIDEO_SYSTEM_INSTRUCTION,
+          responseMimeType: "application/json",
+          responseSchema: VIDEO_RESPONSE_SCHEMA,
+        },
+      })
+    );
 
     if (!response.text) throw new Error("No response from Gemini");
     return JSON.parse(response.text) as Clip[];
