@@ -1,6 +1,7 @@
 import { motion } from "motion/react";
 
 import { ThemeToggle } from "@/src/components/ThemeToggle";
+import { getDashboardAssetUrl } from "@/src/lib/config";
 import { cn } from "@/src/lib/utils";
 
 function GoogleLogo({ className }: { className?: string }) {
@@ -44,6 +45,8 @@ export function Navigation({
   onToggleTheme,
   onPrimaryAction
 }: NavigationProps) {
+  const logoSrc = getDashboardAssetUrl("/favicon.svg")
+
   return (
     <header className="sticky top-0 z-50 px-4 py-4 md:px-8">
       <motion.nav
@@ -56,7 +59,7 @@ export function Navigation({
         )}
       >
         <a href="/" className="inline-flex items-center gap-2">
-          <img src="/favicon.svg" alt="Janso Studio" className="h-9 w-9 rounded-xl" />
+          <img src={logoSrc} alt="Janso Studio" className="h-9 w-9 rounded-xl" />
           <div>
             <p className="text-sm leading-none font-semibold md:text-base">Janso Studio</p>
             <p className={cn("text-xs", isDark ? "text-slate-400" : "text-slate-600")}>AI Creator Platform</p>

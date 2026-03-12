@@ -9,13 +9,21 @@
  */
 export function getDashboardUrl(): string {
   const configuredUrl = import.meta.env.VITE_DASHBOARD_URL?.trim();
-  if (configuredUrl) return configuredUrl;
-
   const isLocalHost =
     typeof window !== "undefined" &&
     (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
 
+  const configuredUrlIsLocalHost = Boolean(
+    configuredUrl && /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/|$)/i.test(configuredUrl)
+  )
+
+  if (configuredUrl && (isLocalHost || !configuredUrlIsLocalHost)) return configuredUrl;
+
   return isLocalHost ? "http://localhost:3000" : "https://app.janso.studio";
+}
+
+export function getDashboardAssetUrl(assetPath: string): string {
+  return new URL(assetPath, getDashboardUrl()).toString()
 }
 
 /**

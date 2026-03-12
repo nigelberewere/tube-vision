@@ -2,11 +2,19 @@
   "version": 2,
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
-  "rewrites": [
+  "redirects": [
     {
       "source": "/favicon.ico",
-      "destination": "/favicon.svg"
+      "destination": "https://app.janso.studio/favicon.svg",
+      "permanent": true
     },
+    {
+      "source": "/favicon.svg",
+      "destination": "https://app.janso.studio/favicon.svg",
+      "permanent": true
+    }
+  ],
+  "rewrites": [
     {
       "source": "/((?!.*\\.).*)",
       "destination": "/"

@@ -9,8 +9,27 @@
       content="AI-powered YouTube analytics tool with script generator, viral clip extractor, SEO optimizer, and keyword research for content creators. Grow your channel faster with Janso Studio."
     />
     <link rel="canonical" href="https://janso.studio/" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=20260311" />
-    <link rel="shortcut icon" href="/favicon.svg?v=20260311" />
+    <script>
+      (() => {
+        const configuredDashboardUrl = "%VITE_DASHBOARD_URL%".trim()
+        const unresolvedDashboardUrlToken = "%" + "VITE_DASHBOARD_URL" + "%"
+        const isLocalHost = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
+        const hasConfiguredDashboardUrl =
+          configuredDashboardUrl.length > 0 && configuredDashboardUrl !== unresolvedDashboardUrlToken
+        const configuredDashboardUrlIsLocalHost = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/|$)/i.test(configuredDashboardUrl)
+        const dashboardUrl = hasConfiguredDashboardUrl && (isLocalHost || !configuredDashboardUrlIsLocalHost)
+          ? configuredDashboardUrl
+          : isLocalHost
+            ? "http://localhost:3000"
+            : "https://app.janso.studio"
+        const faviconUrl = new URL("/favicon.svg", dashboardUrl).toString()
+
+        document.head.insertAdjacentHTML(
+          "beforeend",
+          `<link rel="icon" type="image/svg+xml" href="${faviconUrl}" />\n<link rel="shortcut icon" href="${faviconUrl}" />`
+        )
+      })()
+    </script>
     <title>Janso Studio - AI YouTube Analytics & Script Generator for Creators</title>
   </head>
   <body>
