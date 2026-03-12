@@ -11,6 +11,7 @@ const app = express();
 const port = Number(process.env.PORT || 8080);
 const corsOrigin = process.env.CORS_ORIGIN || '*';
 const maxSeconds = Number(process.env.MAX_CLIP_SECONDS || 65);
+const ytDlpCookiesBase64 = String(process.env.YTDLP_COOKIES_B64 || '').trim();
 
 app.use(cors({ origin: corsOrigin === '*' ? true : corsOrigin.split(',').map((v) => v.trim()) }));
 app.use(express.json({ limit: '1mb' }));
@@ -60,10 +61,54 @@ function runCommand(command, args, timeoutMs = 20 * 60 * 1000) {
       if (code === 0) {
         resolve({ stdout, stderr });
       } else {
-        reject(new Error(`${command} exited with ${code}: ${stderr || stdout}`));
+        const error = new Error(`${command} exited with ${code}`);
+        error.command = command;
+        error.exitCode = code;
+        error.stdout = stdout;
+        error.stderr = stderr;
+        reject(error);
       }
     });
   });
+}
+
+function buildRendererError(error) {
+  const raw = String(error?.stderr || error?.stdout || error?.message || '').trim();
+  const normalized = raw.toLowerCase();
+
+  if (
+    normalized.includes("sign in to confirm you're not a bot") ||
+    normalized.includes('sign in to confirm you’re not a bot')
+  ) {
+    return {
+      status: 503,
+      message:
+        'YouTube requested anti-bot verification for this video. Configure YTDLP_COOKIES_B64 on the renderer service, redeploy, and retry.',
+      detail: 'Anti-bot challenge from YouTube',
+    };
+  }
+
+  if (normalized.includes('private video')) {
+    return {
+      status: 403,
+      message: 'This video is private and cannot be rendered by the cloud worker.',
+      detail: 'Private video',
+    };
+  }
+
+  if (normalized.includes('video unavailable')) {
+    return {
+      status: 404,
+      message: 'The video is unavailable or blocked in the renderer region.',
+      detail: 'Video unavailable',
+    };
+  }
+
+  return {
+    status: 500,
+    message: 'Failed to render short clip in cloud worker.',
+    detail: raw.slice(0, 1200),
+  };
 }
 
 function isSupportedYouTubeUrl(url) {
@@ -81,7 +126,7 @@ function isSupportedYouTubeUrl(url) {
 }
 
 app.get('/health', (_req, res) => {
-  res.json({ ok: true });
+  res.json({ ok: true, cookiesConfigured: Boolean(ytDlpCookiesBase64) });
 });
 
 app.post('/render', async (req, res) => {
@@ -118,18 +163,35 @@ app.post('/render', async (req, res) => {
   const tempDir = path.join(os.tmpdir(), `render-${randomUUID()}`);
   const inputPath = path.join(tempDir, 'input.mp4');
   const outputPath = path.join(tempDir, 'short.mp4');
+  const cookiesPath = path.join(tempDir, 'cookies.txt');
 
   try {
     await fs.mkdir(tempDir, { recursive: true });
 
-    await runCommand('yt-dlp', [
+    const ytDlpArgs = [
       '--no-warnings',
       '--no-playlist',
+      '--extractor-args', 'youtube:player_client=android,web',
+      '--add-header', 'User-Agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+      '--add-header', 'Accept-Language:en-US,en;q=0.9',
       '--merge-output-format', 'mp4',
       '-f', 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
       '-o', inputPath,
-      youtubeUrl,
-    ]);
+    ];
+
+    if (ytDlpCookiesBase64) {
+      try {
+        const cookieText = Buffer.from(ytDlpCookiesBase64, 'base64').toString('utf8');
+        await fs.writeFile(cookiesPath, cookieText, 'utf8');
+        ytDlpArgs.push('--cookies', cookiesPath);
+      } catch {
+        console.warn('YTDLP_COOKIES_B64 is set but could not be decoded as base64. Continuing without cookies.');
+      }
+    }
+
+    ytDlpArgs.push(youtubeUrl);
+
+    await runCommand('yt-dlp', ytDlpArgs);
 
     await runCommand('ffmpeg', [
       '-hide_banner',
@@ -159,7 +221,11 @@ app.post('/render', async (req, res) => {
     return res.send(file);
   } catch (error) {
     console.error('Render error:', error);
-    return res.status(500).json({ error: error.message || 'Failed to render short clip.' });
+    const formatted = buildRendererError(error);
+    return res.status(formatted.status).json({
+      error: formatted.message,
+      detail: formatted.detail,
+    });
   } finally {
     await fs.rm(tempDir, { recursive: true, force: true }).catch(() => {});
   }
