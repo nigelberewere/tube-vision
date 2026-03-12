@@ -33,14 +33,19 @@ const DEFAULT_SCRIPT_PLACEHOLDER = [
   '[Confident] End with one action they can try today.',
 ].join('\n');
 
-const DAILY_VOICE_PLACEHOLDER_CACHE_KEY = 'vid_vision_voice_daily_placeholder';
+const DAILY_VOICE_PLACEHOLDER_CACHE_KEY = 'vid_vision_voice_daily_placeholder_v2';
 
 function normalizeDailyTopic(value: unknown): string {
   if (typeof value !== 'string') {
     return '';
   }
 
-  return value.replace(/\s{2,}/g, ' ').trim();
+  return value
+    .replace(/\s{2,}/g, ' ')
+    .replace(/^(?:e\.?\s*g\.?|example|for example)\s*[:,.-]?\s*/i, '')
+    .replace(/^["'`]+|["'`]+$/g, '')
+    .replace(/[.!?]+$/g, '')
+    .trim();
 }
 
 function buildTaggedDailyPlaceholder(topic: string): string {
@@ -50,9 +55,9 @@ function buildTaggedDailyPlaceholder(topic: string): string {
   }
 
   return [
-    `[Excited] ${safeTopic}.`,
-    '[Pause 1s] Give one surprising detail your audience did not know.',
-    '[Confident] Close with one practical next step they can use immediately.',
+    `[Excited] Today we are unpacking ${safeTopic}, and the first detail changes how you see the whole story.`,
+    '[Pause 1s] The surprising part is what most people miss the first time they hear it.',
+    '[Confident] End by giving your audience one takeaway they can remember and use right away.',
   ].join('\n');
 }
 
@@ -142,7 +147,7 @@ async function getVoiceOverModel(isTTS: boolean = false): Promise<string> {
 }
 
 export default function VoiceOver() {
-  const [script, setScript] = useState('');
+  const [script, setScript] = useState(DEFAULT_SCRIPT_PLACEHOLDER);
   const [scriptPlaceholder, setScriptPlaceholder] = useState(DEFAULT_SCRIPT_PLACEHOLDER);
   const [voice, setVoice] = useState(VOICES[0]);
   const [pitch, setPitch] = useState(0);
@@ -170,6 +175,20 @@ export default function VoiceOver() {
   const highlightRef = useRef<HTMLDivElement>(null);
   const previewAudioRef = useRef<HTMLAudioElement | null>(null);
   const translationAudioRefs = useRef<{ [key: string]: HTMLAudioElement | null }>({});
+  const canSyncStarterScriptRef = useRef(true);
+
+  const syncStarterScript = (nextStarterScript: string) => {
+    const trimmedStarterScript = nextStarterScript.trim();
+    if (!trimmedStarterScript) {
+      return;
+    }
+
+    setScriptPlaceholder(trimmedStarterScript);
+
+    if (canSyncStarterScriptRef.current) {
+      setScript(trimmedStarterScript);
+    }
+  };
 
   useEffect(() => {
     if (textAreaRef.current) {
@@ -189,7 +208,7 @@ export default function VoiceOver() {
         if (cached) {
           const parsed = JSON.parse(cached);
           if (parsed?.dateKey === today && typeof parsed.placeholder === 'string' && parsed.placeholder.trim()) {
-            setScriptPlaceholder(parsed.placeholder.trim());
+            syncStarterScript(parsed.placeholder);
           }
         }
       } catch {
@@ -212,7 +231,7 @@ export default function VoiceOver() {
         }
 
         const nextPlaceholder = buildTaggedDailyPlaceholder(nextTopic);
-        setScriptPlaceholder(nextPlaceholder);
+        syncStarterScript(nextPlaceholder);
         localStorage.setItem(
           DAILY_VOICE_PLACEHOLDER_CACHE_KEY,
           JSON.stringify({ placeholder: nextPlaceholder, dateKey, channelId })
@@ -304,6 +323,7 @@ export default function VoiceOver() {
   };
 
   const insertTag = (tag: string) => {
+    canSyncStarterScriptRef.current = false;
     const textArea = textAreaRef.current;
     if (!textArea) {
       setScript(prev => prev + ' ' + tag);
@@ -327,6 +347,7 @@ export default function VoiceOver() {
 
   const handleSmartTagging = async () => {
     if (!script.trim()) return;
+    canSyncStarterScriptRef.current = false;
     setIsSmartTagging(true);
     setError(null);
     
@@ -620,7 +641,10 @@ export default function VoiceOver() {
                   <motion.button 
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
-                    onClick={() => setScript('')}
+                    onClick={() => {
+                      canSyncStarterScriptRef.current = false;
+                      setScript('');
+                    }}
                     disabled={!script.trim()}
                     className="text-[10px] sm:text-xs font-medium text-slate-400 hover:text-white px-2 sm:px-3 py-1.5 sm:py-2 rounded-xl flex items-center gap-1.5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed bg-white/5 hover:bg-white/10"
                   >
@@ -663,6 +687,7 @@ export default function VoiceOver() {
                   ref={textAreaRef}
                   value={script}
                   onChange={(e) => {
+                    canSyncStarterScriptRef.current = false;
                     setScript(e.target.value);
                     e.target.style.height = 'auto';
                     e.target.style.height = `${e.target.scrollHeight}px`;
