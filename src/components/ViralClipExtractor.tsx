@@ -17,8 +17,10 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import JSZip from 'jszip';
+import { GoogleGenAI } from '@google/genai';
 import { Clip } from '../services/viralClipService';
 import { fetchWithAI } from '../lib/apiFetch';
+import { loadGeminiKey } from '../lib/geminiKeyStorage';
 import { parseApiErrorResponse } from '../lib/youtubeApiErrors';
 import { cutVideo } from '../services/ffmpegService';
 import YouTubeShortsIcon from './icons/YouTubeShortsIcon';
@@ -74,7 +76,7 @@ function formatCompactNumber(value: number) {
 }
 
 export default function ViralClipExtractor() {
-  const [inputType, setInputType] = useState<InputType>('upload');
+  const [inputType, setInputType] = useState<InputType>('my-channel');
   const [file, setFile] = useState<File | null>(null);
   const [youtubeUrl, setYoutubeUrl] = useState('');
 
@@ -162,34 +164,49 @@ export default function ViralClipExtractor() {
     setCutUrls({});
 
     try {
-      if (inputType === 'my-channel') {
-        setLoadingStep('Pulling your selected long-form video and finding Shorts opportunities...');
-      } else {
-        setLoadingStep('Uploading and analyzing video with Gemini... This may take a few minutes.');
-      }
-
-      let response: Response;
+      let analyzeBody: Record<string, string>;
 
       if (inputType === 'upload' && file) {
-        const formData = new FormData();
-        formData.append('video', file);
-        response = await fetchWithAI('/api/analyze', {
-          method: 'POST',
-          body: formData,
+        // Upload the file directly to Gemini from the browser, then send only the URI to the server.
+        // This avoids server-side timeout issues for large files.
+        setLoadingStep('Uploading video to Gemini… this may take a moment for larger files.');
+        const apiKey = await loadGeminiKey();
+        if (!apiKey) throw new Error('Gemini API key required. Please add your key in Settings → API Keys.');
+
+        const ai = new GoogleGenAI({ apiKey });
+        const uploadResult = await ai.files.upload({
+          file,
+          config: { mimeType: file.type || 'video/mp4' },
         });
+
+        setLoadingStep('Processing video… waiting for Gemini to prepare the file.');
+        let uploadedFile = await ai.files.get({ name: uploadResult.name! });
+        while (uploadedFile.state === 'PROCESSING') {
+          await new Promise((resolve) => setTimeout(resolve, 4000));
+          uploadedFile = await ai.files.get({ name: uploadResult.name! });
+        }
+        if (uploadedFile.state === 'FAILED') {
+          throw new Error('Gemini failed to process the uploaded video. Try a shorter clip or re-upload.');
+        }
+
+        analyzeBody = {
+          geminiFileUri: uploadResult.uri!,
+          mimeType: file.type || 'video/mp4',
+        };
+        setLoadingStep('Finding viral clip candidates…');
       } else if (inputType === 'youtube') {
-        response = await fetchWithAI('/api/analyze', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ youtubeUrl: youtubeUrl.trim() }),
-        });
+        setLoadingStep('Analyzing video with Gemini… this may take a minute.');
+        analyzeBody = { youtubeUrl: youtubeUrl.trim() };
       } else {
-        response = await fetchWithAI('/api/analyze', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ videoId: selectedChannelVideoId }),
-        });
+        setLoadingStep('Analyzing your video with Gemini… this may take a minute.');
+        analyzeBody = { videoId: selectedChannelVideoId };
       }
+
+      const response = await fetchWithAI('/api/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(analyzeBody),
+      });
 
       if (!response.ok) {
         const message = await parseApiErrorResponse(response, 'Failed to analyze video');
@@ -374,12 +391,10 @@ export default function ViralClipExtractor() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-1 md:gap-2 bg-black/20 p-1 rounded-xl mb-6">
               <button
-                className={`py-2 text-xs font-medium rounded-lg transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed ${
+                className={`py-2 text-xs font-medium rounded-lg transition-colors flex items-center justify-center gap-1.5 ${
                   inputType === 'my-channel' ? 'bg-white text-black shadow-sm' : 'text-slate-400 hover:text-white'
                 }`}
                 onClick={() => setInputType('my-channel')}
-                disabled
-                title="Direct YouTube download not available. Please download your video and use Upload instead."
               >
                 <Layers size={14} /> My Channel
               </button>
@@ -392,22 +407,13 @@ export default function ViralClipExtractor() {
                 <Upload size={14} /> Upload
               </button>
               <button
-                className={`py-2 text-xs font-medium rounded-lg transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed ${
+                className={`py-2 text-xs font-medium rounded-lg transition-colors flex items-center justify-center gap-1.5 ${
                   inputType === 'youtube' ? 'bg-white text-black shadow-sm' : 'text-slate-400 hover:text-white'
                 }`}
                 onClick={() => setInputType('youtube')}
-                disabled
-                title="Direct YouTube download not available. Please download your video and use Upload instead."
               >
                 <LinkIcon size={14} /> URL
               </button>
-            </div>
-
-            <div className="rounded-xl border border-blue-400/30 bg-blue-500/10 p-3 mb-6 text-xs text-blue-200 flex items-start gap-2">
-              <AlertCircle size={14} className="flex-shrink-0 mt-0.5" />
-              <div>
-                <strong>Upload Only:</strong> Download your video to your computer first, then upload it here for analysis.
-              </div>
             </div>
 
             {inputType === 'my-channel' && (

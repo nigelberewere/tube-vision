@@ -3067,112 +3067,39 @@ Return JSON with:
       });
     }
 
-    const contentType = req.headers['content-type'] || '';
-    const isFormData = contentType.includes('multipart/form-data');
-    let videoBuffer: Buffer | null = null;
-    let tempVideoPath: string | null = null;
+    const body = readJsonBody(req) || {};
 
-    try {
-      // Handle FormData file upload (from Upload tab)
-      if (isFormData) {
-        const buffers: Buffer[] = [];
-        
-        // Read request body as binary
-        await new Promise<void>((resolve, reject) => {
-          req.on('data', (chunk) => {
-            buffers.push(chunk);
-          });
-          req.on('end', () => {
-            resolve();
-          });
-          req.on('error', reject);
-        });
+    // Three accepted shapes:
+    //  1. { geminiFileUri, mimeType }    – file already uploaded to Gemini by the client
+    //  2. { youtubeUrl }                 – YouTube URL; Gemini fetches it natively
+    //  3. { videoId }                    – connected-channel video; we build the YouTube URL
+    const geminiFileUri = String(body.geminiFileUri || '').trim();
+    const mimeType = String(body.mimeType || 'video/mp4').trim();
+    const requestedVideoId = String(body.videoId || '').trim();
+    const requestedYoutubeUrl = String(body.youtubeUrl || '').trim();
 
-        const requestBodyBuffer = Buffer.concat(buffers);
-        
-        // Extract the boundary from Content-Type header
-        const boundaryMatch = contentType.match(/boundary=([^;]+)/);
-        if (!boundaryMatch) {
-          return res.status(400).json({ error: 'Invalid multipart form data' });
-        }
-        
-        const boundary = boundaryMatch[1].trim();
-        const boundaryBuffer = Buffer.from(`--${boundary}`);
-        const doubleCRLF = Buffer.from('\r\n\r\n');
-        const crlfBuffer = Buffer.from('\r\n');
-        
-        // Find the video part by searching for "filename=" in the headers
-        let videoStart = -1;
-        let videoEnd = -1;
-        
-        // Split by boundary
-        const parts = requestBodyBuffer.toString('binary').split(`--${boundary}`);
-        
-        for (const part of parts) {
-          if (part.includes('filename=')) {
-            // Found the file part
-            const headerEnd = part.indexOf('\r\n\r\n');
-            if (headerEnd !== -1) {
-              const dataStart = headerEnd + 4;
-              const dataEnd = part.lastIndexOf('\r\n');
-              
-              // Extract binary data - need to be careful with encoding
-              tempVideoPath = pathModule.join('/tmp', `analyze-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.mp4`);
-              
-              // Use Buffer slicing for binary safety
-              const partBuffer = Buffer.from(part, 'binary');
-              const videoData = partBuffer.slice(dataStart, dataEnd);
-              
-              fs.writeFileSync(tempVideoPath, videoData);
-              videoBuffer = videoData;
-            }
-            break;
-          }
-        }
-        
-        if (!videoBuffer || !tempVideoPath) {
-          return res.status(400).json({ error: 'No video file found in upload' });
-        }
-      } else {
-        // Handle JSON requests (YouTube URL or channel video)
-        const body = readJsonBody(req) || {};
-        const requestedVideoId = String(body.videoId || '').trim();
-        const requestedYoutubeUrl = String(body.youtubeUrl || '').trim();
+    let videoSource: { fileData: { fileUri: string; mimeType: string } };
 
-        if (requestedVideoId || requestedYoutubeUrl) {
-          // For YouTube URLs and channel videos, we can't download them in serverless environment
-          return res.status(400).json({
-            error: 'Video download is not available in this environment. Please use the Upload tab to analyze your long-form content.',
-            suggestion: 'Download the video to your computer first, then use the Upload option in the Shorts Studio.',
-          });
-        } else {
-          return res.status(400).json({
-            error: 'No video file provided. Please use the Upload tab to select your video.',
-          });
-        }
+    if (geminiFileUri) {
+      videoSource = { fileData: { fileUri: geminiFileUri, mimeType } };
+    } else if (requestedYoutubeUrl) {
+      videoSource = { fileData: { fileUri: requestedYoutubeUrl, mimeType: 'video/mp4' } };
+    } else if (requestedVideoId) {
+      const userData = await getActiveYouTubeUser(req);
+      if (!userData || !userData.tokens) {
+        return res.status(401).json({ error: 'Not authenticated' });
       }
+      videoSource = {
+        fileData: {
+          fileUri: `https://www.youtube.com/watch?v=${requestedVideoId}`,
+          mimeType: 'video/mp4',
+        },
+      };
+    } else {
+      return res.status(400).json({ error: 'No video source provided.' });
+    }
 
-      if (!videoBuffer || !tempVideoPath) {
-        return res.status(400).json({ error: 'No video file available for analysis' });
-      }
-
-      const ai = new GoogleGenAI({ apiKey: getGeminiKeyFromRequest(req) });
-      const uploadResult = await ai.files.upload({
-        file: tempVideoPath,
-        config: { mimeType: 'video/mp4' },
-      });
-
-      let uploadedFile = await ai.files.get({ name: uploadResult.name });
-      while (uploadedFile.state === 'PROCESSING') {
-        await new Promise((resolve) => setTimeout(resolve, 5000));
-        uploadedFile = await ai.files.get({ name: uploadResult.name });
-      }
-
-      if (uploadedFile.state === 'FAILED') {
-        throw new Error('Video processing failed in Gemini');
-      }
-
-      const systemInstruction = `
+    const systemInstruction = `
 You are an expert Video Content Strategist and Viral Editor. Your goal is to analyze long-form videos to identify the most high-impact, standalone segments for social media (TikTok, Reels, YouTube Shorts).
 
 ### Analysis Framework
@@ -3190,10 +3117,13 @@ For every video provided, evaluate segments based on:
 5. **Editing Suggestions:** Suggest where to add B-roll, zoom-ins for emphasis, or specific text overlays.
 `;
 
+    try {
+      const ai = new GoogleGenAI({ apiKey: getGeminiKeyFromRequest(req) });
+
       const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash',
         contents: [
-          { fileData: { fileUri: uploadResult.uri, mimeType: uploadResult.mimeType } },
+          videoSource,
           { text: 'Analyze this video and find 5 viral clips.' },
         ],
         config: {
@@ -3238,21 +3168,10 @@ For every video provided, evaluate segments based on:
       });
 
       const clips = JSON.parse(response.text || '[]');
-      return res.json({
-        clips,
-        videoUrl: null,
-      });
+      return res.json({ clips, videoUrl: null });
     } catch (error: any) {
       console.error('Analyze route error:', error);
       return res.status(500).json({ error: error?.message || 'Failed to analyze video' });
-    } finally {
-      if (tempVideoPath && fs.existsSync(tempVideoPath)) {
-        try {
-          fs.unlinkSync(tempVideoPath);
-        } catch {
-          // Ignore temp cleanup failures in serverless runtime.
-        }
-      }
     }
   }
 
