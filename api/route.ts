@@ -5,7 +5,6 @@ import * as pathModule from 'node:path';
 import { createClient } from '@supabase/supabase-js';
 import { OAuth2Client } from 'google-auth-library';
 import { GoogleGenAI, Type } from '@google/genai';
-import youtubedl from 'youtube-dl-exec';
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
@@ -3068,43 +3067,94 @@ Return JSON with:
       });
     }
 
-    const body = readJsonBody(req) || {};
-    const requestedVideoId = String(body.videoId || '').trim();
-    const requestedYoutubeUrl = String(body.youtubeUrl || '').trim();
-
-    let sourceUrl = '';
-    if (requestedVideoId) {
-      sourceUrl = `https://www.youtube.com/watch?v=${requestedVideoId}`;
-    } else if (requestedYoutubeUrl) {
-      sourceUrl = requestedYoutubeUrl;
-    } else {
-      return res.status(400).json({
-        error: 'No video source provided. Use a YouTube URL or connected channel video.',
-      });
-    }
-
-    const tempFilename = `analyze-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.mp4`;
-    const tempVideoPath = pathModule.join('/tmp', tempFilename);
+    const contentType = req.headers['content-type'] || '';
+    const isFormData = contentType.includes('multipart/form-data');
+    let videoBuffer: Buffer | null = null;
+    let tempVideoPath: string | null = null;
 
     try {
-      if (requestedVideoId) {
-        const userData = await getActiveYouTubeUser(req);
-        if (!userData || !userData.tokens) {
-          return res.status(401).json({ error: 'Not authenticated' });
+      // Handle FormData file upload (from Upload tab)
+      if (isFormData) {
+        const buffers: Buffer[] = [];
+        
+        // Read request body as binary
+        await new Promise<void>((resolve, reject) => {
+          req.on('data', (chunk) => {
+            buffers.push(chunk);
+          });
+          req.on('end', () => {
+            resolve();
+          });
+          req.on('error', reject);
+        });
+
+        const requestBodyBuffer = Buffer.concat(buffers);
+        
+        // Extract the boundary from Content-Type header
+        const boundaryMatch = contentType.match(/boundary=([^;]+)/);
+        if (!boundaryMatch) {
+          return res.status(400).json({ error: 'Invalid multipart form data' });
+        }
+        
+        const boundary = boundaryMatch[1].trim();
+        const boundaryBuffer = Buffer.from(`--${boundary}`);
+        const doubleCRLF = Buffer.from('\r\n\r\n');
+        const crlfBuffer = Buffer.from('\r\n');
+        
+        // Find the video part by searching for "filename=" in the headers
+        let videoStart = -1;
+        let videoEnd = -1;
+        
+        // Split by boundary
+        const parts = requestBodyBuffer.toString('binary').split(`--${boundary}`);
+        
+        for (const part of parts) {
+          if (part.includes('filename=')) {
+            // Found the file part
+            const headerEnd = part.indexOf('\r\n\r\n');
+            if (headerEnd !== -1) {
+              const dataStart = headerEnd + 4;
+              const dataEnd = part.lastIndexOf('\r\n');
+              
+              // Extract binary data - need to be careful with encoding
+              tempVideoPath = pathModule.join('/tmp', `analyze-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.mp4`);
+              
+              // Use Buffer slicing for binary safety
+              const partBuffer = Buffer.from(part, 'binary');
+              const videoData = partBuffer.slice(dataStart, dataEnd);
+              
+              fs.writeFileSync(tempVideoPath, videoData);
+              videoBuffer = videoData;
+            }
+            break;
+          }
+        }
+        
+        if (!videoBuffer || !tempVideoPath) {
+          return res.status(400).json({ error: 'No video file found in upload' });
+        }
+      } else {
+        // Handle JSON requests (YouTube URL or channel video)
+        const body = readJsonBody(req) || {};
+        const requestedVideoId = String(body.videoId || '').trim();
+        const requestedYoutubeUrl = String(body.youtubeUrl || '').trim();
+
+        if (requestedVideoId || requestedYoutubeUrl) {
+          // For YouTube URLs and channel videos, we can't download them in serverless environment
+          return res.status(400).json({
+            error: 'Video download is not available in this environment. Please use the Upload tab to analyze your long-form content.',
+            suggestion: 'Download the video to your computer first, then use the Upload option in the Shorts Studio.',
+          });
+        } else {
+          return res.status(400).json({
+            error: 'No video file provided. Please use the Upload tab to select your video.',
+          });
         }
       }
 
-      await youtubedl(sourceUrl, {
-        output: tempVideoPath,
-        format: 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
-        noCheckCertificates: true,
-        noWarnings: true,
-        preferFreeFormats: true,
-        addHeader: [
-          'referer:https://www.google.com/',
-          'user-agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        ],
-      } as any);
+      if (!videoBuffer || !tempVideoPath) {
+        return res.status(400).json({ error: 'No video file available for analysis' });
+      }
 
       const ai = new GoogleGenAI({ apiKey: getGeminiKeyFromRequest(req) });
       const uploadResult = await ai.files.upload({
@@ -3196,7 +3246,7 @@ For every video provided, evaluate segments based on:
       console.error('Analyze route error:', error);
       return res.status(500).json({ error: error?.message || 'Failed to analyze video' });
     } finally {
-      if (fs.existsSync(tempVideoPath)) {
+      if (tempVideoPath && fs.existsSync(tempVideoPath)) {
         try {
           fs.unlinkSync(tempVideoPath);
         } catch {

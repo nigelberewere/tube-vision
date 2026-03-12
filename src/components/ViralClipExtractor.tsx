@@ -74,7 +74,7 @@ function formatCompactNumber(value: number) {
 }
 
 export default function ViralClipExtractor() {
-  const [inputType, setInputType] = useState<InputType>('my-channel');
+  const [inputType, setInputType] = useState<InputType>('upload');
   const [file, setFile] = useState<File | null>(null);
   const [youtubeUrl, setYoutubeUrl] = useState('');
 
@@ -374,10 +374,12 @@ export default function ViralClipExtractor() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-1 md:gap-2 bg-black/20 p-1 rounded-xl mb-6">
               <button
-                className={`py-2 text-xs font-medium rounded-lg transition-colors flex items-center justify-center gap-1.5 ${
+                className={`py-2 text-xs font-medium rounded-lg transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed ${
                   inputType === 'my-channel' ? 'bg-white text-black shadow-sm' : 'text-slate-400 hover:text-white'
                 }`}
                 onClick={() => setInputType('my-channel')}
+                disabled
+                title="Direct YouTube download not available. Please download your video and use Upload instead."
               >
                 <Layers size={14} /> My Channel
               </button>
@@ -390,13 +392,22 @@ export default function ViralClipExtractor() {
                 <Upload size={14} /> Upload
               </button>
               <button
-                className={`py-2 text-xs font-medium rounded-lg transition-colors flex items-center justify-center gap-1.5 ${
+                className={`py-2 text-xs font-medium rounded-lg transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed ${
                   inputType === 'youtube' ? 'bg-white text-black shadow-sm' : 'text-slate-400 hover:text-white'
                 }`}
                 onClick={() => setInputType('youtube')}
+                disabled
+                title="Direct YouTube download not available. Please download your video and use Upload instead."
               >
                 <LinkIcon size={14} /> URL
               </button>
+            </div>
+
+            <div className="rounded-xl border border-blue-400/30 bg-blue-500/10 p-3 mb-6 text-xs text-blue-200 flex items-start gap-2">
+              <AlertCircle size={14} className="flex-shrink-0 mt-0.5" />
+              <div>
+                <strong>Upload Only:</strong> Download your video to your computer first, then upload it here for analysis.
+              </div>
             </div>
 
             {inputType === 'my-channel' && (
