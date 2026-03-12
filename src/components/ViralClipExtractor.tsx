@@ -18,6 +18,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import JSZip from 'jszip';
 import { Clip, analyzeVideoByUri, analyzeYouTubeVideo, uploadVideoToGemini } from '../services/viralClipService';
+import { isCloudRenderConfigured, renderYouTubeShort } from '../services/cloudRenderService';
 import { fetchWithAI } from '../lib/apiFetch';
 import { parseApiErrorResponse } from '../lib/youtubeApiErrors';
 import { cutVideo } from '../services/ffmpegService';
@@ -85,6 +86,7 @@ export default function ViralClipExtractor() {
 
   const [clips, setClips] = useState<Clip[]>([]);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const [analysisYoutubeUrl, setAnalysisYoutubeUrl] = useState<string | null>(null);
 
   const [loading, setLoading] = useState(false);
   const [loadingStep, setLoadingStep] = useState('');
@@ -106,6 +108,7 @@ export default function ViralClipExtractor() {
   const [remixError, setRemixError] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cloudRenderConfigured = isCloudRenderConfigured();
 
   const selectedChannelVideo = useMemo(
     () => channelVideos.find((video) => video.id === selectedChannelVideoId) || null,
@@ -158,7 +161,13 @@ export default function ViralClipExtractor() {
     setLoading(true);
     setError(null);
     setClips([]);
-    setVideoUrl(null);
+    setVideoUrl((prev) => {
+      if (prev && prev.startsWith('blob:')) {
+        URL.revokeObjectURL(prev);
+      }
+      return null;
+    });
+    setAnalysisYoutubeUrl(null);
     setCutUrls({});
 
     try {
@@ -173,12 +182,15 @@ export default function ViralClipExtractor() {
         setVideoUrl(URL.createObjectURL(file));
       } else if (inputType === 'youtube') {
         setLoadingStep('Analyzing video with Gemini… this may take a minute.');
-        clips = await analyzeYouTubeVideo(youtubeUrl.trim());
+        const sourceUrl = youtubeUrl.trim();
+        clips = await analyzeYouTubeVideo(sourceUrl);
+        setAnalysisYoutubeUrl(sourceUrl);
       } else {
         // My Channel — Gemini supports YouTube URLs natively, no download needed.
         setLoadingStep('Analyzing your video with Gemini… this may take a minute.');
         const ytUrl = `https://www.youtube.com/watch?v=${selectedChannelVideoId}`;
         clips = await analyzeYouTubeVideo(ytUrl);
+        setAnalysisYoutubeUrl(ytUrl);
       }
 
       setClips(clips);
@@ -191,15 +203,34 @@ export default function ViralClipExtractor() {
   };
 
   const handleCutClip = async (clip: Clip): Promise<string | null> => {
-    if (!videoUrl) return null;
+    if (!videoUrl && !analysisYoutubeUrl) {
+      return null;
+    }
+
+    if (!videoUrl && analysisYoutubeUrl && !cloudRenderConfigured) {
+      alert('Cloud renderer is not configured. Set VITE_CLOUD_RENDER_URL and redeploy to enable automatic rendering for channel/URL videos.');
+      return null;
+    }
 
     setCuttingClip(clip.clipNumber);
     setCutProgress(0);
 
     try {
-      const url = await cutVideo(videoUrl, clip.startTime, clip.endTime, (progress) => {
-        setCutProgress(Math.round(progress * 100));
-      });
+      let url = '';
+
+      if (videoUrl) {
+        url = await cutVideo(videoUrl, clip.startTime, clip.endTime, (progress) => {
+          setCutProgress(Math.round(progress * 100));
+        });
+      } else if (analysisYoutubeUrl) {
+        setCutProgress(20);
+        url = await renderYouTubeShort({
+          youtubeUrl: analysisYoutubeUrl,
+          startTime: clip.startTime,
+          endTime: clip.endTime,
+        });
+        setCutProgress(100);
+      }
 
       setCutUrls((prev) => ({ ...prev, [clip.clipNumber]: url }));
       return url;
@@ -213,7 +244,8 @@ export default function ViralClipExtractor() {
   };
 
   const handleDownloadAll = async () => {
-    if (clips.length === 0 || !videoUrl) return;
+    if (clips.length === 0) return;
+    if (!videoUrl && (!analysisYoutubeUrl || !cloudRenderConfigured)) return;
 
     setIsZipping(true);
     const zip = new JSZip();
@@ -323,6 +355,7 @@ export default function ViralClipExtractor() {
     ((inputType === 'upload' && !!file) ||
       (inputType === 'youtube' && !!youtubeUrl.trim()) ||
       (inputType === 'my-channel' && !!selectedChannelVideoId));
+  const canRenderFromAnalyzedSource = Boolean(videoUrl) || (Boolean(analysisYoutubeUrl) && cloudRenderConfigured);
 
   return (
     <div className="flex flex-col gap-8">
@@ -334,7 +367,7 @@ export default function ViralClipExtractor() {
                 <Video size={18} className="text-slate-400" />
                 Source Long-Form Content
               </h2>
-              {clips.length > 0 && videoUrl && (
+              {clips.length > 0 && canRenderFromAnalyzedSource && (
                 <button
                   onClick={handleDownloadAll}
                   disabled={isZipping || cuttingClip !== null}
@@ -616,7 +649,7 @@ export default function ViralClipExtractor() {
                                   Download Short
                                 </a>
                               </div>
-                            ) : videoUrl ? (
+                            ) : canRenderFromAnalyzedSource ? (
                               <button
                                 onClick={() => handleCutClip(clip)}
                                 disabled={cuttingClip !== null}
@@ -630,13 +663,13 @@ export default function ViralClipExtractor() {
                                 ) : (
                                   <>
                                     <YouTubeShortsIcon className="w-4 h-4" />
-                                    Render Short
+                                    {videoUrl ? 'Render Short' : 'Render Short (Cloud)'}
                                   </>
                                 )}
                               </button>
                             ) : (
-                              <div className="w-full bg-black/20 border border-white/5 text-slate-500 font-medium py-2 px-4 rounded-lg text-sm text-center" title="Rendering is only available when using the Upload tab">
-                                Render unavailable for YouTube source
+                              <div className="w-full bg-black/20 border border-white/5 text-slate-500 font-medium py-2 px-4 rounded-lg text-sm text-center" title="Set VITE_CLOUD_RENDER_URL to enable automatic rendering for channel/URL sources">
+                                Configure Cloud Render URL to enable
                               </div>
                             )}
                           </div>
