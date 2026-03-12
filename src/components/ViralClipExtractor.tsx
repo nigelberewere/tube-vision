@@ -17,10 +17,8 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import JSZip from 'jszip';
-import { GoogleGenAI } from '@google/genai';
-import { Clip } from '../services/viralClipService';
+import { Clip, analyzeVideoByUri, analyzeYouTubeVideo, uploadVideoToGemini } from '../services/viralClipService';
 import { fetchWithAI } from '../lib/apiFetch';
-import { loadGeminiKey } from '../lib/geminiKeyStorage';
 import { parseApiErrorResponse } from '../lib/youtubeApiErrors';
 import { cutVideo } from '../services/ffmpegService';
 import YouTubeShortsIcon from './icons/YouTubeShortsIcon';
@@ -164,58 +162,24 @@ export default function ViralClipExtractor() {
     setCutUrls({});
 
     try {
-      let analyzeBody: Record<string, string>;
+      let clips: Clip[];
 
       if (inputType === 'upload' && file) {
-        // Upload the file directly to Gemini from the browser, then send only the URI to the server.
-        // This avoids server-side timeout issues for large files.
-        setLoadingStep('Uploading video to Gemini… this may take a moment for larger files.');
-        const apiKey = await loadGeminiKey();
-        if (!apiKey) throw new Error('Gemini API key required. Please add your key in Settings → API Keys.');
-
-        const ai = new GoogleGenAI({ apiKey });
-        const uploadResult = await ai.files.upload({
-          file,
-          config: { mimeType: file.type || 'video/mp4' },
-        });
-
-        setLoadingStep('Processing video… waiting for Gemini to prepare the file.');
-        let uploadedFile = await ai.files.get({ name: uploadResult.name! });
-        while (uploadedFile.state === 'PROCESSING') {
-          await new Promise((resolve) => setTimeout(resolve, 4000));
-          uploadedFile = await ai.files.get({ name: uploadResult.name! });
-        }
-        if (uploadedFile.state === 'FAILED') {
-          throw new Error('Gemini failed to process the uploaded video. Try a shorter clip or re-upload.');
-        }
-
-        analyzeBody = {
-          geminiFileUri: uploadResult.uri!,
-          mimeType: file.type || 'video/mp4',
-        };
+        // Upload to Gemini Files API from the browser, then run inference client-side.
+        const { fileUri, mimeType } = await uploadVideoToGemini(file, setLoadingStep);
         setLoadingStep('Finding viral clip candidates…');
+        clips = await analyzeVideoByUri(fileUri, mimeType);
       } else if (inputType === 'youtube') {
         setLoadingStep('Analyzing video with Gemini… this may take a minute.');
-        analyzeBody = { youtubeUrl: youtubeUrl.trim() };
+        clips = await analyzeYouTubeVideo(youtubeUrl.trim());
       } else {
+        // My Channel — Gemini supports YouTube URLs natively, no download needed.
         setLoadingStep('Analyzing your video with Gemini… this may take a minute.');
-        analyzeBody = { videoId: selectedChannelVideoId };
+        const ytUrl = `https://www.youtube.com/watch?v=${selectedChannelVideoId}`;
+        clips = await analyzeYouTubeVideo(ytUrl);
       }
 
-      const response = await fetchWithAI('/api/analyze', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(analyzeBody),
-      });
-
-      if (!response.ok) {
-        const message = await parseApiErrorResponse(response, 'Failed to analyze video');
-        throw new Error(message);
-      }
-
-      const data = await response.json();
-      setClips(data.clips || []);
-      setVideoUrl(data.videoUrl || null);
+      setClips(clips);
     } catch (err: any) {
       setError(err.message || 'An error occurred while analyzing the video.');
     } finally {
