@@ -190,7 +190,7 @@ function deriveYouTubeDataCacheTtlSeconds(rawUrl: string): number {
     const endpoint = url.pathname.split("/").pop() || "";
 
     if (endpoint === "commentThreads") return 300;
-    if (endpoint === "search") return 900;
+    if (endpoint === "search") return 3600;
     if (endpoint === "playlistItems") return 900;
     if (endpoint === "videos") return 900;
     if (endpoint === "channels") return 1800;
@@ -999,8 +999,35 @@ export async function createApp(options: CreateAppOptions = {}) {
   }
 
   function parseMaxResults(rawValue: unknown, fallback: number = 50): number {
-    const parsed = Math.floor(Number(rawValue) || fallback);
-    return Math.min(50, Math.max(1, parsed));
+    const raw = Array.isArray(rawValue) ? rawValue[0] : rawValue;
+    const parsed = Number(raw);
+    if (!Number.isFinite(parsed)) {
+      return fallback;
+    }
+
+    return Math.min(50, Math.max(1, Math.floor(parsed)));
+  }
+
+  function normalizeYouTubeSearchQuery(rawValue: unknown): string {
+    return String(rawValue || "")
+      .toLowerCase()
+      .trim()
+      .replace(/\s+/g, " ");
+  }
+
+  function normalizeYouTubeSearchQueries(queries: unknown[], limit: number = 5): string[] {
+    const deduped = new Set<string>();
+    const normalized: string[] = [];
+
+    for (const query of queries) {
+      const cleanQuery = normalizeYouTubeSearchQuery(query);
+      if (!cleanQuery || deduped.has(cleanQuery)) continue;
+      deduped.add(cleanQuery);
+      normalized.push(cleanQuery);
+      if (normalized.length >= limit) break;
+    }
+
+    return normalized;
   }
 
   async function fetchMineVideoSeeds(authHeader: any, maxResults: number) {
@@ -2835,7 +2862,8 @@ Return JSON with:
 
   app.get("/api/shorts/niche-high-performers", async (req, res) => {
     const user = await getActiveYouTubeUser(req);
-    const query = String(req.query.q || "").trim();
+    const rawQuery = Array.isArray(req.query.q) ? req.query.q[0] : req.query.q;
+    const query = normalizeYouTubeSearchQuery(rawQuery);
 
     if (!user || !user.tokens) {
       return res.status(401).json({ error: "Not authenticated" });
@@ -2846,11 +2874,11 @@ Return JSON with:
     }
 
     try {
+      const authHeader = await getAuthHeaderForAccount(user);
+
       const searchResponse = await fetch(
         `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&videoDuration=short&maxResults=25&order=viewCount&q=${encodeURIComponent(query)}`,
-        {
-          headers: { Authorization: `Bearer ${user.tokens.access_token}` },
-        }
+        { headers: authHeader }
       );
       const searchData = await searchResponse.json();
       const videoIds = searchData.items?.map((item: any) => item.id.videoId).filter(Boolean).join(",");
@@ -2861,9 +2889,7 @@ Return JSON with:
 
       const videosResponse = await fetch(
         `https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics,contentDetails&id=${videoIds}`,
-        {
-          headers: { Authorization: `Bearer ${user.tokens.access_token}` },
-        }
+        { headers: authHeader }
       );
       const videosData = await videosResponse.json();
 
@@ -3298,11 +3324,19 @@ Return as JSON.`;
       // Search YouTube for competing channels using the generated queries
       const competitorChannels = new Map();
       const myChannelId = user.channel.id;
+      const normalizedSearchQueries = normalizeYouTubeSearchQueries(searchQueries, 3);
 
-      for (const query of searchQueries.slice(0, 3)) {
+      if (normalizedSearchQueries.length === 0) {
+        const fallbackQuery = normalizeYouTubeSearchQuery(user.channel.title || nicheDescription);
+        if (fallbackQuery) {
+          normalizedSearchQueries.push(fallbackQuery);
+        }
+      }
+
+      const collectCompetitorsForQuery = async (searchQuery: string) => {
         try {
           const searchResponse = await fetch(
-            `https://www.googleapis.com/youtube/v3/search?part=snippet&type=channel&q=${encodeURIComponent(query)}&maxResults=10&order=relevance`,
+            `https://www.googleapis.com/youtube/v3/search?part=snippet&type=channel&q=${encodeURIComponent(searchQuery)}&maxResults=10&order=relevance`,
             { headers: authHeader }
           );
           const searchData = await searchResponse.json().catch(() => ({}));
@@ -3319,8 +3353,16 @@ Return as JSON.`;
             }
           }
         } catch (searchError) {
-          console.error(`Search error for query "${query}":`, searchError);
+          console.error(`Search error for query "${searchQuery}":`, searchError);
         }
+      };
+
+      for (const searchQuery of normalizedSearchQueries.slice(0, 2)) {
+        await collectCompetitorsForQuery(searchQuery);
+      }
+
+      if (competitorChannels.size < 6 && normalizedSearchQueries.length > 2) {
+        await collectCompetitorsForQuery(normalizedSearchQueries[2]);
       }
 
       // Get detailed stats for discovered channels
@@ -3387,7 +3429,7 @@ Return as JSON.`;
       return res.status(401).json({ error: "Not authenticated" });
     }
 
-    const niche = String(req.body?.niche || "").trim();
+    const niche = normalizeYouTubeSearchQuery(req.body?.niche);
     const minSubscribers = Math.max(0, toNumber(req.body?.minSubscribers));
     const rawMax = toNumber(req.body?.maxSubscribers || Number.MAX_SAFE_INTEGER);
     const maxSubscribers = Math.max(minSubscribers, rawMax);
@@ -3557,7 +3599,7 @@ Return as JSON.`;
     }
 
     const rawQuery = Array.isArray(req.query.q) ? req.query.q[0] : req.query.q;
-    const query = typeof rawQuery === "string" ? rawQuery.trim() : "";
+    const query = normalizeYouTubeSearchQuery(rawQuery);
     if (!query) {
       return res.status(400).json({ error: "q is required" });
     }
@@ -3625,7 +3667,7 @@ Return as JSON.`;
       }
 
       const playlistResponse = await fetch(
-        `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet,contentDetails&playlistId=${uploadsPlaylistId}&maxResults=20`,
+        `https://www.googleapis.com/youtube/v3/playlistItems?part=contentDetails&playlistId=${uploadsPlaylistId}&maxResults=20`,
         { headers: authHeader }
       );
       const playlistData = await playlistResponse.json().catch(() => ({}));

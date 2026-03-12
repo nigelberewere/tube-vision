@@ -89,7 +89,7 @@ function deriveYouTubeDataCacheTtlSeconds(rawUrl: string): number {
     const endpoint = url.pathname.split('/').pop() || '';
 
     if (endpoint === 'commentThreads') return 300;
-    if (endpoint === 'search') return 900;
+    if (endpoint === 'search') return 3600;
     if (endpoint === 'playlistItems') return 900;
     if (endpoint === 'videos') return 900;
     if (endpoint === 'channels') return 1800;
@@ -1216,6 +1216,28 @@ function parseMaxResults(rawValue: unknown, fallback = 50): number {
   }
 
   return Math.min(50, Math.max(1, Math.floor(parsed)));
+}
+
+function normalizeYouTubeSearchQuery(rawValue: unknown): string {
+  return String(rawValue || '')
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, ' ');
+}
+
+function normalizeYouTubeSearchQueries(queries: unknown[], limit = 5): string[] {
+  const deduped = new Set<string>();
+  const normalized: string[] = [];
+
+  for (const query of queries) {
+    const cleanQuery = normalizeYouTubeSearchQuery(query);
+    if (!cleanQuery || deduped.has(cleanQuery)) continue;
+    deduped.add(cleanQuery);
+    normalized.push(cleanQuery);
+    if (normalized.length >= limit) break;
+  }
+
+  return normalized;
 }
 
 type MineVideoSeed = {
@@ -3191,7 +3213,7 @@ For every video provided, evaluate segments based on:
     }
 
     const rawQuery = Array.isArray(req.query?.q) ? req.query.q[0] : req.query?.q;
-    const query = String(rawQuery || '').trim();
+    const query = normalizeYouTubeSearchQuery(rawQuery);
     if (!query) {
       return res.status(400).json({ error: 'Query is required' });
     }
@@ -3487,14 +3509,22 @@ Return as JSON.`;
 
       const competitorChannels = new Map();
       const myChannelId = userData.channel.id;
+      const normalizedSearchQueries = normalizeYouTubeSearchQueries(searchQueries, 3);
 
-      for (const query of searchQueries.slice(0, 3)) {
+      if (normalizedSearchQueries.length === 0) {
+        const fallbackQuery = normalizeYouTubeSearchQuery(userData.channel.title || nicheDescription);
+        if (fallbackQuery) {
+          normalizedSearchQueries.push(fallbackQuery);
+        }
+      }
+
+      const collectCompetitorsForQuery = async (searchQuery: string) => {
         try {
           const searchResponse = await fetch(
-            `https://www.googleapis.com/youtube/v3/search?part=snippet&type=channel&q=${encodeURIComponent(query)}&maxResults=10&order=relevance`,
+            `https://www.googleapis.com/youtube/v3/search?part=snippet&type=channel&q=${encodeURIComponent(searchQuery)}&maxResults=10&order=relevance`,
             { headers: authHeader }
           );
-          const searchData = await searchResponse.json();
+          const searchData = await searchResponse.json().catch(() => ({}));
 
           if (searchData.items) {
             for (const item of searchData.items) {
@@ -3506,8 +3536,16 @@ Return as JSON.`;
             }
           }
         } catch (searchError) {
-          console.error(`Search error for query "${query}":`, searchError);
+          console.error(`Search error for query "${searchQuery}":`, searchError);
         }
+      };
+
+      for (const searchQuery of normalizedSearchQueries.slice(0, 2)) {
+        await collectCompetitorsForQuery(searchQuery);
+      }
+
+      if (competitorChannels.size < 6 && normalizedSearchQueries.length > 2) {
+        await collectCompetitorsForQuery(normalizedSearchQueries[2]);
       }
 
       const channelIds = Array.from(competitorChannels.keys()).slice(0, 12);
@@ -3573,7 +3611,7 @@ Return as JSON.`;
 
     try {
       const body = readJsonBody(req) || {};
-      const niche = String(body.niche || '').trim();
+      const niche = normalizeYouTubeSearchQuery(body.niche);
       const minSubscribers = Math.max(0, toNumber(body.minSubscribers));
       const rawMaxSubscribers = toNumber(body.maxSubscribers || Number.MAX_SAFE_INTEGER);
       const maxSubscribers = Math.max(minSubscribers, rawMaxSubscribers);
@@ -3743,7 +3781,7 @@ Return as JSON.`;
     }
 
     const rawQuery = Array.isArray(req.query.q) ? req.query.q[0] : req.query.q;
-    const query = String(rawQuery || '').trim();
+    const query = normalizeYouTubeSearchQuery(rawQuery);
     if (!query) {
       return res.status(400).json({ error: 'q is required' });
     }
@@ -3814,7 +3852,7 @@ Return as JSON.`;
       }
 
       const playlistResponse = await fetch(
-        `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet,contentDetails&playlistId=${uploadsPlaylistId}&maxResults=20`,
+        `https://www.googleapis.com/youtube/v3/playlistItems?part=contentDetails&playlistId=${uploadsPlaylistId}&maxResults=20`,
         { headers: authHeader }
       );
       const playlistData = await playlistResponse.json().catch(() => ({}));
