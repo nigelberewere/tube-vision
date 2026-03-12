@@ -18,7 +18,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import JSZip from 'jszip';
 import { Clip, analyzeVideoByUri, analyzeYouTubeVideo, uploadVideoToGemini } from '../services/viralClipService';
-import { isCloudRenderConfigured, renderYouTubeShort } from '../services/cloudRenderService';
+import { isCloudRenderConfigured, renderYouTubeShort, warmCloudRenderer } from '../services/cloudRenderService';
 import { fetchWithAI } from '../lib/apiFetch';
 import { parseApiErrorResponse } from '../lib/youtubeApiErrors';
 import { cutVideo } from '../services/ffmpegService';
@@ -106,6 +106,7 @@ export default function ViralClipExtractor() {
   const [remixPlan, setRemixPlan] = useState<RemixPlan | null>(null);
   const [loadingRemixPlan, setLoadingRemixPlan] = useState(false);
   const [remixError, setRemixError] = useState<string | null>(null);
+  const [isWarmingRenderer, setIsWarmingRenderer] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cloudRenderConfigured = isCloudRenderConfigured();
@@ -152,6 +153,25 @@ export default function ViralClipExtractor() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [inputType]);
+
+  useEffect(() => {
+    if (!cloudRenderConfigured) return;
+    if (inputType === 'upload') return;
+
+    let active = true;
+    setIsWarmingRenderer(true);
+    warmCloudRenderer()
+      .catch(() => false)
+      .finally(() => {
+        if (active) {
+          setIsWarmingRenderer(false);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [cloudRenderConfigured, inputType]);
 
   const handleAnalyze = async () => {
     if (inputType === 'upload' && !file) return;
@@ -223,6 +243,8 @@ export default function ViralClipExtractor() {
           setCutProgress(Math.round(progress * 100));
         });
       } else if (analysisYoutubeUrl) {
+        setCutProgress(10);
+        await warmCloudRenderer().catch(() => false);
         setCutProgress(20);
         url = await renderYouTubeShort({
           youtubeUrl: analysisYoutubeUrl,
@@ -414,6 +436,12 @@ export default function ViralClipExtractor() {
                 <LinkIcon size={14} /> URL
               </button>
             </div>
+
+            {cloudRenderConfigured && inputType !== 'upload' && (
+              <p className="text-xs text-slate-500 mb-4">
+                Cloud rendering is active. On Render free tier, the first request after idle can take up to about 50 seconds to wake.
+              </p>
+            )}
 
             {inputType === 'my-channel' && (
               <div className="space-y-3">
@@ -658,7 +686,11 @@ export default function ViralClipExtractor() {
                                 {cuttingClip === clip.clipNumber ? (
                                   <>
                                     <Loader2 size={16} className="animate-spin" />
-                                    Rendering 9:16... {cutProgress}%
+                                    {videoUrl
+                                      ? `Rendering 9:16... ${cutProgress}%`
+                                      : isWarmingRenderer
+                                        ? 'Waking cloud renderer...'
+                                        : `Rendering in cloud... ${cutProgress}%`}
                                   </>
                                 ) : (
                                   <>
