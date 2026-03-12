@@ -343,7 +343,7 @@ Return ONLY valid JSON matching the schema.`;
             )}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
             <div>
               <label className="block text-sm font-medium text-zinc-300 mb-2">
                 Content Niche/Category
@@ -353,7 +353,7 @@ Return ONLY valid JSON matching the schema.`;
                 value={Filters.contentCategory}
                 onChange={(e) => setFilters(prev => ({ ...prev, contentCategory: e.target.value }))}
                 placeholder="e.g., Tech Reviews, Gaming, Cooking"
-                className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2 text-white placeholder-zinc-500 focus:outline-none focus:border-indigo-500"
+                className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 sm:px-4 py-2 text-xs sm:text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-indigo-500"
               />
             </div>
 
@@ -364,7 +364,7 @@ Return ONLY valid JSON matching the schema.`;
               <select
                 value={Filters.subscriberRange}
                 onChange={(e) => setFilters(prev => ({ ...prev, subscriberRange: e.target.value as any }))}
-                className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-indigo-500"
+                className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 sm:px-4 py-2 text-xs sm:text-sm text-white focus:outline-none focus:border-indigo-500"
               >
                 <option value="exact">Similar Size (0.7x - 1.5x)</option>
                 <option value="wider">Wider Range (0.3x - 3x)</option>

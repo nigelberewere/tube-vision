@@ -679,7 +679,7 @@ ${getBrandKitPromptContext()}`;
       </div>
 
       <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4">
-        <div className="grid grid-cols-2 gap-2 w-full md:w-[360px]">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 sm:gap-2 w-full md:w-[360px]">
           <button
             onClick={() => setMode('auto')}
             className={`rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors ${
@@ -731,7 +731,7 @@ ${getBrandKitPromptContext()}`;
           )}
 
           {manualConcepts.length > 0 && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
               {manualConcepts.map((concept, i) => (
                 <div key={i} className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden flex flex-col">
                   <div className="h-44 bg-zinc-950 border-b border-zinc-800 relative flex items-center justify-center p-6 text-center">
@@ -782,7 +782,7 @@ ${getBrandKitPromptContext()}`;
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
               <div className="rounded-lg border border-zinc-800 bg-zinc-950 p-4">
                 <p className="text-xs uppercase tracking-wider text-zinc-500 font-bold">Videos Loaded</p>
                 <p className="text-2xl font-bold text-zinc-100 mt-1">{videoMetrics.length}</p>

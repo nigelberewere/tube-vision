@@ -133,7 +133,7 @@ export default function GrowthMomentum({ isConnected, className, theme = 'dark' 
   return (
     <div className={cn('space-y-6', className)}>
       {/* Growth Metrics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
         {/* Subscribers Growth */}
         <div className={cn('relative overflow-hidden rounded-lg border p-4', cardClass)}>
           <div className="flex items-start justify-between">

@@ -63,9 +63,11 @@ export default function OnboardingTour({
       } as const;
     }
 
-    const cardWidth = 350;
-    const cardHeight = 260;
-    const margin = 16;
+    // Mobile-responsive card dimensions
+    const isMobile = viewport.width < 640;
+    const cardWidth = isMobile ? Math.max(280, viewport.width - 40) : 350;
+    const cardHeight = isMobile ? 280 : 260;
+    const margin = isMobile ? 12 : 16;
 
     const canPlaceRight = viewport.width - targetRect.right > cardWidth + margin;
     const canPlaceLeft = targetRect.left > cardWidth + margin;

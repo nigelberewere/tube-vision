@@ -292,7 +292,7 @@ Return ONLY valid JSON matching the schema. Be specific and actionable.`;
       {result && (
         <div className="space-y-8">
           {/* Summary Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
             <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6">
               <div className="text-sm text-zinc-400 uppercase tracking-wider font-semibold mb-2">Comments Analyzed</div>
               <div className="text-3xl font-bold text-indigo-400">{result.totalCommentsAnalyzed.toLocaleString()}</div>
@@ -322,7 +322,7 @@ Return ONLY valid JSON matching the schema. Be specific and actionable.`;
           </div>
 
           {/* Insights Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
             {/* Questions */}
             {result.insights.commonQuestions.length > 0 && (
               <div className="bg-zinc-900 border border-blue-500/20 rounded-xl p-6">

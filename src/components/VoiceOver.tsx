@@ -27,6 +27,35 @@ const LANGUAGES = [
   { code: 'ru', name: 'Russian', flag: '🇷🇺', voice: 'Charon' },
 ];
 
+const DEFAULT_SCRIPT_PLACEHOLDER = [
+  '[Excited] Hook your audience in the first 3 seconds with one clear promise.',
+  '[Pause 1s] Reveal the twist they do not expect.',
+  '[Confident] End with one action they can try today.',
+].join('\n');
+
+const DAILY_VOICE_PLACEHOLDER_CACHE_KEY = 'vid_vision_voice_daily_placeholder';
+
+function normalizeDailyTopic(value: unknown): string {
+  if (typeof value !== 'string') {
+    return '';
+  }
+
+  return value.replace(/\s{2,}/g, ' ').trim();
+}
+
+function buildTaggedDailyPlaceholder(topic: string): string {
+  const safeTopic = normalizeDailyTopic(topic);
+  if (!safeTopic) {
+    return DEFAULT_SCRIPT_PLACEHOLDER;
+  }
+
+  return [
+    `[Excited] ${safeTopic}.`,
+    '[Pause 1s] Give one surprising detail your audience did not know.',
+    '[Confident] Close with one practical next step they can use immediately.',
+  ].join('\n');
+}
+
 interface Translation {
   language: string;
   languageCode: string;
@@ -113,7 +142,8 @@ async function getVoiceOverModel(isTTS: boolean = false): Promise<string> {
 }
 
 export default function VoiceOver() {
-  const [script, setScript] = useState('In a world where silence was the only currency, [Pause] one voice dared to speak... [Whispering] and it changed everything.');
+  const [script, setScript] = useState('');
+  const [scriptPlaceholder, setScriptPlaceholder] = useState(DEFAULT_SCRIPT_PLACEHOLDER);
   const [voice, setVoice] = useState(VOICES[0]);
   const [pitch, setPitch] = useState(0);
   const [speed, setSpeed] = useState(1.0);
@@ -147,6 +177,57 @@ export default function VoiceOver() {
       textAreaRef.current.style.height = `${textAreaRef.current.scrollHeight}px`;
     }
   }, [script]);
+
+  useEffect(() => {
+    let isCancelled = false;
+
+    const loadDailyPlaceholder = async () => {
+      const today = new Date().toISOString().slice(0, 10);
+
+      try {
+        const cached = localStorage.getItem(DAILY_VOICE_PLACEHOLDER_CACHE_KEY);
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed?.dateKey === today && typeof parsed.placeholder === 'string' && parsed.placeholder.trim()) {
+            setScriptPlaceholder(parsed.placeholder.trim());
+          }
+        }
+      } catch {
+        // Ignore malformed cache and refresh from API.
+      }
+
+      try {
+        const response = await fetch('/api/script/daily-placeholder');
+        if (!response.ok) {
+          return;
+        }
+
+        const data = await response.json();
+        const nextTopic = normalizeDailyTopic(data?.placeholder);
+        const dateKey = String(data?.dateKey || today);
+        const channelId = String(data?.channelId || '');
+
+        if (!nextTopic || isCancelled) {
+          return;
+        }
+
+        const nextPlaceholder = buildTaggedDailyPlaceholder(nextTopic);
+        setScriptPlaceholder(nextPlaceholder);
+        localStorage.setItem(
+          DAILY_VOICE_PLACEHOLDER_CACHE_KEY,
+          JSON.stringify({ placeholder: nextPlaceholder, dateKey, channelId })
+        );
+      } catch (error) {
+        console.error('Failed to load daily voice placeholder:', error);
+      }
+    };
+
+    loadDailyPlaceholder();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -496,13 +577,22 @@ export default function VoiceOver() {
     setCurrentTime(newTime);
   };
 
-  const renderHighlightedText = (text: string) => {
+  const renderHighlightedText = (text: string, isPlaceholder: boolean = false) => {
     const parts = text.split(/(\[[^\]]+\])/g);
     return parts.map((part, i) => {
       if (part.startsWith('[') && part.endsWith(']')) {
-        return <span key={i} className="text-blue-400 bg-blue-500/20 rounded shadow-[0_0_10px_rgba(59,130,246,0.3)]">{part}</span>;
+        return (
+          <span
+            key={i}
+            className={isPlaceholder
+              ? 'text-blue-300/80 bg-blue-500/10 rounded shadow-[0_0_8px_rgba(59,130,246,0.2)]'
+              : 'text-blue-400 bg-blue-500/20 rounded shadow-[0_0_10px_rgba(59,130,246,0.3)]'}
+          >
+            {part}
+          </span>
+        );
       }
-      return <span key={i}>{part}</span>;
+      return <span key={i} className={isPlaceholder ? 'text-slate-500/70' : undefined}>{part}</span>;
     });
   };
 
@@ -560,8 +650,14 @@ export default function VoiceOver() {
                   className="absolute inset-0 p-3 sm:p-6 text-sm sm:text-lg leading-relaxed whitespace-pre-wrap break-words pointer-events-none text-slate-300 overflow-hidden font-mono"
                   aria-hidden="true"
                 >
-                  {renderHighlightedText(script)}
-                  {script.endsWith('\n') ? <br/> : null}
+                  {script ? (
+                    <>
+                      {renderHighlightedText(script)}
+                      {script.endsWith('\n') ? <br/> : null}
+                    </>
+                  ) : (
+                    renderHighlightedText(scriptPlaceholder, true)
+                  )}
                 </div>
                 <textarea
                   ref={textAreaRef}
@@ -572,8 +668,8 @@ export default function VoiceOver() {
                     e.target.style.height = `${e.target.scrollHeight}px`;
                   }}
                   onScroll={handleScroll}
-                  placeholder="Enter your script here..."
-                  className="w-full h-full min-h-[200px] sm:min-h-[300px] p-3 sm:p-6 text-sm sm:text-lg leading-relaxed whitespace-pre-wrap break-words resize-none outline-none bg-transparent text-transparent caret-white font-mono overflow-hidden"
+                  placeholder={scriptPlaceholder}
+                  className="w-full h-full min-h-[200px] sm:min-h-[300px] p-3 sm:p-6 text-sm sm:text-lg leading-relaxed whitespace-pre-wrap break-words resize-none outline-none bg-transparent text-transparent caret-white placeholder:text-slate-500/70 font-mono overflow-hidden"
                   spellCheck="false"
                 />
               </motion.div>

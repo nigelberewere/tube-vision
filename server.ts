@@ -132,6 +132,290 @@ function extractYouTubeError(errorPayload: any, fallbackMessage: string, fallbac
   };
 }
 
+const YOUTUBE_DATA_API_CACHE_TABLE = "youtube_api_cache";
+const YOUTUBE_DATA_CACHE_VERSION = "v1";
+const YOUTUBE_DATA_CACHE_SCOPE_HEADER = "x-vidvision-cache-scope";
+const YOUTUBE_DATA_CACHE_PATCH_FLAG = "__vidvision_youtube_cache_patch_v1__";
+const YOUTUBE_DATA_CACHE_SECRET = process.env.YOUTUBE_CACHE_SECRET || OAUTH_STATE_SECRET;
+const YOUTUBE_DATA_CACHE_DEFAULT_TTL_SECONDS = 180;
+const YOUTUBE_DATA_CACHE_PRUNE_INTERVAL_MS = 15 * 60 * 1000;
+
+let youtubeDataCacheAvailable = Boolean(supabaseServer);
+let youtubeDataCacheMissingTableWarned = false;
+let lastYouTubeDataCachePruneAt = 0;
+
+type YouTubeDataCacheRow = {
+  response_json: unknown;
+  status_code: number | null;
+  expires_at: string;
+};
+
+function isYouTubeDataApiUrl(rawUrl: string): boolean {
+  try {
+    const url = new URL(rawUrl);
+    return (
+      (url.hostname === "www.googleapis.com" && url.pathname.startsWith("/youtube/v3/")) ||
+      (url.hostname === "youtubeanalytics.googleapis.com" && url.pathname.startsWith("/v2/"))
+    );
+  } catch {
+    return false;
+  }
+}
+
+function normalizeYouTubeDataApiUrl(rawUrl: string): string {
+  const url = new URL(rawUrl);
+  const sortedEntries = [...url.searchParams.entries()].sort(([aKey, aValue], [bKey, bValue]) => {
+    if (aKey === bKey) {
+      return aValue.localeCompare(bValue);
+    }
+    return aKey.localeCompare(bKey);
+  });
+
+  url.search = "";
+  for (const [key, value] of sortedEntries) {
+    url.searchParams.append(key, value);
+  }
+
+  return `${url.origin}${url.pathname}${url.search}`;
+}
+
+function deriveYouTubeDataCacheTtlSeconds(rawUrl: string): number {
+  try {
+    const url = new URL(rawUrl);
+
+    if (url.hostname === "youtubeanalytics.googleapis.com") {
+      return 600;
+    }
+
+    const endpoint = url.pathname.split("/").pop() || "";
+
+    if (endpoint === "commentThreads") return 300;
+    if (endpoint === "search") return 900;
+    if (endpoint === "playlistItems") return 900;
+    if (endpoint === "videos") return 900;
+    if (endpoint === "channels") return 1800;
+  } catch {
+    // Ignore parse issues and use the default TTL.
+  }
+
+  return YOUTUBE_DATA_CACHE_DEFAULT_TTL_SECONDS;
+}
+
+function resolveFetchRequestMeta(input: RequestInfo | URL, init?: RequestInit) {
+  const hasRequestInput = typeof Request !== "undefined" && input instanceof Request;
+
+  if (hasRequestInput) {
+    const requestInput = input as Request;
+    return {
+      rawUrl: requestInput.url,
+      method: (init?.method || requestInput.method || "GET").toUpperCase(),
+      headers: new Headers(init?.headers || requestInput.headers),
+    };
+  }
+
+  return {
+    rawUrl: String(input),
+    method: (init?.method || "GET").toUpperCase(),
+    headers: new Headers(init?.headers || {}),
+  };
+}
+
+function deriveYouTubeDataCacheScope(headers: Headers): string {
+  const explicitScope = headers.get(YOUTUBE_DATA_CACHE_SCOPE_HEADER)?.trim();
+  if (explicitScope) {
+    return explicitScope.slice(0, 128);
+  }
+
+  const authorization = headers.get("authorization")?.trim();
+  if (authorization?.startsWith("Bearer ")) {
+    const token = authorization.slice("Bearer ".length).trim();
+    if (token) {
+      const tokenHash = createHmac("sha256", YOUTUBE_DATA_CACHE_SECRET)
+        .update(token)
+        .digest("hex")
+        .slice(0, 20);
+      return `token:${tokenHash}`;
+    }
+  }
+
+  return "shared";
+}
+
+function cloneInitWithoutInternalCacheHeaders(init?: RequestInit): RequestInit | undefined {
+  if (!init) {
+    return init;
+  }
+
+  const sanitizedHeaders = new Headers(init.headers || {});
+  sanitizedHeaders.delete(YOUTUBE_DATA_CACHE_SCOPE_HEADER);
+
+  return {
+    ...init,
+    headers: sanitizedHeaders,
+  };
+}
+
+function handleYouTubeDataCacheError(error: any, operation: "read" | "write" | "prune") {
+  const code = String(error?.code || "");
+  const message = String(error?.message || "").toLowerCase();
+  const missingTable = code === "42P01" || (message.includes("youtube_api_cache") && message.includes("does not exist"));
+
+  if (missingTable) {
+    youtubeDataCacheAvailable = false;
+    if (!youtubeDataCacheMissingTableWarned) {
+      youtubeDataCacheMissingTableWarned = true;
+      console.warn(
+        "[YouTube Cache] Supabase table 'youtube_api_cache' is missing. Run the latest SQL migration to enable cache hits."
+      );
+    }
+    return;
+  }
+
+  if (operation !== "read") {
+    console.warn(`[YouTube Cache] ${operation} failed:`, error?.message || error);
+  }
+}
+
+async function readYouTubeDataCache(cacheKey: string): Promise<YouTubeDataCacheRow | null> {
+  if (!youtubeDataCacheAvailable || !supabaseServer) {
+    return null;
+  }
+
+  const { data, error } = await supabaseServer
+    .from(YOUTUBE_DATA_API_CACHE_TABLE)
+    .select("response_json,status_code,expires_at")
+    .eq("cache_key", cacheKey)
+    .gt("expires_at", new Date().toISOString())
+    .maybeSingle();
+
+  if (error) {
+    handleYouTubeDataCacheError(error, "read");
+    return null;
+  }
+
+  return (data as YouTubeDataCacheRow | null) || null;
+}
+
+async function maybePruneYouTubeDataCache() {
+  if (!youtubeDataCacheAvailable || !supabaseServer) {
+    return;
+  }
+
+  const now = Date.now();
+  if (now - lastYouTubeDataCachePruneAt < YOUTUBE_DATA_CACHE_PRUNE_INTERVAL_MS) {
+    return;
+  }
+  lastYouTubeDataCachePruneAt = now;
+
+  const { error } = await supabaseServer
+    .from(YOUTUBE_DATA_API_CACHE_TABLE)
+    .delete()
+    .lt("expires_at", new Date(now).toISOString());
+
+  if (error) {
+    handleYouTubeDataCacheError(error, "prune");
+  }
+}
+
+async function writeYouTubeDataCache(params: {
+  cacheKey: string;
+  cacheScope: string;
+  endpoint: string;
+  responseJson: unknown;
+  statusCode: number;
+  ttlSeconds: number;
+}) {
+  if (!youtubeDataCacheAvailable || !supabaseServer) {
+    return;
+  }
+
+  const ttlSeconds = Math.max(30, Math.min(3600, Number(params.ttlSeconds) || YOUTUBE_DATA_CACHE_DEFAULT_TTL_SECONDS));
+  const expiresAt = new Date(Date.now() + ttlSeconds * 1000).toISOString();
+
+  const { error } = await supabaseServer
+    .from(YOUTUBE_DATA_API_CACHE_TABLE)
+    .upsert(
+      {
+        cache_key: params.cacheKey,
+        cache_scope: params.cacheScope,
+        endpoint: params.endpoint,
+        response_json: params.responseJson,
+        status_code: params.statusCode,
+        expires_at: expiresAt,
+      },
+      { onConflict: "cache_key" },
+    );
+
+  if (error) {
+    handleYouTubeDataCacheError(error, "write");
+    return;
+  }
+
+  await maybePruneYouTubeDataCache();
+}
+
+function installYouTubeDataApiCacheFetch() {
+  const globalCacheState = globalThis as Record<string, unknown>;
+  if (globalCacheState[YOUTUBE_DATA_CACHE_PATCH_FLAG]) {
+    return;
+  }
+  globalCacheState[YOUTUBE_DATA_CACHE_PATCH_FLAG] = true;
+
+  const rawFetch = globalThis.fetch.bind(globalThis);
+
+  globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+    const { rawUrl, method, headers } = resolveFetchRequestMeta(input, init);
+
+    if (!youtubeDataCacheAvailable || method !== "GET" || !isYouTubeDataApiUrl(rawUrl)) {
+      return rawFetch(input, init);
+    }
+
+    const cacheScope = deriveYouTubeDataCacheScope(headers);
+    const normalizedUrl = normalizeYouTubeDataApiUrl(rawUrl);
+    const cacheKey = createHmac("sha256", YOUTUBE_DATA_CACHE_SECRET)
+      .update(`${YOUTUBE_DATA_CACHE_VERSION}:${cacheScope}:${normalizedUrl}`)
+      .digest("hex");
+
+    const cached = await readYouTubeDataCache(cacheKey);
+    if (cached) {
+      return new Response(JSON.stringify(cached.response_json), {
+        status: Number(cached.status_code) || 200,
+        headers: {
+          "Content-Type": "application/json; charset=utf-8",
+          "X-VidVision-Cache": "HIT",
+        },
+      });
+    }
+
+    const response = await rawFetch(input, cloneInitWithoutInternalCacheHeaders(init));
+    if (!response.ok) {
+      return response;
+    }
+
+    const contentType = response.headers.get("content-type") || "";
+    if (!contentType.toLowerCase().includes("application/json")) {
+      return response;
+    }
+
+    const parsedJson = await response.clone().json().catch(() => null);
+    if (parsedJson === null || typeof parsedJson === "undefined") {
+      return response;
+    }
+
+    const ttlSeconds = deriveYouTubeDataCacheTtlSeconds(rawUrl);
+    await writeYouTubeDataCache({
+      cacheKey,
+      cacheScope,
+      endpoint: new URL(rawUrl).pathname,
+      responseJson: parsedJson,
+      statusCode: response.status,
+      ttlSeconds,
+    });
+
+    return response;
+  };
+}
+
 const COACH_ALERT_CACHE_TTL_MS = 20 * 60 * 1000;
 const COACH_ALERT_LOOKBACK_DAYS = 90;
 const COACH_STOP_WORDS = new Set([
@@ -417,6 +701,8 @@ export async function createApp(options: CreateAppOptions = {}) {
   const appUrl = resolveAppUrl(port);
   const redirectUri = `${appUrl}/auth/google/callback`;
 
+  installYouTubeDataApiCacheFetch();
+
   function signOAuthState(payload: { redirectTo: string; supabaseUserId: string | null; issuedAt: number }) {
     return createHmac("sha256", OAUTH_STATE_SECRET)
       .update(JSON.stringify(payload))
@@ -689,6 +975,8 @@ export async function createApp(options: CreateAppOptions = {}) {
   async function getAuthHeaderForAccount(user: any) {
     const refreshToken = user?.tokens?.refresh_token;
     const fallbackAccessToken = user?.tokens?.access_token;
+    const rawCacheScope = String(user?.channel?.id || user?.id || "").trim();
+    const cacheScopeHeader = rawCacheScope ? { "X-VidVision-Cache-Scope": `channel:${rawCacheScope}` } : {};
 
     if (refreshToken) {
       try {
@@ -696,7 +984,7 @@ export async function createApp(options: CreateAppOptions = {}) {
         refreshClient.setCredentials({ refresh_token: refreshToken });
         const refreshedToken = (await refreshClient.getAccessToken())?.token;
         if (refreshedToken) {
-          return { Authorization: `Bearer ${refreshedToken}` };
+          return { Authorization: `Bearer ${refreshedToken}`, ...cacheScopeHeader };
         }
       } catch (error) {
         console.error("Failed to refresh OAuth token for request:", error);
@@ -704,10 +992,86 @@ export async function createApp(options: CreateAppOptions = {}) {
     }
 
     if (fallbackAccessToken) {
-      return { Authorization: `Bearer ${fallbackAccessToken}` };
+      return { Authorization: `Bearer ${fallbackAccessToken}`, ...cacheScopeHeader };
     }
 
     throw new Error("No OAuth token available for active account");
+  }
+
+  function parseMaxResults(rawValue: unknown, fallback: number = 50): number {
+    const parsed = Math.floor(Number(rawValue) || fallback);
+    return Math.min(50, Math.max(1, parsed));
+  }
+
+  async function fetchMineVideoSeeds(authHeader: any, maxResults: number) {
+    const boundedMaxResults = Math.min(50, Math.max(1, Math.floor(maxResults)));
+
+    try {
+      // 1. Fetch channel info to get uploads playlist ID (1 quota)
+      const channelsResponse = await fetch(
+        'https://www.googleapis.com/youtube/v3/channels?part=contentDetails&mine=true',
+        { headers: authHeader }
+      );
+      const channelsData = await channelsResponse.json().catch(() => ({}));
+
+      if (!channelsResponse.ok || channelsData?.error) {
+        const upstream = extractYouTubeError(
+          channelsData,
+          'Failed to fetch channel uploads playlist from YouTube',
+          channelsResponse.status,
+        );
+        return {
+          ok: false,
+          step: 'channels',
+          upstream,
+        };
+      }
+
+      const uploadsPlaylistId = channelsData?.items?.[0]?.contentDetails?.relatedPlaylists?.uploads;
+      if (!uploadsPlaylistId) {
+        return { ok: true, seeds: [] };
+      }
+
+      // 2. Fetch playlist items to get video IDs (1 quota per 50 items)
+      const playlistResponse = await fetch(
+        `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet,contentDetails&playlistId=${encodeURIComponent(uploadsPlaylistId)}&maxResults=${boundedMaxResults}`,
+        { headers: authHeader }
+      );
+      const playlistData = await playlistResponse.json().catch(() => ({}));
+
+      if (!playlistResponse.ok || playlistData?.error) {
+        const upstream = extractYouTubeError(
+          playlistData,
+          'Failed to fetch uploaded videos from YouTube',
+          playlistResponse.status,
+        );
+        return {
+          ok: false,
+          step: 'playlistItems',
+          upstream,
+        };
+      }
+
+      const seeds = (playlistData.items || [])
+        .map((item: any) => ({
+          videoId: String(item?.contentDetails?.videoId || '').trim(),
+          title: String(item?.snippet?.title || '').trim(),
+        }))
+        .filter((seed: any) => seed.videoId);
+
+      return { ok: true, seeds };
+    } catch (error: any) {
+      const upstream = extractYouTubeError(
+        {},
+        error?.message || 'Unexpected error fetching playlist',
+        500,
+      );
+      return {
+        ok: false,
+        step: 'playlistItems',
+        upstream,
+      };
+    }
   }
 
   async function persistLegacyAccountToSupabase(supabaseUserId: string, legacyAccount: any) {
@@ -1574,17 +1938,14 @@ For every video provided, evaluate segments based on:
     let recentTitles: string[] = [];
 
     try {
-      const recentResponse = await fetch(
-        "https://www.googleapis.com/youtube/v3/search?part=snippet&forMine=true&type=video&maxResults=6&order=date",
-        {
-          headers: { Authorization: `Bearer ${user.tokens.access_token}` },
-        }
-      );
-      const recentData = await recentResponse.json();
-      recentTitles = (recentData.items || [])
-        .map((item: any) => item?.snippet?.title)
-        .filter((title: unknown) => typeof title === "string" && title.trim().length > 0)
-        .slice(0, 6);
+      const authHeader = await getAuthHeaderForAccount(user);
+      const recentSeedResult = await fetchMineVideoSeeds(authHeader, 6);
+      if (recentSeedResult.ok) {
+        recentTitles = recentSeedResult.seeds
+          .map((seed: any) => seed.title)
+          .filter((title: unknown) => typeof title === "string" && title.trim().length > 0)
+          .slice(0, 6);
+      }
     } catch (fetchError) {
       console.error("Fetch recent videos for placeholder error:", fetchError);
     }
@@ -1664,36 +2025,26 @@ Recent videos: ${recentTitles.join(" | ") || "No recent titles"}`;
 
     try {
       const authHeader = await getAuthHeaderForAccount(user);
-      const searchResponse = await fetch(
-        "https://www.googleapis.com/youtube/v3/search?part=snippet&forMine=true&type=video&maxResults=30&order=date",
-        { headers: authHeader }
-      );
+      const recentSeedResult = await fetchMineVideoSeeds(authHeader, 30);
 
-      if (!searchResponse.ok) {
-        const errorPayload = await searchResponse.json().catch(() => ({}));
-        const upstream = extractYouTubeError(
-          errorPayload,
-          "Failed to fetch videos for insight analysis",
-          searchResponse.status,
-        );
-
-        return res.status(searchResponse.status).json({
+      if (recentSeedResult.ok === false) {
+        const upstream = recentSeedResult.upstream;
+        return res.status(upstream.httpStatus).json({
           error: upstream.message,
           upstream: {
             source: "youtube",
             step: "search",
-            code: upstream.code,
-            status: upstream.status,
-            reason: upstream.reason,
+            code: upstream.message,
+            status: upstream.httpStatus,
+            reason: upstream.message,
             message: upstream.message,
-            isQuotaExceeded: upstream.isQuotaExceeded,
+            isQuotaExceeded: false,
           },
         });
       }
 
-      const searchData = await searchResponse.json();
-      const videoIds = (searchData.items || [])
-        .map((item: any) => item?.id?.videoId)
+      const videoIds = recentSeedResult.seeds
+        .map((seed: any) => seed.videoId)
         .filter((id: unknown) => typeof id === "string" && id.trim())
         .slice(0, 30)
         .join(",");
@@ -1709,7 +2060,7 @@ Recent videos: ${recentTitles.join(" | ") || "No recent titles"}`;
       }
 
       const videosResponse = await fetch(
-        `https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics,contentDetails&id=${videoIds}`,
+        `https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics&id=${videoIds}`,
         { headers: authHeader }
       );
 
@@ -1951,30 +2302,27 @@ Return JSON with:
 
     try {
       const authHeader = await getAuthHeaderForAccount(user);
-      const response = await fetch(
-        "https://www.googleapis.com/youtube/v3/search?part=snippet&forMine=true&type=video&maxResults=50&order=date",
-        { headers: authHeader }
-      );
-      const data = await response.json().catch(() => ({}));
+      const maxResults = parseMaxResults(req.query.maxResults, 50);
+      const recentSeedResult = await fetchMineVideoSeeds(authHeader, maxResults);
 
-      if (!response.ok || data?.error) {
-        const upstream = extractYouTubeError(data, "Failed to fetch channel videos from YouTube", response.status);
+      if (recentSeedResult.ok === false) {
+        const upstream = recentSeedResult.upstream;
         return res.status(upstream.httpStatus).json({
           error: upstream.message,
           upstream: {
             source: "youtube",
             step: "search",
-            code: upstream.code,
-            status: upstream.status,
-            reason: upstream.reason,
+            code: upstream.message,
+            status: upstream.httpStatus,
+            reason: upstream.message,
             message: upstream.message,
-            isQuotaExceeded: upstream.isQuotaExceeded,
+            isQuotaExceeded: false,
           },
         });
       }
 
-      const videoIds = (data.items || [])
-        .map((item: any) => item?.id?.videoId)
+      const videoIds = recentSeedResult.seeds
+        .map((seed: any) => seed.videoId)
         .filter(Boolean)
         .join(",");
 
@@ -1983,7 +2331,7 @@ Return JSON with:
       }
 
       const statsResponse = await fetch(
-        `https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics,contentDetails&id=${videoIds}`,
+        `https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics&id=${videoIds}`,
         { headers: authHeader }
       );
       const statsData = await statsResponse.json().catch(() => ({}));
@@ -2393,36 +2741,29 @@ Return JSON with:
 
     try {
       const authHeader = await getAuthHeaderForAccount(user);
-      const searchResponse = await fetch(
-        "https://www.googleapis.com/youtube/v3/search?part=snippet&forMine=true&type=video&maxResults=50&order=date",
-        { headers: authHeader }
-      );
+      const recentSeedResult = await fetchMineVideoSeeds(authHeader, 50);
 
-      if (!searchResponse.ok) {
-        const errorData = await searchResponse.json().catch(() => ({}));
-        console.error("YouTube search API error:", errorData);
-        const upstream = extractYouTubeError(
-          errorData,
-          "Failed to fetch your channel videos from YouTube",
-          searchResponse.status,
-        );
-
+      if (recentSeedResult.ok === false) {
+        const upstream = recentSeedResult.upstream;
+        console.error("YouTube search API error:", upstream);
         return res.status(upstream.httpStatus).json({
           error: upstream.message,
           upstream: {
             source: "youtube",
             step: "search",
-            code: upstream.code,
-            status: upstream.status,
-            reason: upstream.reason,
+            code: upstream.message,
+            status: upstream.httpStatus,
+            reason: upstream.message,
             message: upstream.message,
-            isQuotaExceeded: upstream.isQuotaExceeded,
+            isQuotaExceeded: false,
           },
         });
       }
 
-      const searchData = await searchResponse.json();
-      const videoIds = searchData.items?.map((item: any) => item.id.videoId).filter(Boolean).join(",");
+      const videoIds = recentSeedResult.seeds
+        .map((seed: any) => seed.videoId)
+        .filter(Boolean)
+        .join(",");
 
       if (!videoIds) {
         return res.json([]);
@@ -2580,16 +2921,21 @@ Return JSON with:
     }
 
     try {
-      // Fetch user's video history
-      const response = await fetch(
-        "https://www.googleapis.com/youtube/v3/search?part=snippet&forMine=true&type=video&maxResults=50&order=date",
-        {
-          headers: { Authorization: `Bearer ${user.tokens.access_token}` },
-        }
-      );
-      const data = await response.json();
-      
-      const videoIds = data.items?.map((item: any) => item.id.videoId).join(",");
+      const authHeader = await getAuthHeaderForAccount(user);
+      const recentSeedResult = await fetchMineVideoSeeds(authHeader, 50);
+
+      if (recentSeedResult.ok === false) {
+        return res.json({ 
+          bestHour: null, 
+          bestDay: null, 
+          confidence: 'low',
+          message: 'Not enough video data to analyze posting patterns' 
+        });
+      }
+
+      const videoIds = recentSeedResult.seeds
+        .map((seed: any) => seed.videoId)
+        .join(",");
       if (!videoIds) {
         return res.json({ 
           bestHour: null, 
@@ -2599,11 +2945,11 @@ Return JSON with:
         });
       }
 
-      // Fetch detailed statistics
+      // Fetch detailed statistics (trimmed to snippet,statistics)
       const statsResponse = await fetch(
-        `https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics,contentDetails&id=${videoIds}`,
+        `https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics&id=${videoIds}`,
         {
-          headers: { Authorization: `Bearer ${user.tokens.access_token}` },
+          headers: authHeader,
         }
       );
       const statsData = await statsResponse.json();
@@ -2842,22 +3188,21 @@ Return concise, practical recommendations.`;
     try {
       const authHeader = await getAuthHeaderForAccount(user);
 
-      // Fetch user's recent videos to analyze niche
-      const myVideosResponse = await fetch(
-        "https://www.googleapis.com/youtube/v3/search?part=snippet&forMine=true&type=video&maxResults=10&order=date",
-        { headers: authHeader }
-      );
-      const myVideosData = await myVideosResponse.json().catch(() => ({}));
+      // Fetch user's recent videos to analyze niche using helper
+      const recentSeedResult = await fetchMineVideoSeeds(authHeader, 10);
 
-      if (!myVideosResponse.ok || myVideosData?.error) {
-        const statusCode = Number(myVideosData?.error?.code) || myVideosResponse.status || 500;
-        return res.status(statusCode).json({
-          error: myVideosData?.error?.message || "Failed to fetch channel videos from YouTube",
-          upstream: myVideosData?.error || null,
+      if (recentSeedResult.ok === false) {
+        const upstream = recentSeedResult.upstream;
+        return res.status(upstream.httpStatus).json({
+          error: upstream.message,
+          upstream: upstream,
         });
       }
 
-      const myVideoIds = (myVideosData.items || []).map((item: any) => item?.id?.videoId).filter(Boolean).join(",");
+      const myVideoIds = recentSeedResult.seeds
+        .map((item: any) => item.videoId)
+        .filter(Boolean)
+        .join(",");
 
       if (!myVideoIds) {
         return res.json({ 

@@ -76,7 +76,7 @@ export default function ChannelInsights() {
     return (
       <div className="space-y-6">
         <div className="h-8 w-64 bg-zinc-800/50 rounded animate-pulse" />
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 md:gap-6">
           <ShimmerStat />
           <ShimmerStat />
           <ShimmerStat />

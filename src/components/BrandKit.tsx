@@ -393,7 +393,7 @@ export default function BrandKit() {
           <p className="text-sm text-zinc-400 mt-1">Upload logo variations for automatic placement in thumbnails</p>
         </div>
 
-        <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="p-3 sm:p-4 md:p-6 grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 md:gap-6">
           {/* Main Logo */}
           <div className="space-y-3">
             <h4 className="text-sm font-medium text-zinc-300">Main Logo</h4>
@@ -419,7 +419,7 @@ export default function BrandKit() {
             ) : (
               <div
                 onClick={() => mainLogoInputRef.current?.click()}
-                className="border-2 border-dashed border-zinc-700 hover:border-indigo-500/50 rounded-lg p-12 flex flex-col items-center justify-center gap-3 cursor-pointer transition-all hover:bg-zinc-800/30 group min-h-[200px]"
+                className="border-2 border-dashed border-zinc-700 hover:border-indigo-500/50 rounded-lg p-4 sm:p-8 md:p-12 flex flex-col items-center justify-center gap-3 cursor-pointer transition-all hover:bg-zinc-800/30 group min-h-[200px]"
               >
                 <div className="p-3 rounded-full bg-zinc-800 group-hover:bg-indigo-500/20 transition-colors">
                   <Upload className="text-zinc-400 group-hover:text-indigo-400 transition-colors" size={24} />
@@ -465,7 +465,7 @@ export default function BrandKit() {
             ) : (
               <div
                 onClick={() => secondaryLogoInputRef.current?.click()}
-                className="border-2 border-dashed border-zinc-700 hover:border-purple-500/50 rounded-lg p-12 flex flex-col items-center justify-center gap-3 cursor-pointer transition-all hover:bg-zinc-800/30 group min-h-[200px]"
+                className="border-2 border-dashed border-zinc-700 hover:border-purple-500/50 rounded-lg p-4 sm:p-8 md:p-12 flex flex-col items-center justify-center gap-3 cursor-pointer transition-all hover:bg-zinc-800/30 group min-h-[200px]"
               >
                 <div className="p-3 rounded-full bg-zinc-800 group-hover:bg-purple-500/20 transition-colors">
                   <Plus className="text-zinc-400 group-hover:text-purple-400 transition-colors" size={24} />

@@ -312,7 +312,7 @@ Return ONLY valid JSON matching the schema.`;
           onChange={(e) => setInputText(e.target.value)}
           disabled={loading}
           placeholder="Paste your long-form script, article, or content here..."
-          className="w-full h-64 bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3 text-white placeholder-zinc-500 resize-none focus:outline-none focus:border-indigo-500 disabled:opacity-50"
+          className="w-full h-40 sm:h-48 md:h-56 lg:h-64 bg-zinc-800 border border-zinc-700 rounded-lg px-3 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm md:text-base text-white placeholder-zinc-500 resize-none focus:outline-none focus:border-indigo-500 disabled:opacity-50"
         />
         <div className="mt-3 text-sm text-zinc-500">
           {inputText.length} characters • {Math.ceil(inputText.split(/\s+/).length)} words
@@ -321,7 +321,7 @@ Return ONLY valid JSON matching the schema.`;
         {/* Format Buttons */}
         <div className="mt-6 space-y-3">
           <p className="text-sm font-medium text-zinc-300">Choose format:</p>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 sm:gap-3">
             <button
               onClick={() => handleRepurpose('twitter')}
               disabled={loading || inputText.trim().length < 100}

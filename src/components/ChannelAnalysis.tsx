@@ -381,7 +381,7 @@ export default function ChannelAnalysis() {
       )}
 
       {!analysis && !analyzing && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 md:gap-6">
           {videos.slice(0, 3).map((v, i) => (
             <div key={i} className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden relative">
               <input
@@ -578,7 +578,7 @@ export default function ChannelAnalysis() {
                     value={bulkDescriptionText}
                     onChange={(e) => setBulkDescriptionText(e.target.value)}
                     placeholder="Enter new description for all selected videos..."
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-3 text-zinc-100 min-h-[120px] focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-zinc-100 min-h-[120px] focus:outline-none focus:ring-2 focus:ring-blue-500/50"
                     disabled={findText !== '' || replaceText !== ''}
                   />
                 </div>
@@ -690,7 +690,7 @@ export default function ChannelAnalysis() {
                     value={bulkTagsText}
                     onChange={(e) => setBulkTagsText(e.target.value)}
                     placeholder="tag1, tag2, tag3, ..."
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-3 text-zinc-100 min-h-[100px] focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-zinc-100 min-h-[100px] focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
                   />
                 </div>
 
@@ -698,11 +698,11 @@ export default function ChannelAnalysis() {
                   <label className="block text-sm font-medium text-zinc-300 mb-3">
                     Update Mode
                   </label>
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
                     <button
                       onClick={() => setTagUpdateMode('replace')}
                       className={cn(
-                        "px-4 py-2.5 rounded-lg text-sm font-semibold border-2 transition-all",
+                        "px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg text-xs sm:text-sm font-semibold border-2 transition-all",
                         tagUpdateMode === 'replace'
                           ? "border-emerald-500 bg-emerald-500/10 text-emerald-300"
                           : "border-zinc-700 bg-zinc-800 text-zinc-400 hover:border-zinc-600"
@@ -713,7 +713,7 @@ export default function ChannelAnalysis() {
                     <button
                       onClick={() => setTagUpdateMode('append')}
                       className={cn(
-                        "px-4 py-2.5 rounded-lg text-sm font-semibold border-2 transition-all",
+                        "px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg text-xs sm:text-sm font-semibold border-2 transition-all",
                         tagUpdateMode === 'append'
                           ? "border-emerald-500 bg-emerald-500/10 text-emerald-300"
                           : "border-zinc-700 bg-zinc-800 text-zinc-400 hover:border-zinc-600"
@@ -724,7 +724,7 @@ export default function ChannelAnalysis() {
                     <button
                       onClick={() => setTagUpdateMode('prepend')}
                       className={cn(
-                        "px-4 py-2.5 rounded-lg text-sm font-semibold border-2 transition-all",
+                        "px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg text-xs sm:text-sm font-semibold border-2 transition-all",
                         tagUpdateMode === 'prepend'
                           ? "border-emerald-500 bg-emerald-500/10 text-emerald-300"
                           : "border-zinc-700 bg-zinc-800 text-zinc-400 hover:border-zinc-600"

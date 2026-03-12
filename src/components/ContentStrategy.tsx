@@ -72,7 +72,7 @@ export default function ContentStrategy() {
           value={transcript}
           onChange={(e) => setTranscript(e.target.value)}
           placeholder="Paste your video script or transcript here..."
-          className="w-full h-48 bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-3 text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 resize-none"
+          className="w-full h-40 sm:h-48 md:h-56 lg:h-64 bg-zinc-950 border border-zinc-800 rounded-lg px-3 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm md:text-base text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 resize-none"
         />
         <div className="mt-4 flex justify-end">
           <button
@@ -88,7 +88,7 @@ export default function ContentStrategy() {
 
       {result && (
         <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 gap-4 sm:gap-5 md:grid-cols-2 md:gap-6">
             {/* Hook Analysis */}
             <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6">
               <div className="flex items-center gap-3 mb-4">

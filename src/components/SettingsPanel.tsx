@@ -46,7 +46,7 @@ export default function SettingsPanel({ theme, onThemeChange, initialTab = 'appe
   return (
     <div className="space-y-6 animate-in fade-in duration-500 pb-10">
       {/* Settings Tabs */}
-      <div className="flex gap-2 p-1 bg-zinc-900/50 rounded-lg border border-zinc-800">
+      <div className="flex gap-1 p-1 bg-zinc-900/50 rounded-lg border border-zinc-800 overflow-x-auto">
         {settingsTabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -55,7 +55,7 @@ export default function SettingsPanel({ theme, onThemeChange, initialTab = 'appe
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={cn(
-                'flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-md transition-all text-sm font-medium',
+                'flex-1 flex items-center justify-center gap-1 sm:gap-2 px-2 sm:px-4 py-2 sm:py-2.5 rounded-md transition-all text-xs sm:text-sm font-medium whitespace-nowrap',
                 isActive
                   ? 'bg-indigo-500 text-white shadow-lg'
                   : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'
@@ -72,14 +72,14 @@ export default function SettingsPanel({ theme, onThemeChange, initialTab = 'appe
       {activeTab === 'appearance' ? (
         <>
       <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
-        <p className="text-[10px] uppercase tracking-[0.2em] text-slate-500 font-bold">Settings</p>
-        <h2 className="text-2xl font-bold text-white mt-2">Appearance</h2>
-        <p className="text-slate-400 mt-2 max-w-2xl">
+        <p className="hidden sm:block text-[10px] uppercase tracking-[0.2em] text-slate-500 font-bold">Settings</p>
+        <h2 className="text-lg sm:text-2xl font-bold text-white mt-2">Appearance</h2>
+        <p className="text-xs sm:text-sm text-slate-400 mt-2 max-w-2xl">
           Switch between dark and light modes. Your choice is saved and will be used every time you return.
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4">
         {options.map((option) => {
           const Icon = option.icon;
           const selected = theme === option.id;

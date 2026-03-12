@@ -494,7 +494,7 @@ Ensure variants are MAXIMALLY different from each other to represent true A/B te
                       </div>
                     )}
                     
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4 md:gap-6">
                       {/* Title & Metrics */}
                       <div className="space-y-3">
                         <div>
@@ -510,7 +510,7 @@ Ensure variants are MAXIMALLY different from each other to represent true A/B te
                           <h3 className="text-lg font-semibold text-zinc-100">{variant.title}</h3>
                         </div>
                         
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
                           <div className="bg-zinc-950/50 rounded-lg p-3">
                             <div className="flex items-center gap-2 mb-1">
                               <Zap className="text-yellow-400" size={14} />
@@ -600,7 +600,7 @@ Ensure variants are MAXIMALLY different from each other to represent true A/B te
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
             {!showABTest && (
               <div className="lg:col-span-2 bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
                 <div className="px-6 py-4 border-b border-zinc-800 bg-zinc-900/50 flex justify-between items-center">

@@ -723,7 +723,7 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
                     </button>
                   </div>
 
-                  <div className="mt-3 grid gap-2 md:grid-cols-3">
+                  <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 sm:gap-3">
                     {insightAlert.ideas.slice(0, 3).map((idea, index) => (
                       <button
                         key={`${insightAlert.id}-${index}`}

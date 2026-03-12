@@ -29,14 +29,14 @@ export default function ChannelAnalytics({}: ChannelAnalyticsProps) {
                 key={tab.id}
                 onClick={() => setActiveSubTab(tab.id)}
                 className={cn(
-                  'flex items-center gap-2 px-4 py-3 border-b-2 transition-all whitespace-nowrap',
+                  'flex items-center gap-1 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 border-b-2 transition-all whitespace-nowrap text-xs sm:text-sm',
                   isActive
                     ? 'border-purple-500 text-white'
                     : 'border-transparent text-slate-400 hover:text-slate-300 hover:border-slate-600'
                 )}
               >
-                <Icon size={16} />
-                <span className="font-medium text-sm">{tab.label}</span>
+                <Icon size={14} />
+                <span className="font-medium text-xs sm:text-sm">{tab.label}</span>
                 <span className="hidden sm:inline text-xs text-slate-500">
                   {tab.description}
                 </span>

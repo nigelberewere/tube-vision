@@ -265,7 +265,35 @@ CREATE POLICY "Users can insert own channel snapshots"
   );
 
 -- ----------------------------------------------------------------------------
--- 5. STORAGE BUCKETS
+-- 5. YOUTUBE_API_CACHE TABLE
+-- ----------------------------------------------------------------------------
+-- Server-side cache for YouTube Data API GET responses to reduce quota pressure.
+-- This table is only used by backend code running with service-role credentials.
+
+CREATE TABLE IF NOT EXISTS public.youtube_api_cache (
+  cache_key TEXT PRIMARY KEY,
+  cache_scope TEXT NOT NULL,
+  endpoint TEXT NOT NULL,
+  response_json JSONB NOT NULL,
+  status_code INTEGER NOT NULL DEFAULT 200,
+  expires_at TIMESTAMPTZ NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_youtube_api_cache_expires_at
+  ON public.youtube_api_cache (expires_at);
+
+CREATE INDEX IF NOT EXISTS idx_youtube_api_cache_scope
+  ON public.youtube_api_cache (cache_scope);
+
+CREATE INDEX IF NOT EXISTS idx_youtube_api_cache_endpoint
+  ON public.youtube_api_cache (endpoint);
+
+-- With service-role access from backend only, this prevents direct browser access.
+ALTER TABLE public.youtube_api_cache ENABLE ROW LEVEL SECURITY;
+
+-- ----------------------------------------------------------------------------
+-- 6. STORAGE BUCKETS
 -- ----------------------------------------------------------------------------
 -- Create storage buckets for user uploads (replaces local uploads/ folder)
 

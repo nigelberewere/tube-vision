@@ -267,15 +267,15 @@ Return ONLY valid JSON matching the schema.`;
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
+    <div className="space-y-6 sm:space-y-8 animate-in fade-in duration-500">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight text-zinc-100">Thumbnail Heatmap Simulator</h1>
-        <p className="text-zinc-400 mt-2">Analyze where viewers' eyes land on your thumbnail and optimize for maximum CTR.</p>
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-zinc-100">Thumbnail Heatmap Simulator</h1>
+        <p className="text-sm sm:text-base text-zinc-400 mt-2">Analyze where viewers' eyes land on your thumbnail and optimize for maximum CTR.</p>
       </div>
 
       {/* Upload Section */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6">
-        <div className="flex gap-6">
+      <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 sm:p-6">
+        <div className="flex flex-col lg:flex-row gap-4 sm:gap-6">
           {/* Upload Area */}
           <div className="flex-1">
             <label className="block text-sm font-medium text-zinc-300 mb-3">
@@ -284,7 +284,7 @@ Return ONLY valid JSON matching the schema.`;
             <div
               onClick={() => fileInputRef.current?.click()}
               className={cn(
-                'border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors',
+                'border-2 border-dashed rounded-lg p-4 sm:p-8 text-center cursor-pointer transition-colors',
                 uploadedImage
                   ? 'border-indigo-500/30 bg-indigo-500/5'
                   : 'border-zinc-700 bg-zinc-800/30 hover:border-zinc-600'
@@ -325,7 +325,7 @@ Return ONLY valid JSON matching the schema.`;
 
           {/* Preview */}
           {uploadedImage && (
-            <div className="w-48">
+            <div className="w-full max-w-xs lg:w-48">
               <p className="text-sm font-medium text-zinc-300 mb-2">Preview</p>
               <img
                 src={uploadedImage.url}
@@ -340,7 +340,7 @@ Return ONLY valid JSON matching the schema.`;
           <button
             onClick={handleAnalyzeHeatmap}
             disabled={analyzing}
-            className="mt-6 w-full h-12 bg-indigo-500 hover:bg-indigo-600 disabled:bg-indigo-900 disabled:text-zinc-600 text-white font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
+            className="mt-6 w-full h-11 sm:h-12 bg-indigo-500 hover:bg-indigo-600 disabled:bg-indigo-900 disabled:text-zinc-600 text-white text-sm sm:text-base font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
           >
             {analyzing ? (
               <>
@@ -369,12 +369,12 @@ Return ONLY valid JSON matching the schema.`;
       {analysis && uploadedImage && (
         <div className="space-y-8">
           {/* Heatmap Canvas */}
-          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 sm:p-6">
             <h2 className="text-lg font-bold text-zinc-100 mb-4">Eye-Tracking Heatmap</h2>
-            <div className="bg-zinc-950 rounded-lg p-4 flex justify-center">
+            <div className="bg-zinc-950 rounded-lg p-3 sm:p-4 flex justify-center overflow-x-auto">
               <canvas
                 ref={canvasRef}
-                className="max-w-2xl max-h-96 rounded border border-zinc-700"
+                className="w-full h-auto max-w-2xl max-h-96 rounded border border-zinc-700"
               />
             </div>
             <p className="text-xs text-zinc-500 mt-3">
@@ -383,8 +383,8 @@ Return ONLY valid JSON matching the schema.`;
           </div>
 
           {/* Layout Score */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 text-center">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
+            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 sm:p-6 text-center">
               <div className="text-sm text-zinc-400 uppercase tracking-wider font-semibold mb-2">
                 Layout Score
               </div>
@@ -392,7 +392,7 @@ Return ONLY valid JSON matching the schema.`;
               <div className="text-xs text-zinc-500 mt-1">/100 effectiveness</div>
             </div>
 
-            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6">
+            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 sm:p-6">
               <div className="text-sm text-zinc-400 uppercase tracking-wider font-semibold mb-3">
                 Primary Focus
               </div>
@@ -404,7 +404,7 @@ Return ONLY valid JSON matching the schema.`;
               </div>
             </div>
 
-            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6">
+            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 sm:p-6">
               <div className="text-sm text-zinc-400 uppercase tracking-wider font-semibold mb-3">
                 Eye-Tracking Path
               </div>
@@ -420,9 +420,9 @@ Return ONLY valid JSON matching the schema.`;
           </div>
 
           {/* Attention Zones Grid */}
-          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 sm:p-6">
             <h2 className="text-lg font-bold text-zinc-100 mb-4">Attention Zone Analysis</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 sm:gap-3">
               {analysis.attentionZones.map((zone) => {
                 const intensity = zone.attentionScore / 100;
                 return (
@@ -462,9 +462,9 @@ Return ONLY valid JSON matching the schema.`;
           </div>
 
           {/* Strengths, Weaknesses, Improvements */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
             {/* Strengths */}
-            <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-6">
+            <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 sm:p-6">
               <h3 className="text-lg font-bold text-emerald-400 mb-4">Strengths ✓</h3>
               <ul className="space-y-2">
                 {analysis.strengths.map((strength, i) => (
@@ -477,7 +477,7 @@ Return ONLY valid JSON matching the schema.`;
             </div>
 
             {/* Weaknesses */}
-            <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-6">
+            <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 sm:p-6">
               <h3 className="text-lg font-bold text-red-400 mb-4">Weaknesses ⚠</h3>
               <ul className="space-y-2">
                 {analysis.weaknesses.map((weakness, i) => (
@@ -491,7 +491,7 @@ Return ONLY valid JSON matching the schema.`;
           </div>
 
           {/* Improvements */}
-          <div className="bg-amber-900/20 border border-amber-500/20 rounded-xl p-6">
+          <div className="bg-amber-900/20 border border-amber-500/20 rounded-xl p-4 sm:p-6">
             <h3 className="text-lg font-bold text-amber-400 mb-4 flex items-center gap-2">
               <Zap className="w-5 h-5" />
               Actionable Improvements
@@ -507,7 +507,7 @@ Return ONLY valid JSON matching the schema.`;
           </div>
 
           {/* Recommendation */}
-          <div className="bg-indigo-500/10 border border-indigo-500/20 rounded-xl p-6">
+          <div className="bg-indigo-500/10 border border-indigo-500/20 rounded-xl p-4 sm:p-6">
             <h3 className="text-lg font-bold text-indigo-400 mb-3">Overall Recommendation</h3>
             <p className="text-sm text-indigo-200 leading-relaxed">
               {analysis.overallRecommendation}

@@ -442,7 +442,7 @@ export default function CompetitorAnalysis() {
       {!selectedCompetitor && view === 'discover' && (
         <>
           {loadingDiscovery ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3 md:gap-4">
               {[...Array(8)].map((_, i) => <ShimmerCard key={i} />)}
             </div>
           ) : discoveredCompetitors && discoveredCompetitors.suggestions.length > 0 ? (
@@ -472,7 +472,7 @@ export default function CompetitorAnalysis() {
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3 md:gap-4">
                 {discoveredCompetitors.suggestions.map((channel) => {
                   const avgViewsPerVideo = parseInt(channel.statistics.viewCount) / parseInt(channel.statistics.videoCount);
                   const tracked = isTracked(channel.id);
@@ -611,7 +611,7 @@ export default function CompetitorAnalysis() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 sm:gap-3 md:gap-4">
                 {trackedCompetitors.map((channel) => {
                   const avgViewsPerVideo = parseInt(channel.statistics.viewCount) / parseInt(channel.statistics.videoCount);
                   const daysSinceTracked = channel.trackedAt 
@@ -655,7 +655,7 @@ export default function CompetitorAnalysis() {
                           </button>
                         </div>
 
-                        <div className="grid grid-cols-3 gap-3 mb-4 p-3 bg-zinc-800/50 rounded-xl">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3 mb-4 p-3 bg-zinc-800/50 rounded-xl">
                           <div className="text-center">
                             <p className="text-xs text-zinc-500 mb-1">Subs</p>
                             <p className="text-sm font-bold text-zinc-100">
@@ -799,7 +799,7 @@ export default function CompetitorAnalysis() {
               </div>
 
               {/* Quick Insights */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 sm:gap-3 md:gap-4">
                 {(() => {
                   const sortedBySubjects = [...trackedCompetitors].sort((a, b) => 
                     parseInt(b.statistics.subscriberCount) - parseInt(a.statistics.subscriberCount)
@@ -929,7 +929,7 @@ export default function CompetitorAnalysis() {
       {loadingVideos && (
         <div className="space-y-6">
           <div className="h-32 bg-zinc-800/50 rounded-2xl animate-pulse" />
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 md:gap-6">
             <ShimmerVideoCard />
             <ShimmerVideoCard />
             <ShimmerVideoCard />
@@ -980,7 +980,7 @@ export default function CompetitorAnalysis() {
                   </button>
                 </div>
 
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3 md:gap-4">
                   <div className="bg-zinc-800/50 rounded-xl p-4">
                     <div className="flex items-center gap-2 mb-2">
                       <Users size={16} className="text-indigo-400" />
@@ -1027,7 +1027,7 @@ export default function CompetitorAnalysis() {
 
           {/* Advanced Metrics */}
           {competitorMetrics && (
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3 md:gap-4">
               <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4">
                 <div className="flex items-center gap-2 mb-3">
                   <Zap size={18} className="text-yellow-500" />
@@ -1161,7 +1161,7 @@ export default function CompetitorAnalysis() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
                 <div>
                   <div className="flex items-center gap-2 mb-3">
                     <FileText size={18} className="text-zinc-400" />
@@ -1230,14 +1230,14 @@ export default function CompetitorAnalysis() {
 
           {/* AI Analysis Results */}
           {analyzing && (
-            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-12 flex flex-col items-center justify-center text-center gap-6">
+            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 sm:p-12 flex flex-col items-center justify-center text-center gap-4 sm:gap-6">
               <div className="w-16 h-16 rounded-full border-4 border-indigo-500/20 border-t-indigo-500 animate-spin"></div>
               <h3 className="text-xl font-bold text-zinc-100">AI is analyzing their strategy...</h3>
             </div>
           )}
 
           {analysis && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
               <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 space-y-6">
                 <div>
                   <div className="flex items-center gap-2 mb-3">
@@ -1294,7 +1294,7 @@ export default function CompetitorAnalysis() {
               <Users size={20} className="text-indigo-400" />
               <h3 className="text-xl font-bold text-zinc-100">Most Popular Recent Videos</h3>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
               {selectedCompetitor.videos.map((video) => (
                 <div key={video.id} className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden group hover:border-indigo-500/50 transition-all">
                   <div className="relative aspect-video">

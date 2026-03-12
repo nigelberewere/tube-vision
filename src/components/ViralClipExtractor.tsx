@@ -372,7 +372,7 @@ export default function ViralClipExtractor() {
               )}
             </div>
 
-            <div className="grid grid-cols-3 gap-1 bg-black/20 p-1 rounded-xl mb-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-1 md:gap-2 bg-black/20 p-1 rounded-xl mb-6">
               <button
                 className={`py-2 text-xs font-medium rounded-lg transition-colors flex items-center justify-center gap-1.5 ${
                   inputType === 'my-channel' ? 'bg-white text-black shadow-sm' : 'text-slate-400 hover:text-white'
@@ -704,7 +704,7 @@ export default function ViralClipExtractor() {
           </div>
         )}
 
-        <div className="mt-6 grid grid-cols-1 xl:grid-cols-2 gap-6">
+        <div className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
           <div className="space-y-4">
             <h3 className="text-sm uppercase tracking-[0.18em] text-slate-500 font-bold">Top Shorts in Your Niche</h3>
             {loadingNicheShorts ? (
