@@ -27,11 +27,25 @@ function sleep(ms: number) {
 async function readErrorMessage(response: Response, fallback: string): Promise<string> {
   try {
     const payload = await response.json();
-    if (payload?.error) {
-      return String(payload.error);
+    const errorMessage = payload?.error ? String(payload.error) : '';
+    const detailMessage = payload?.detail ? String(payload.detail) : '';
+
+    if (errorMessage && detailMessage && detailMessage !== errorMessage) {
+      return `${errorMessage} (${detailMessage})`;
+    }
+
+    if (errorMessage) {
+      return errorMessage;
     }
   } catch {
-    // Keep fallback.
+    try {
+      const text = await response.text();
+      if (text.trim()) {
+        return text.trim();
+      }
+    } catch {
+      // Keep fallback.
+    }
   }
   return fallback;
 }
@@ -71,7 +85,10 @@ export async function renderYouTubeShort(request: RenderRequest): Promise<string
       });
 
       if (!response.ok) {
-        const message = await readErrorMessage(response, 'Cloud renderer failed to render this clip.');
+        const message = await readErrorMessage(
+          response,
+          `Cloud renderer failed to render this clip (HTTP ${response.status}).`,
+        );
         const error = new Error(message);
 
         if (attempt < 2 && RETRYABLE_STATUS.has(response.status)) {
