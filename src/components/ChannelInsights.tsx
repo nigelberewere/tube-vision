@@ -121,14 +121,14 @@ export default function ChannelInsights() {
     );
   }
 
-  // Transform daily data
+  // Transform daily data.
+  // Anchor at T12:00:00 (local noon) so users in UTC- timezones don't see dates shifted one day earlier.
   const dailyChartData = data.daily.rows.map(row => {
     const obj: any = {};
     data.daily.columnHeaders.forEach((header, index) => {
       obj[header.name] = row[index];
     });
-    // Format date for display
-    obj.displayDate = new Date(obj.day).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    obj.displayDate = new Date(obj.day + 'T12:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
     return obj;
   });
 
@@ -219,10 +219,11 @@ export default function ChannelInsights() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Views Over Time */}
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 min-w-0">
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center justify-between mb-2">
             <h3 className="text-lg font-bold text-zinc-100">Views Over Time</h3>
             <BarChart3 size={18} className="text-zinc-500" />
           </div>
+          <p className="text-[11px] text-zinc-500 mb-5">YouTube Analytics has a 2–3 day processing delay. Most recent data may not yet be available.</p>
           <div className="h-[300px] w-full min-w-0">
             <ResponsiveContainer width="100%" height="100%" minWidth={0}>
               <AreaChart data={dailyChartData}>
@@ -268,10 +269,11 @@ export default function ChannelInsights() {
 
         {/* Subscriber Behavior */}
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 min-w-0">
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center justify-between mb-2">
             <h3 className="text-lg font-bold text-zinc-100">Subscriber Behavior</h3>
             <Users size={18} className="text-zinc-500" />
           </div>
+          <p className="text-[11px] text-zinc-500 mb-5">YouTube Analytics has a 2–3 day processing delay. Most recent data may not yet be available.</p>
           <div className="h-[300px] w-full min-w-0">
             <ResponsiveContainer width="100%" height="100%" minWidth={0}>
               <LineChart data={dailyChartData}>

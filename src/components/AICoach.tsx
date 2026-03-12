@@ -657,10 +657,10 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
   const activeConversation = conversations.find((conversation) => conversation.id === activeConversationId);
 
   return (
-    <div className="flex flex-col h-[calc(100vh-12rem)] animate-in fade-in duration-500">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold tracking-tight text-zinc-100">Janso</h1>
-        <p className="text-zinc-400 mt-2">Your personal 24/7 strategist for content ideas, hooks, and growth.</p>
+    <div className="flex flex-col min-h-[calc(100vh-8rem)] animate-in fade-in duration-500">
+      <div className="mb-4 sm:mb-5">
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-zinc-100">Janso</h1>
+        <p className="text-sm sm:text-base text-zinc-400 mt-1.5">Your personal 24/7 strategist for content ideas, hooks, and growth.</p>
       </div>
 
       {channelContext?.id && (
@@ -749,7 +749,7 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
         </div>
       )}
 
-      <div className="flex-1 bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden flex flex-col shadow-2xl">
+      <div className="flex-1 min-h-[34rem] sm:min-h-[40rem] lg:min-h-[46rem] bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden flex flex-col shadow-2xl">
         {/* Chat Header */}
         <div className="px-4 md:px-6 py-3 md:py-4 border-b border-zinc-800 bg-zinc-900/50 flex items-center gap-2 md:gap-3">
           <div className="w-8 md:w-10 h-8 md:h-10 rounded-full bg-indigo-500/20 flex items-center justify-center text-indigo-400 flex-shrink-0">
@@ -832,7 +832,7 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
         {/* Messages */}
         <div 
           ref={scrollRef}
-          className="flex-1 overflow-y-auto p-3 md:p-6 space-y-4 md:space-y-6 scroll-smooth"
+          className="flex-1 min-h-[22rem] sm:min-h-[28rem] lg:min-h-[34rem] overflow-y-auto p-3 md:p-6 space-y-4 md:space-y-6 scroll-smooth"
         >
           {messages.map((msg, i) => (
             <div 

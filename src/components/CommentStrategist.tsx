@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { generateVidVisionInsight } from '../services/geminiService';
 import { Type } from '@google/genai';
-import { Loader2, MessageSquare, TrendingUp, AlertCircle, CheckCircle, Copy, Check } from 'lucide-react';
+import { Loader2, MessageSquare, TrendingUp, AlertCircle, CheckCircle, Copy, Check, Search } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 interface CommentStrategistProps {
@@ -34,19 +34,47 @@ interface CommentAnalysisResult {
   engagementScore: number;
 }
 
+interface VideoOption {
+  id: string;
+  title: string;
+  thumbnailUrl: string;
+  publishedAt: string;
+  commentCount: number;
+}
+
+function formatPublishedDate(value: string): string {
+  if (!value) {
+    return 'Recent upload';
+  }
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return 'Recent upload';
+  }
+
+  return parsed.toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
 export default function CommentStrategist({ videoId }: CommentStrategistProps) {
   const [selectedVideoId, setSelectedVideoId] = useState(videoId || '');
   const [loading, setLoading] = useState(false);
+  const [loadingVideos, setLoadingVideos] = useState(true);
   const [analyzing, setAnalyzing] = useState(false);
   const [result, setResult] = useState<CommentAnalysisResult | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [videos, setVideos] = useState<Array<{ id: string; title: string }>>([]);
+  const [videos, setVideos] = useState<VideoOption[]>([]);
+  const [videoSearchQuery, setVideoSearchQuery] = useState('');
   const [copied, setCopied] = useState(false);
   const [selectedThemeForReply, setSelectedThemeForReply] = useState<number | null>(null);
 
   // Load user's recent videos
   useEffect(() => {
     const loadVideos = async () => {
+      setLoadingVideos(true);
       try {
         const response = await fetch('/api/user/videos?maxResults=10');
         if (response.ok) {
@@ -56,9 +84,14 @@ export default function CommentStrategist({ videoId }: CommentStrategistProps) {
             .map((video: any) => {
               const id = typeof video.id === 'string' ? video.id : video.id?.videoId;
               const title = video.title || video.snippet?.title;
-              return id && title ? { id, title } : null;
+              const thumbnailUrl = video.snippet?.thumbnails?.medium?.url || video.snippet?.thumbnails?.high?.url || video.snippet?.thumbnails?.default?.url || '';
+              const publishedAt = typeof video.snippet?.publishedAt === 'string' ? video.snippet.publishedAt : '';
+              const parsedCommentCount = Number(video.statistics?.commentCount ?? 0);
+              const commentCount = Number.isFinite(parsedCommentCount) ? parsedCommentCount : 0;
+
+              return id && title ? { id, title, thumbnailUrl, publishedAt, commentCount } : null;
             })
-            .filter((video: { id: string; title: string } | null): video is { id: string; title: string } => Boolean(video));
+            .filter((video: VideoOption | null): video is VideoOption => Boolean(video));
 
           setVideos(normalizedVideos);
           if (!selectedVideoId && normalizedVideos[0]) {
@@ -72,11 +105,27 @@ export default function CommentStrategist({ videoId }: CommentStrategistProps) {
       } catch (err) {
         console.error('Failed to load videos:', err);
         setError('Failed to load videos for comment analysis.');
+      } finally {
+        setLoadingVideos(false);
       }
     };
 
     loadVideos();
   }, []);
+
+  const filteredVideos = useMemo(() => {
+    const normalizedQuery = videoSearchQuery.trim().toLowerCase();
+    if (!normalizedQuery) {
+      return videos;
+    }
+
+    return videos.filter((video) => video.title.toLowerCase().includes(normalizedQuery));
+  }, [videoSearchQuery, videos]);
+
+  const selectedVideo = useMemo(
+    () => videos.find((video) => video.id === selectedVideoId) || null,
+    [videos, selectedVideoId],
+  );
 
   const handleAnalyzeComments = async () => {
     if (!selectedVideoId) {
@@ -244,40 +293,158 @@ Return ONLY valid JSON matching the schema. Be specific and actionable.`;
 
       {/* Video Selection */}
       <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6">
-        <label className="block text-sm font-medium text-zinc-300 mb-3">
-          Select Video to Analyze
-        </label>
-        <select
-          value={selectedVideoId}
-          onChange={(e) => setSelectedVideoId(e.target.value)}
-          disabled={loading}
-          className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2 text-white placeholder-zinc-500 focus:outline-none focus:border-indigo-500 disabled:opacity-50"
-        >
-          <option value="">-- Choose a video --</option>
-          {videos.map((video) => (
-            <option key={video.id} value={video.id}>
-              {video.title}
-            </option>
-          ))}
-        </select>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <label className="block text-sm font-medium text-zinc-200">
+              Choose the video whose comments you want to analyze
+            </label>
+            <p className="mt-1 text-sm text-zinc-400">
+              Search your recent uploads, then click a video card to lock in the selection.
+            </p>
+          </div>
+          <div className="inline-flex items-center rounded-full border border-zinc-700 bg-zinc-950 px-3 py-1 text-xs font-semibold text-zinc-300">
+            {videos.length} recent upload{videos.length === 1 ? '' : 's'}
+          </div>
+        </div>
 
-        <button
-          onClick={handleAnalyzeComments}
-          disabled={loading || !selectedVideoId}
-          className="mt-4 w-full h-12 bg-indigo-500 hover:bg-indigo-600 disabled:bg-indigo-900 disabled:text-zinc-600 text-white font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
-        >
-          {loading ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin" />
-              {analyzing ? 'Analyzing Comments...' : 'Fetching Comments...'}
-            </>
-          ) : (
-            <>
-              <MessageSquare className="w-4 h-4" />
-              Analyze Comments
-            </>
-          )}
-        </button>
+        <div className="mt-5 grid gap-4 xl:grid-cols-[minmax(0,1fr)_20rem]">
+          <div className="space-y-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" size={16} />
+              <input
+                type="search"
+                value={videoSearchQuery}
+                onChange={(e) => setVideoSearchQuery(e.target.value)}
+                placeholder="Search recent videos by title..."
+                disabled={loading || loadingVideos}
+                className="w-full rounded-xl border border-zinc-700 bg-zinc-950 pl-10 pr-4 py-3 text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 disabled:opacity-50"
+              />
+            </div>
+
+            <div className="flex items-center justify-between text-xs text-zinc-500">
+              <span>{filteredVideos.length} visible</span>
+              <span>{selectedVideo ? '1 selected' : 'No video selected'}</span>
+            </div>
+
+            <div className="max-h-[28rem] overflow-y-auto pr-1 space-y-3">
+              {loadingVideos ? (
+                <div className="rounded-2xl border border-zinc-800 bg-zinc-950/70 px-4 py-8 text-sm text-zinc-400 flex items-center justify-center gap-3">
+                  <Loader2 className="w-4 h-4 animate-spin text-indigo-400" />
+                  Loading your recent uploads...
+                </div>
+              ) : filteredVideos.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-zinc-700 bg-zinc-950/40 px-4 py-8 text-center">
+                  <p className="text-sm font-medium text-zinc-200">No videos match that search.</p>
+                  <p className="mt-1 text-xs text-zinc-500">Try a different keyword or clear the search field.</p>
+                </div>
+              ) : (
+                filteredVideos.map((video) => {
+                  const isSelected = video.id === selectedVideoId;
+
+                  return (
+                    <button
+                      key={video.id}
+                      type="button"
+                      onClick={() => setSelectedVideoId(video.id)}
+                      aria-pressed={isSelected}
+                      className={cn(
+                        'w-full rounded-2xl border px-3 py-3 text-left transition-all',
+                        'flex items-start gap-3 bg-zinc-950/70 hover:bg-zinc-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/40',
+                        isSelected
+                          ? 'border-indigo-400/70 bg-indigo-500/10 shadow-[0_0_0_1px_rgba(99,102,241,0.25)]'
+                          : 'border-zinc-800 hover:border-zinc-700'
+                      )}
+                    >
+                      <div className="w-24 shrink-0 overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900 aspect-video">
+                        {video.thumbnailUrl ? (
+                          <img src={video.thumbnailUrl} alt="" className="h-full w-full object-cover" />
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-zinc-800 to-zinc-900 text-xs font-semibold text-zinc-500">
+                            Video
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-start justify-between gap-3">
+                          <p className="line-clamp-2 text-sm font-semibold text-zinc-100">{video.title}</p>
+                          <span
+                            className={cn(
+                              'shrink-0 rounded-full border px-2 py-1 text-[10px] font-bold uppercase tracking-[0.18em]',
+                              isSelected
+                                ? 'border-indigo-400/50 bg-indigo-500/20 text-indigo-200'
+                                : 'border-zinc-700 bg-zinc-900 text-zinc-500'
+                            )}
+                          >
+                            {isSelected ? 'Selected' : 'Pick'}
+                          </span>
+                        </div>
+
+                        <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-zinc-400">
+                          <span className="rounded-full bg-zinc-900 px-2 py-1">{formatPublishedDate(video.publishedAt)}</span>
+                          <span className="rounded-full bg-zinc-900 px-2 py-1">{video.commentCount.toLocaleString()} comments</span>
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })
+              )}
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-indigo-500/20 bg-gradient-to-br from-indigo-500/10 via-zinc-900 to-zinc-950 p-5 flex flex-col">
+            <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-indigo-300">Ready to analyze</p>
+
+            {selectedVideo ? (
+              <>
+                <div className="mt-4 overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950/70">
+                  <div className="aspect-video bg-zinc-900">
+                    {selectedVideo.thumbnailUrl ? (
+                      <img src={selectedVideo.thumbnailUrl} alt="" className="h-full w-full object-cover" />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-zinc-500">
+                        Selected Video
+                      </div>
+                    )}
+                  </div>
+                  <div className="p-4">
+                    <p className="text-sm font-semibold leading-relaxed text-zinc-100">{selectedVideo.title}</p>
+                    <div className="mt-3 flex flex-wrap gap-2 text-[11px] text-zinc-400">
+                      <span className="rounded-full border border-zinc-700 bg-zinc-900 px-2 py-1">{formatPublishedDate(selectedVideo.publishedAt)}</span>
+                      <span className="rounded-full border border-zinc-700 bg-zinc-900 px-2 py-1">{selectedVideo.commentCount.toLocaleString()} comments</span>
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  onClick={handleAnalyzeComments}
+                  disabled={loading || loadingVideos || !selectedVideoId}
+                  className="mt-4 w-full h-12 bg-indigo-500 hover:bg-indigo-600 disabled:bg-indigo-900 disabled:text-zinc-600 text-white font-medium rounded-xl transition-colors flex items-center justify-center gap-2"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      {analyzing ? 'Analyzing Comments...' : 'Fetching Comments...'}
+                    </>
+                  ) : (
+                    <>
+                      <MessageSquare className="w-4 h-4" />
+                      Analyze Comments
+                    </>
+                  )}
+                </button>
+              </>
+            ) : (
+              <div className="mt-4 rounded-2xl border border-dashed border-zinc-700 bg-zinc-950/50 px-4 py-6 text-sm text-zinc-400">
+                Choose a video from the list to preview it here before running the analysis.
+              </div>
+            )}
+
+            <div className="mt-4 rounded-xl border border-zinc-800 bg-zinc-950/60 p-4 text-xs leading-relaxed text-zinc-400">
+              We will fetch the latest comments on the selected video, cluster repeated questions and pain points, then suggest content ideas and draft replies.
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Error */}
