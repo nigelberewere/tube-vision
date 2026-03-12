@@ -169,6 +169,8 @@ export default function ViralClipExtractor() {
         const { fileUri, mimeType } = await uploadVideoToGemini(file, setLoadingStep);
         setLoadingStep('Finding viral clip candidates…');
         clips = await analyzeVideoByUri(fileUri, mimeType);
+        // Store a local object URL so ffmpeg can cut clips from the uploaded file.
+        setVideoUrl(URL.createObjectURL(file));
       } else if (inputType === 'youtube') {
         setLoadingStep('Analyzing video with Gemini… this may take a minute.');
         clips = await analyzeYouTubeVideo(youtubeUrl.trim());
@@ -332,7 +334,7 @@ export default function ViralClipExtractor() {
                 <Video size={18} className="text-slate-400" />
                 Source Long-Form Content
               </h2>
-              {clips.length > 0 && (
+              {clips.length > 0 && videoUrl && (
                 <button
                   onClick={handleDownloadAll}
                   disabled={isZipping || cuttingClip !== null}
@@ -614,7 +616,7 @@ export default function ViralClipExtractor() {
                                   Download Short
                                 </a>
                               </div>
-                            ) : (
+                            ) : videoUrl ? (
                               <button
                                 onClick={() => handleCutClip(clip)}
                                 disabled={cuttingClip !== null}
@@ -632,6 +634,10 @@ export default function ViralClipExtractor() {
                                   </>
                                 )}
                               </button>
+                            ) : (
+                              <div className="w-full bg-black/20 border border-white/5 text-slate-500 font-medium py-2 px-4 rounded-lg text-sm text-center" title="Rendering is only available when using the Upload tab">
+                                Render unavailable for YouTube source
+                              </div>
                             )}
                           </div>
                         </div>
