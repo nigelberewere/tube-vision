@@ -67,7 +67,7 @@ export default function LoginPage({ onConnect, isBusy = false, busyLabel = 'Fina
               style={{ background: 'linear-gradient(135deg, #6366f1, #ef4444)' }}
             />
             <div className="relative w-16 h-16 rounded-2xl bg-[#0b0b0f] border border-white/10 flex items-center justify-center shadow-2xl">
-              <img src="/favicon.svg" alt="Janso Studio" className="w-10 h-10" />
+              <img src="/favicon.svg" alt="Janso Studio" className="block h-full w-full rounded-2xl object-cover" />
             </div>
           </div>
           <div className="text-center">
