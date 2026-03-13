@@ -36,10 +36,43 @@ interface AnalyticsData {
     columnHeaders: any[];
     rows: any[][];
   };
+  todayHourly?: {
+    columnHeaders?: any[];
+    rows?: any[][];
+  };
+  yesterdayHourly?: {
+    columnHeaders?: any[];
+    rows?: any[][];
+  };
+}
+
+interface BestPostingTimeData {
+  bestHour: number | null;
+}
+
+function toNumber(value: unknown): number {
+  const parsed = Number(value ?? 0);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function formatUtcHourInLocalTime(hour: number): string {
+  const d = new Date();
+  d.setUTCHours(hour, 0, 0, 0);
+  const h = d.getHours();
+  const m = d.getMinutes();
+  const tzAbbr =
+    new Intl.DateTimeFormat('en', { timeZoneName: 'short' })
+      .formatToParts(d)
+      .find((part) => part.type === 'timeZoneName')?.value ?? 'local';
+
+  return m === 0
+    ? `${String(h).padStart(2, '0')}:00 ${tzAbbr}`
+    : `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')} ${tzAbbr}`;
 }
 
 export default function ChannelInsights() {
   const [data, setData] = useState<AnalyticsData | null>(null);
+  const [bestPostingTime, setBestPostingTime] = useState<BestPostingTimeData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -47,7 +80,11 @@ export default function ChannelInsights() {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch('/api/user/analytics');
+      const [response, bestPostingResponse] = await Promise.all([
+        fetch('/api/user/analytics'),
+        fetch('/api/user/best-posting-time'),
+      ]);
+
       if (response.ok) {
         const result = await response.json();
         if (result.daily.error || result.hourly.error) {
@@ -59,6 +96,17 @@ export default function ChannelInsights() {
         setError("Please reconnect your YouTube account to grant analytics permissions.");
       } else {
         setError("Failed to fetch analytics data.");
+      }
+
+      if (bestPostingResponse.ok) {
+        const bestPostingResult = await bestPostingResponse.json();
+        if (typeof bestPostingResult?.bestHour === 'number') {
+          setBestPostingTime({ bestHour: bestPostingResult.bestHour });
+        } else {
+          setBestPostingTime(null);
+        }
+      } else {
+        setBestPostingTime(null);
       }
     } catch (err) {
       console.error('Failed to fetch analytics:', err);
@@ -145,10 +193,13 @@ export default function ChannelInsights() {
     return obj;
   });
 
-  // Calculate "Best Time to Post" - check if we have valid hourly data
-  const bestHour = hourlyChartData.length > 0 && hourlyChartData[0].hour !== undefined
-    ? [...hourlyChartData].sort((a, b) => (b.views || 0) - (a.views || 0))[0]
-    : null;
+  const bestHourlyEntry = [...hourlyChartData]
+    .filter((entry) => entry.hour !== undefined && entry.hour !== null)
+    .sort((a, b) => toNumber(b.views) - toNumber(a.views))[0] || null;
+
+  const bestHourValue = bestHourlyEntry
+    ? toNumber(bestHourlyEntry.hour)
+    : (typeof bestPostingTime?.bestHour === 'number' ? bestPostingTime.bestHour : null);
 
   // Calculate totals and growth
   const totalViews = dailyChartData.reduce((acc, curr) => acc + curr.views, 0);
@@ -209,7 +260,7 @@ export default function ChannelInsights() {
           <p className="text-zinc-400 text-sm font-medium">Best Time to Post</p>
           <div className="flex items-baseline gap-2 mt-1">
             <h3 className="text-2xl font-bold text-zinc-100">
-              {bestHour && bestHour.hour !== undefined ? `${bestHour.hour}:00` : '--:--'}
+              {typeof bestHourValue === 'number' ? formatUtcHourInLocalTime(bestHourValue) : '--:--'}
             </h3>
             <span className="text-indigo-400 text-xs font-bold">Peak Views</span>
           </div>
@@ -357,7 +408,7 @@ export default function ChannelInsights() {
                 {hourlyChartData.map((entry, index) => (
                   <Cell 
                     key={`cell-${index}`} 
-                    fill={entry.hour === bestHour?.hour ? '#6366f1' : '#3f3f46'} 
+                    fill={toNumber(entry.hour) === bestHourValue ? '#6366f1' : '#3f3f46'} 
                   />
                 ))}
               </Bar>
