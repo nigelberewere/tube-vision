@@ -770,6 +770,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       access_type: 'offline',
       scope: [
         'https://www.googleapis.com/auth/youtube.readonly',
+        'https://www.googleapis.com/auth/youtube.force-ssl',
         'https://www.googleapis.com/auth/yt-analytics.readonly',
         'https://www.googleapis.com/auth/userinfo.email',
         'https://www.googleapis.com/auth/userinfo.profile',
@@ -833,6 +834,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         'https://www.googleapis.com/auth/userinfo.email',
         'https://www.googleapis.com/auth/userinfo.profile',
         'https://www.googleapis.com/auth/youtube.readonly',
+        'https://www.googleapis.com/auth/youtube.force-ssl',
         'https://www.googleapis.com/auth/yt-analytics.readonly',
       ],
       prompt: 'consent',
@@ -1737,11 +1739,25 @@ Return JSON with:
         { headers: authHeader }
       );
 
-      const commentsData = await commentsResponse.json();
+      const commentsData = await commentsResponse.json().catch(() => ({}));
       if (!commentsResponse.ok || commentsData?.error) {
-        const statusCode = Number(commentsData?.error?.code) || commentsResponse.status || 500;
-        return res.status(statusCode).json({
-          error: commentsData?.error?.message || 'Failed to fetch comments',
+        const upstream = extractYouTubeError(
+          commentsData,
+          'Failed to fetch comments from YouTube',
+          commentsResponse.status,
+        );
+
+        return res.status(upstream.httpStatus).json({
+          error: upstream.message,
+          upstream: {
+            source: 'youtube',
+            step: 'commentThreads',
+            code: upstream.code,
+            status: upstream.status,
+            reason: upstream.reason,
+            message: upstream.message,
+            isQuotaExceeded: upstream.isQuotaExceeded,
+          },
         });
       }
 

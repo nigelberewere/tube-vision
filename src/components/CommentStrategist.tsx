@@ -3,6 +3,7 @@ import { generateVidVisionInsight } from '../services/geminiService';
 import { Type } from '@google/genai';
 import { Loader2, MessageSquare, TrendingUp, AlertCircle, CheckCircle, Copy, Check, Search } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { parseApiErrorResponse } from '../lib/youtubeApiErrors';
 
 interface CommentStrategistProps {
   videoId?: string;
@@ -100,7 +101,8 @@ export default function CommentStrategist({ videoId }: CommentStrategistProps) {
         } else if (response.status === 401) {
           setError('Please connect your YouTube account to load videos.');
         } else {
-          setError('Failed to load videos for comment analysis.');
+          const message = await parseApiErrorResponse(response, 'Failed to load videos for comment analysis.');
+          setError(message);
         }
       } catch (err) {
         console.error('Failed to load videos:', err);
@@ -141,7 +143,8 @@ export default function CommentStrategist({ videoId }: CommentStrategistProps) {
       // Fetch comments from the selected video
       const commentsResponse = await fetch(`/api/comments/fetch?videoId=${selectedVideoId}`);
       if (!commentsResponse.ok) {
-        throw new Error('Failed to fetch comments');
+        const message = await parseApiErrorResponse(commentsResponse, 'Failed to fetch comments.');
+        throw new Error(message);
       }
 
       const { comments, totalComments } = await commentsResponse.json();

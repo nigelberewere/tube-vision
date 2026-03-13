@@ -867,6 +867,7 @@ For every video provided, evaluate segments based on:
       access_type: "offline",
       scope: [
         "https://www.googleapis.com/auth/youtube.readonly",
+        "https://www.googleapis.com/auth/youtube.force-ssl",
         "https://www.googleapis.com/auth/yt-analytics.readonly",
         "https://www.googleapis.com/auth/userinfo.email",
         "https://www.googleapis.com/auth/userinfo.profile",
@@ -930,6 +931,7 @@ For every video provided, evaluate segments based on:
         "https://www.googleapis.com/auth/userinfo.email",
         "https://www.googleapis.com/auth/userinfo.profile",
         "https://www.googleapis.com/auth/youtube.readonly",
+        "https://www.googleapis.com/auth/youtube.force-ssl",
         "https://www.googleapis.com/auth/yt-analytics.readonly",
       ],
       prompt: "consent",
@@ -1774,18 +1776,31 @@ Return JSON with:
     }
 
     try {
+      const authHeader = await getAuthHeaderForAccount(user);
       const commentsResponse = await fetch(
         `https://www.googleapis.com/youtube/v3/commentThreads?part=snippet&videoId=${encodeURIComponent(videoId)}&maxResults=100&order=relevance&textFormat=plainText`,
-        {
-          headers: { Authorization: `Bearer ${user.tokens.access_token}` },
-        }
+        { headers: authHeader }
       );
 
-      const commentsData = await commentsResponse.json();
+      const commentsData = await commentsResponse.json().catch(() => ({}));
       if (!commentsResponse.ok || commentsData?.error) {
-        const statusCode = Number(commentsData?.error?.code) || commentsResponse.status || 500;
-        return res.status(statusCode).json({
-          error: commentsData?.error?.message || "Failed to fetch comments",
+        const upstream = extractYouTubeError(
+          commentsData,
+          "Failed to fetch comments from YouTube",
+          commentsResponse.status,
+        );
+
+        return res.status(upstream.httpStatus).json({
+          error: upstream.message,
+          upstream: {
+            source: "youtube",
+            step: "commentThreads",
+            code: upstream.code,
+            status: upstream.status,
+            reason: upstream.reason,
+            message: upstream.message,
+            isQuotaExceeded: upstream.isQuotaExceeded,
+          },
         });
       }
 
