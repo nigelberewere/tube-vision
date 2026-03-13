@@ -27,7 +27,7 @@ import {
   type SupabaseProfileRow,
   type SupabaseYouTubeAccountRow,
   type UnifiedAccountState,
-} from './routeHelpers.ts';
+} from './_routeHelpers.ts';
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
