@@ -40,6 +40,7 @@ import OnboardingTour, { type OnboardingStep } from './components/OnboardingTour
 import SettingsPanel, { type SettingsTab as SettingsPanelTab } from './components/SettingsPanel';
 import { LegalViewer } from './components/LegalViewer';
 import { AuthCallback } from './components/AuthCallback';
+import CookieConsentBanner from './components/CookieConsentBanner';
 import LoginPage from './components/LoginPage';
 import YouTubeShortsIcon from './components/icons/YouTubeShortsIcon';
 import YouTubeLogoIcon from './components/icons/YouTubeLogoIcon';
@@ -1034,17 +1035,27 @@ export default function App() {
 
   // Render legal pages
   if (currentPage === 'privacy') {
-    return <LegalViewer type="privacy" onBack={() => {
-      window.history.back();
-      setCurrentPage('app');
-    }} />;
+    return (
+      <>
+        <LegalViewer type="privacy" onBack={() => {
+          window.history.back();
+          setCurrentPage('app');
+        }} />
+        <CookieConsentBanner theme={theme} />
+      </>
+    );
   }
 
   if (currentPage === 'terms') {
-    return <LegalViewer type="terms" onBack={() => {
-      window.history.back();
-      setCurrentPage('app');
-    }} />;
+    return (
+      <>
+        <LegalViewer type="terms" onBack={() => {
+          window.history.back();
+          setCurrentPage('app');
+        }} />
+        <CookieConsentBanner theme={theme} />
+      </>
+    );
   }
 
   if (currentPage === 'authCallback') {
@@ -1053,31 +1064,37 @@ export default function App() {
 
   if (currentPage === 'app' && isAuthCheckPending) {
     return (
-      <div
-        className={cn(
-          'min-h-screen flex items-center justify-center',
-          theme === 'light' ? 'bg-slate-100 text-slate-700' : 'bg-[#050505] text-slate-300'
-        )}
-      >
-        <div className="flex items-center gap-3">
-          <span className="inline-block w-4 h-4 rounded-full border-2 border-current border-t-transparent animate-spin" />
-          <span className="text-sm font-medium">Checking your session...</span>
+      <>
+        <div
+          className={cn(
+            'min-h-screen flex items-center justify-center',
+            theme === 'light' ? 'bg-slate-100 text-slate-700' : 'bg-[#050505] text-slate-300'
+          )}
+        >
+          <div className="flex items-center gap-3">
+            <span className="inline-block w-4 h-4 rounded-full border-2 border-current border-t-transparent animate-spin" />
+            <span className="text-sm font-medium">Checking your session...</span>
+          </div>
         </div>
-      </div>
+        <CookieConsentBanner theme={theme} />
+      </>
     );
   }
 
   if (currentPage === 'login' || (currentPage === 'app' && !isAuthCheckPending && !isAppAuthenticated)) {
     return (
-      <LoginPage
-        isBusy={isLogoutPending}
-        onConnect={async () => {
-          if (logoutCleanupRef.current) {
-            await logoutCleanupRef.current;
-          }
-          window.location.href = '/auth/youtube';
-        }}
-      />
+      <>
+        <LoginPage
+          isBusy={isLogoutPending}
+          onConnect={async () => {
+            if (logoutCleanupRef.current) {
+              await logoutCleanupRef.current;
+            }
+            window.location.href = '/auth/youtube';
+          }}
+        />
+        <CookieConsentBanner theme="dark" />
+      </>
     );
   }
 
@@ -1520,6 +1537,8 @@ export default function App() {
           </div>
         </div>
       )}
+
+      <CookieConsentBanner theme={theme} />
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
 import { CTASection } from "@/src/components/CTASection";
+import { CookieConsentBanner } from "@/src/components/CookieConsentBanner";
 import { FAQ } from "@/src/components/FAQ";
 import { Features } from "@/src/components/Features";
 import { Footer } from "@/src/components/Footer";
@@ -54,7 +55,12 @@ export default function App() {
   };
 
   if (page === "privacy" || page === "terms") {
-    return <LegalViewer type={page} isDark={isDark} onBack={goHome} />;
+    return (
+      <>
+        <LegalViewer type={page} isDark={isDark} onBack={goHome} />
+        <CookieConsentBanner theme={isDark ? "dark" : "light"} />
+      </>
+    );
   }
 
   return (
@@ -90,6 +96,7 @@ export default function App() {
       </main>
 
       <Footer isDark={isDark} />
+      <CookieConsentBanner theme={isDark ? "dark" : "light"} />
     </div>
   );
 }
