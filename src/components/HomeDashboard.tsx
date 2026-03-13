@@ -184,6 +184,22 @@ function isFreshUpload(publishedAt?: string): boolean {
   return ageMs >= 0 && ageMs <= NEW_UPLOAD_WINDOW_HOURS * 60 * 60 * 1000;
 }
 
+// Convert a UTC hour (0-23) to a local-time string like "14:30 EST".
+// Handles half-hour / quarter-hour offsets (e.g. India UTC+5:30).
+function utcHourToLocalDisplay(utcHour: number): string {
+  const d = new Date();
+  d.setUTCHours(utcHour, 0, 0, 0);
+  const h = d.getHours();
+  const m = d.getMinutes();
+  const tzAbbr =
+    new Intl.DateTimeFormat('en', { timeZoneName: 'short' })
+      .formatToParts(d)
+      .find((p) => p.type === 'timeZoneName')?.value ?? 'local';
+  return m === 0
+    ? `${String(h).padStart(2, '0')}:00 ${tzAbbr}`
+    : `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')} ${tzAbbr}`;
+}
+
 export default function HomeDashboard({
   channel,
   isConnected,
@@ -1086,7 +1102,10 @@ Return valid JSON only.`;
               </div>
               
               <p className={cn('mb-4 text-sm leading-relaxed', bodyTextClass)}>
-                {bestPostingTime.aiInsight}
+                {bestPostingTime.aiInsight.replace(
+                  /(\d{1,2}):00 UTC/g,
+                  (_, h) => utcHourToLocalDisplay(parseInt(h, 10)),
+                )}
               </p>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -1095,7 +1114,7 @@ Return valid JSON only.`;
                     <Clock3 size={16} className={isLightTheme ? 'text-indigo-700' : 'text-indigo-300'} />
                     <p className={cn('text-xs font-bold uppercase tracking-wider', mutedTextClass)}>Best Hour</p>
                   </div>
-                  <p className={cn('text-2xl font-bold', strongTextClass)}>{bestPostingTime.bestHourFormatted}</p>
+                  <p className={cn('text-2xl font-bold', strongTextClass)}>{utcHourToLocalDisplay(bestPostingTime.bestHour)}</p>
                   <p className={cn('mt-1 text-xs', labelTextClass)}>Optimal posting time</p>
                 </div>
 
@@ -1124,7 +1143,7 @@ Return valid JSON only.`;
                   <div className="flex flex-wrap gap-2">
                     {bestPostingTime.hourlyBreakdown.slice(0, 5).map((hourData) => (
                       <div key={hourData.hour} className={cn('rounded-lg border px-3 py-1.5', softPanelClass)}>
-                        <span className={cn('text-xs font-mono', isLightTheme ? 'text-indigo-700' : 'text-indigo-300')}>{String(hourData.hour).padStart(2, '0')}:00</span>
+                        <span className={cn('text-xs font-mono', isLightTheme ? 'text-indigo-700' : 'text-indigo-300')}>{utcHourToLocalDisplay(hourData.hour)}</span>
                         <span className={cn('ml-2 text-xs', labelTextClass)}>({hourData.videoCount} videos)</span>
                       </div>
                     ))}
