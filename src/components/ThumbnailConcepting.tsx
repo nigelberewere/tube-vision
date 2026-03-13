@@ -15,6 +15,7 @@ import {
   Wand2,
 } from 'lucide-react';
 import { generateThumbnailImage, generateVidVisionInsight } from '../services/geminiService';
+import { getModelLabel } from '../lib/modelStorage';
 import { loadBrandKit } from './BrandKit';
 import { parseApiErrorResponse } from '../lib/youtubeApiErrors';
 
@@ -82,6 +83,7 @@ interface ManualConcept {
   stylePresetId: ManualStylePresetId;
   stylePresetLabel: string;
   generatedThumbnailUrl?: string;
+  usedImageModel?: string;
   imageGenerationError?: string | null;
   isGeneratingImage?: boolean;
 }
@@ -473,6 +475,7 @@ export default function ThumbnailConcepting() {
           stylePresetId: stylePreset.id,
           stylePresetLabel: stylePreset.label,
           generatedThumbnailUrl: '',
+          usedImageModel: '',
           imageGenerationError: null,
           isGeneratingImage: true,
         })) as ManualConcept[];
@@ -490,7 +493,7 @@ export default function ThumbnailConcepting() {
         setManualGenerationStatus(`Rendering thumbnail ${i + 1} of ${normalizedConcepts.length}...`);
 
         try {
-          const generatedThumbnailUrl = await generateManualThumbnailForConcept(concept, topic.trim(), stylePreset);
+          const generatedThumbnail = await generateManualThumbnailForConcept(concept, topic.trim(), stylePreset);
           successfulImageCount += 1;
 
           setManualConcepts((previous) =>
@@ -498,7 +501,8 @@ export default function ThumbnailConcepting() {
               index === i
                 ? {
                     ...item,
-                    generatedThumbnailUrl,
+                    generatedThumbnailUrl: generatedThumbnail.dataUrl,
+                    usedImageModel: generatedThumbnail.model,
                     imageGenerationError: null,
                     isGeneratingImage: false,
                   }
@@ -552,14 +556,15 @@ export default function ThumbnailConcepting() {
     );
 
     try {
-      const generatedThumbnailUrl = await generateManualThumbnailForConcept(concept, topic.trim() || concept.title, stylePreset);
+      const generatedThumbnail = await generateManualThumbnailForConcept(concept, topic.trim() || concept.title, stylePreset);
 
       setManualConcepts((previous) =>
         previous.map((item, index) =>
           index === conceptIndex
             ? {
                 ...item,
-                generatedThumbnailUrl,
+                generatedThumbnailUrl: generatedThumbnail.dataUrl,
+                usedImageModel: generatedThumbnail.model,
                 imageGenerationError: null,
                 isGeneratingImage: false,
                 stylePresetId: stylePreset.id,
@@ -1003,6 +1008,13 @@ ${getBrandKitPromptContext()}`;
                     </div>
                     <h3 className="text-lg font-bold text-zinc-100">{concept.title}</h3>
                     <p className="text-sm text-indigo-400">{concept.emotionOrVibe}</p>
+                    {concept.usedImageModel && (
+                      <p className="text-[11px] text-zinc-500">
+                        <span className="font-semibold text-zinc-400">Rendered with:</span>{' '}
+                        {getModelLabel(concept.usedImageModel)}{' '}
+                        <span className="font-mono text-zinc-600">({concept.usedImageModel})</span>
+                      </p>
+                    )}
                     <p className="text-sm text-zinc-300"><span className="text-zinc-500">Layout:</span> {concept.layoutDescription}</p>
                     <p className="text-sm text-zinc-300"><span className="text-zinc-500">Colors:</span> {concept.colorPalette}</p>
                     <p className="text-sm text-zinc-400 italic">{concept.whyItWorks}</p>

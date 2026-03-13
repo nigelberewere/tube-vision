@@ -41,6 +41,11 @@ interface GenerateThumbnailImageOptions {
   modelCandidates?: string[];
 }
 
+interface GeneratedThumbnailImageResult {
+  dataUrl: string;
+  model: string;
+}
+
 const DEFAULT_THUMBNAIL_IMAGE_MODELS = [
   "imagen-4.0-generate-001",
   "imagen-3.0-generate-002",
@@ -124,10 +129,14 @@ export async function generateVidVisionInsight(prompt: string, responseSchema?: 
   }
 }
 
-export async function generateThumbnailImage(prompt: string, options: GenerateThumbnailImageOptions = {}) {
+export async function generateThumbnailImage(
+  prompt: string,
+  options: GenerateThumbnailImageOptions = {},
+): Promise<GeneratedThumbnailImageResult> {
   try {
     const ai = await getAIClient();
-    const modelsToTry = uniqueModels([...(options.modelCandidates || []), ...DEFAULT_THUMBNAIL_IMAGE_MODELS]);
+    const configuredModel = getModel('thumbnailImage');
+    const modelsToTry = uniqueModels([configuredModel, ...(options.modelCandidates || []), ...DEFAULT_THUMBNAIL_IMAGE_MODELS]);
 
     if (modelsToTry.length === 0) {
       throw new Error("No image generation model configured.");
@@ -156,7 +165,10 @@ export async function generateThumbnailImage(prompt: string, options: GenerateTh
         const mimeType = generatedImage?.image?.mimeType || "image/png";
 
         if (imageBytes) {
-          return `data:${mimeType};base64,${imageBytes}`;
+          return {
+            dataUrl: `data:${mimeType};base64,${imageBytes}`,
+            model,
+          };
         }
 
         if (generatedImage?.raiFilteredReason) {

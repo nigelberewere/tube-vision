@@ -9,13 +9,25 @@ export type Functionality =
   | 'aicoach'
   | 'voiceover'
   | 'thumbnail'
+  | 'thumbnailImage'
   | 'seo'
   | 'script';
 
+export type ModelTier = 'flash' | 'pro' | 'image';
+
 export interface ModelConfig {
   model: string;
-  tier: 'flash' | 'pro'; // flash = lower quota, pro = higher quality/different quota
+  tier: ModelTier;
   quotaWarning: boolean;
+}
+
+export interface AvailableModel {
+  id: string;
+  name: string;
+  tier: ModelTier;
+  description: string;
+  quotaPerDay: string;
+  warning: string;
 }
 
 // Default models - Flash models recommended for free tier
@@ -40,6 +52,11 @@ export const DEFAULT_MODELS: Record<Functionality, ModelConfig> = {
     tier: 'flash',
     quotaWarning: true,
   },
+  thumbnailImage: {
+    model: 'imagen-4.0-generate-001',
+    tier: 'image',
+    quotaWarning: true,
+  },
   seo: {
     model: 'gemini-2.5-flash',
     tier: 'flash',
@@ -53,7 +70,7 @@ export const DEFAULT_MODELS: Record<Functionality, ModelConfig> = {
 };
 
 // Available models users can select from
-export const AVAILABLE_MODELS = [
+export const AVAILABLE_MODELS: AvailableModel[] = [
   {
     id: 'gemini-2.5-flash',
     name: 'Gemini 2.5 Flash',
@@ -77,6 +94,22 @@ export const AVAILABLE_MODELS = [
     description: 'Optimized for text-to-speech generation.',
     quotaPerDay: '500 requests',
     warning: 'Specialized for voice generation',
+  },
+  {
+    id: 'imagen-4.0-generate-001',
+    name: 'Imagen 4',
+    tier: 'image' as const,
+    description: 'Best image quality and prompt adherence for thumbnail rendering.',
+    quotaPerDay: 'Varies by account',
+    warning: 'Requires image-generation access on your Gemini key.',
+  },
+  {
+    id: 'imagen-3.0-generate-002',
+    name: 'Imagen 3',
+    tier: 'image' as const,
+    description: 'More broadly available fallback for thumbnail image generation.',
+    quotaPerDay: 'Varies by account',
+    warning: 'Useful if Imagen 4 is unavailable for your account.',
   },
 ];
 
@@ -105,6 +138,10 @@ export function loadModelPreferences(): Record<Functionality, ModelConfig> {
 export function getModel(functionality: Functionality): string {
   const prefs = loadModelPreferences();
   return prefs[functionality]?.model || DEFAULT_MODELS[functionality].model;
+}
+
+export function getModelLabel(modelId: string): string {
+  return AVAILABLE_MODELS.find((model) => model.id === modelId)?.name || modelId;
 }
 
 /**
@@ -166,8 +203,11 @@ export function getSuitableModels(functionality: Functionality): typeof AVAILABL
     // TTS functionality only works with specific models
     return AVAILABLE_MODELS.filter(m => m.id.includes('tts'));
   }
+  if (functionality === 'thumbnailImage') {
+    return AVAILABLE_MODELS.filter(m => m.tier === 'image');
+  }
   // All other models available for general/content generation
-  return AVAILABLE_MODELS.filter(m => !m.id.includes('tts'));
+  return AVAILABLE_MODELS.filter(m => !m.id.includes('tts') && m.tier !== 'image');
 }
 
 /**
@@ -178,6 +218,10 @@ export function getQuotaWarningLevel(modelConfig: ModelConfig): 'critical' | 'wa
   
   if (modelConfig.tier === 'pro') {
     return 'critical'; // Pro has very limited quota
+  }
+
+  if (modelConfig.tier === 'image') {
+    return 'warning';
   }
   
   return 'warning'; // Flash has higher quota but still limited

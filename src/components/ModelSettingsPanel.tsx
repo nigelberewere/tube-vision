@@ -29,6 +29,10 @@ const FUNCTIONALITY_NAMES: Record<Functionality, { label: string; description: s
     label: 'Thumbnail Design',
     description: 'Thumbnail concept generation and analysis',
   },
+  thumbnailImage: {
+    label: 'Thumbnail Images',
+    description: 'Actual 16:9 thumbnail rendering in Thumbnail Studio',
+  },
   seo: {
     label: 'SEO Optimization',
     description: 'Title, description, and tag optimization',
@@ -130,6 +134,7 @@ export default function ModelSettingsPanel({ theme = 'dark' }: ModelSettingsPane
     'aicoach',
     'voiceover',
     'thumbnail',
+    'thumbnailImage',
     'seo',
     'script',
   ];
@@ -144,7 +149,7 @@ export default function ModelSettingsPanel({ theme = 'dark' }: ModelSettingsPane
         <p className="text-[10px] uppercase tracking-[0.2em] text-slate-500 font-bold">Settings</p>
         <h2 className={cn('text-2xl font-bold mt-2', isLightTheme ? 'text-slate-900' : 'text-white')}>AI Models</h2>
         <p className={cn('mt-2 max-w-2xl', isLightTheme ? 'text-slate-700' : 'text-slate-400')}>
-          Choose which AI model to use for each feature. Flash models are recommended for most users to minimize quota usage.
+          Choose which AI model to use for each feature. Flash text models are the safest default, while Imagen models control the generated thumbnail images.
         </p>
       </div>
 
@@ -158,11 +163,10 @@ export default function ModelSettingsPanel({ theme = 'dark' }: ModelSettingsPane
           <div className={cn('text-sm', isLightTheme ? 'text-amber-900' : 'text-amber-100')}>
             <p className="font-semibold">⚠️ Model Impact on Quota</p>
             <p className={cn('mt-1', isLightTheme ? 'text-amber-800' : 'text-amber-200/80')}>
-              Switching from Flash to Pro models will <strong>significantly reduce your daily API quota</strong>. 
-              Flash: ~1000 requests/day • Pro: ~50 requests/day
+              Flash text models preserve the most quota. Pro text models have much lower daily limits, and Imagen models use separate image-generation availability and pricing.
             </p>
             <p className={cn('mt-1', isLightTheme ? 'text-amber-800' : 'text-amber-200/80')}>
-              Choose Pro models only for tasks where higher quality is critical. See{' '}
+              Choose Pro or Imagen models only when the quality gain matters. See{' '}
               <a
                 href="https://ai.google.dev/pricing"
                 target="_blank"
@@ -186,6 +190,7 @@ export default function ModelSettingsPanel({ theme = 'dark' }: ModelSettingsPane
           const isDefault = DEFAULT_MODELS[functionality].model === config.model;
           const warningLevel = getQuotaWarningLevel(config);
           const suitableModels = getSuitableModels(functionality);
+          const isImageFunction = functionality === 'thumbnailImage';
 
           return (
             <div
@@ -243,6 +248,7 @@ export default function ModelSettingsPanel({ theme = 'dark' }: ModelSettingsPane
                         <div className="flex-1 min-w-0">
                           <p className={cn('font-medium text-sm', isLightTheme ? 'text-slate-900' : 'text-white')}>{model.name}</p>
                           <p className={cn('text-xs mt-1', isLightTheme ? 'text-slate-600' : 'text-zinc-400')}>{model.description}</p>
+                          <p className={cn('text-[11px] mt-1 font-mono', isLightTheme ? 'text-slate-500' : 'text-zinc-500')}>{model.id}</p>
                           <div className="flex items-center gap-2 mt-2">
                             <span className={cn(
                               'text-[10px] font-bold uppercase tracking-[0.1em] px-2 py-1 rounded',
@@ -250,9 +256,13 @@ export default function ModelSettingsPanel({ theme = 'dark' }: ModelSettingsPane
                                 ? isLightTheme
                                   ? 'border border-blue-200 bg-blue-100 text-blue-700'
                                   : 'bg-blue-500/20 text-blue-300'
-                                : isLightTheme
-                                  ? 'border border-purple-200 bg-purple-100 text-purple-700'
-                                  : 'bg-purple-500/20 text-purple-300'
+                                : model.tier === 'pro'
+                                  ? isLightTheme
+                                    ? 'border border-purple-200 bg-purple-100 text-purple-700'
+                                    : 'bg-purple-500/20 text-purple-300'
+                                  : isLightTheme
+                                    ? 'border border-emerald-200 bg-emerald-100 text-emerald-700'
+                                    : 'bg-emerald-500/20 text-emerald-300'
                             )}>
                               {model.tier}
                             </span>
@@ -311,7 +321,11 @@ export default function ModelSettingsPanel({ theme = 'dark' }: ModelSettingsPane
                 )}>
                   <p className={cn('text-xs flex items-center gap-2', isLightTheme ? 'text-amber-800' : 'text-amber-200')}>
                     <Info size={14} className={cn('flex-shrink-0', isLightTheme ? 'text-amber-700' : undefined)} />
-                    <span>This model may reach quota limits with heavy daily use.</span>
+                    <span>
+                      {isImageFunction
+                        ? 'This image model depends on image-generation access and may use separate quota or pricing.'
+                        : 'This model may reach quota limits with heavy daily use.'}
+                    </span>
                   </p>
                 </div>
               )}
