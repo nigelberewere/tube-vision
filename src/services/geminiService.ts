@@ -36,6 +36,27 @@ interface GenerateInsightOptions {
   imageMediaType?: string;
 }
 
+interface GenerateThumbnailImageOptions {
+  aspectRatio?: string;
+  modelCandidates?: string[];
+}
+
+const DEFAULT_THUMBNAIL_IMAGE_MODELS = [
+  "imagen-4.0-generate-001",
+  "imagen-3.0-generate-002",
+];
+
+function uniqueModels(candidates: string[]): string[] {
+  const deduped = new Set<string>();
+  for (const candidate of candidates) {
+    const value = String(candidate || "").trim();
+    if (value) {
+      deduped.add(value);
+    }
+  }
+  return [...deduped];
+}
+
 export async function generateVidVisionInsight(prompt: string, responseSchema?: any, options?: GenerateInsightOptions) {
   try {
     const ai = await getAIClient();
@@ -99,6 +120,69 @@ export async function generateVidVisionInsight(prompt: string, responseSchema?: 
     console.error("Error generating insight:", redactKey(classified.message));
     
     // Throw user-friendly error
+    throw new Error(classified.userMessage);
+  }
+}
+
+export async function generateThumbnailImage(prompt: string, options: GenerateThumbnailImageOptions = {}) {
+  try {
+    const ai = await getAIClient();
+    const modelsToTry = uniqueModels([...(options.modelCandidates || []), ...DEFAULT_THUMBNAIL_IMAGE_MODELS]);
+
+    if (modelsToTry.length === 0) {
+      throw new Error("No image generation model configured.");
+    }
+
+    let lastError: unknown = null;
+
+    for (const model of modelsToTry) {
+      try {
+        recordAPIRequest();
+
+        const response = await ai.models.generateImages({
+          model,
+          prompt,
+          config: {
+            numberOfImages: 1,
+            aspectRatio: options.aspectRatio || "16:9",
+            outputMimeType: "image/png",
+            includeRaiReason: true,
+            enhancePrompt: true,
+          },
+        });
+
+        const generatedImage = response.generatedImages?.[0];
+        const imageBytes = generatedImage?.image?.imageBytes;
+        const mimeType = generatedImage?.image?.mimeType || "image/png";
+
+        if (imageBytes) {
+          return `data:${mimeType};base64,${imageBytes}`;
+        }
+
+        if (generatedImage?.raiFilteredReason) {
+          throw new Error(`Image request was filtered: ${generatedImage.raiFilteredReason}`);
+        }
+
+        throw new Error("Image model returned no image bytes.");
+      } catch (modelError) {
+        lastError = modelError;
+      }
+    }
+
+    throw lastError || new Error("No supported image model produced a thumbnail.");
+  } catch (error) {
+    const classified = classifyGeminiError(error);
+
+    emitGeminiUserError({
+      message: classified.userMessage,
+      requiresApiKey: messageRequiresApiKey(classified.userMessage),
+    });
+
+    if (classified.type === "invalid_key" || classified.type === "rate_limited" || classified.type === "quota_exhausted") {
+      recordAPIError(classified.type);
+    }
+
+    console.error("Error generating thumbnail image:", redactKey(classified.message));
     throw new Error(classified.userMessage);
   }
 }

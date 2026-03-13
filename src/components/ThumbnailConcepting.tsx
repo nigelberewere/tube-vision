@@ -5,6 +5,7 @@ import {
   ArrowRight,
   CheckCircle2,
   Clock3,
+  Download,
   ExternalLink,
   Image as ImageIcon,
   Loader2,
@@ -13,7 +14,7 @@ import {
   Trash2,
   Wand2,
 } from 'lucide-react';
-import { generateVidVisionInsight } from '../services/geminiService';
+import { generateThumbnailImage, generateVidVisionInsight } from '../services/geminiService';
 import { loadBrandKit } from './BrandKit';
 import { parseApiErrorResponse } from '../lib/youtubeApiErrors';
 
@@ -77,7 +78,47 @@ interface ManualConcept {
   colorPalette: string;
   emotionOrVibe: string;
   whyItWorks: string;
+  thumbnailImagePrompt: string;
+  stylePresetId: ManualStylePresetId;
+  stylePresetLabel: string;
+  generatedThumbnailUrl?: string;
+  imageGenerationError?: string | null;
+  isGeneratingImage?: boolean;
 }
+
+type ManualStylePresetId = 'documentary' | 'cinematic' | 'high-contrast';
+
+interface ManualStylePreset {
+  id: ManualStylePresetId;
+  label: string;
+  summary: string;
+  conceptGuidance: string;
+  imageGuidance: string;
+}
+
+const MANUAL_STYLE_PRESETS: ManualStylePreset[] = [
+  {
+    id: 'documentary',
+    label: 'Documentary',
+    summary: 'Grounded, editorial realism',
+    conceptGuidance: 'Favor real-world scenes, clean typography, factual visual cues, and credible framing over hyper-stylized effects.',
+    imageGuidance: 'Use natural lighting, realistic textures, restrained contrast, and editorial composition that feels trustworthy.',
+  },
+  {
+    id: 'cinematic',
+    label: 'Cinematic',
+    summary: 'Dramatic storytelling energy',
+    conceptGuidance: 'Use dynamic framing, depth, dramatic subject emphasis, and emotionally charged visual storytelling.',
+    imageGuidance: 'Use directional light, rich color grading, atmospheric depth, and bold focal separation suitable for film-like thumbnails.',
+  },
+  {
+    id: 'high-contrast',
+    label: 'High-Contrast',
+    summary: 'Aggressive scroll-stopping punch',
+    conceptGuidance: 'Prioritize immediate readability, stark tonal separation, oversized focal elements, and assertive visual hierarchy.',
+    imageGuidance: 'Use high saturation, strong contrast, punchy highlights, deep shadows, and hard-edged composition for maximum impact.',
+  },
+];
 
 interface AuthorizationItem {
   videoId: string;
@@ -141,6 +182,29 @@ ${hasLogos ? '- Logo: Available (incorporate logo placement in layout)' : '- Log
 
 Apply these brand assets in your thumbnail recommendations.
 `.trim();
+}
+
+function getManualStylePreset(id: ManualStylePresetId): ManualStylePreset {
+  return MANUAL_STYLE_PRESETS.find((preset) => preset.id === id) || MANUAL_STYLE_PRESETS[0];
+}
+
+function buildManualThumbnailPrompt(topic: string, concept: ManualConcept, stylePreset: ManualStylePreset): string {
+  return `Create a high-CTR YouTube thumbnail in 16:9 (1280x720) for this video topic: "${topic}".
+
+Creative direction:
+- Style preset: ${stylePreset.label}
+- Style intent: ${stylePreset.imageGuidance}
+- Concept title: ${concept.title}
+- Layout: ${concept.layoutDescription}
+- Overlay text (must appear exactly): "${trimToWords(concept.textOverlay, 4)}"
+- Color direction: ${concept.colorPalette}
+- Emotion/vibe: ${concept.emotionOrVibe}
+- Prompt details: ${concept.thumbnailImagePrompt || concept.whyItWorks}
+
+Quality requirements:
+- Bold readable text, high contrast, clean hierarchy
+- Professional YouTube thumbnail style
+- No watermarks, no logos, no tiny unreadable text`;
 }
 
 function compact(value: number): string {
@@ -243,9 +307,11 @@ export default function ThumbnailConcepting() {
   const [mode, setMode] = useState<Mode>('auto');
 
   const [topic, setTopic] = useState('');
+  const [manualStylePreset, setManualStylePreset] = useState<ManualStylePresetId>('documentary');
   const [manualLoading, setManualLoading] = useState(false);
   const [manualConcepts, setManualConcepts] = useState<ManualConcept[]>([]);
   const [manualError, setManualError] = useState<string | null>(null);
+  const [manualGenerationStatus, setManualGenerationStatus] = useState<string | null>(null);
 
   const [videos, setVideos] = useState<VideoItem[]>([]);
   const [loadingVideos, setLoadingVideos] = useState(false);
@@ -275,6 +341,10 @@ export default function ThumbnailConcepting() {
   const authorizedIdSet = useMemo(() => {
     return new Set(authorizationQueue.map((item) => item.videoId));
   }, [authorizationQueue]);
+
+  const activeManualStylePreset = useMemo(() => {
+    return getManualStylePreset(manualStylePreset);
+  }, [manualStylePreset]);
 
   const fetchVideos = async (): Promise<VideoItem[]> => {
     setLoadingVideos(true);
@@ -334,11 +404,22 @@ export default function ThumbnailConcepting() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode]);
 
+  const generateManualThumbnailForConcept = async (
+    concept: ManualConcept,
+    sourceTopic: string,
+    stylePreset: ManualStylePreset,
+  ) => {
+    const imagePrompt = buildManualThumbnailPrompt(sourceTopic, concept, stylePreset);
+    return generateThumbnailImage(imagePrompt, { aspectRatio: '16:9' });
+  };
+
   const handleGenerateManualConcepts = async () => {
     if (!topic.trim()) return;
+    const stylePreset = activeManualStylePreset;
 
     setManualLoading(true);
     setManualError(null);
+    setManualGenerationStatus(`Generating ${stylePreset.label.toLowerCase()} concepts...`);
     setManualConcepts([]);
 
     try {
@@ -356,6 +437,7 @@ export default function ThumbnailConcepting() {
                 colorPalette: { type: Type.STRING },
                 emotionOrVibe: { type: Type.STRING },
                 whyItWorks: { type: Type.STRING },
+                thumbnailImagePrompt: { type: Type.STRING },
               },
             },
           },
@@ -363,7 +445,12 @@ export default function ThumbnailConcepting() {
       };
 
       const prompt = `Act as a master YouTube thumbnail strategist. Generate 3 high-CTR thumbnail concepts for: "${topic}".
-    Each concept must include: composition, short text overlay (max 4 words), color direction, emotional trigger, and conversion logic.
+    Each concept must include: composition, short text overlay (max 4 words), color direction, emotional trigger, conversion logic, and a rich thumbnailImagePrompt for image generation.
+
+    Style preset to enforce:
+    - ${stylePreset.label}: ${stylePreset.conceptGuidance}
+
+    Every concept must clearly match this preset style while remaining practical for YouTube CTR.
 
     ${getBrandKitPromptContext()}`;
 
@@ -373,11 +460,127 @@ export default function ThumbnailConcepting() {
       }
 
       const parsed = JSON.parse(response);
-      setManualConcepts(parsed.concepts || []);
+      const normalizedConcepts = (Array.isArray(parsed.concepts) ? parsed.concepts : [])
+        .slice(0, 3)
+        .map((concept: any) => ({
+          title: String(concept?.title || 'Untitled Concept').trim(),
+          layoutDescription: String(concept?.layoutDescription || '').trim(),
+          textOverlay: trimToWords(String(concept?.textOverlay || '').trim(), 4),
+          colorPalette: String(concept?.colorPalette || '').trim(),
+          emotionOrVibe: String(concept?.emotionOrVibe || '').trim(),
+          whyItWorks: String(concept?.whyItWorks || '').trim(),
+          thumbnailImagePrompt: String(concept?.thumbnailImagePrompt || '').trim(),
+          stylePresetId: stylePreset.id,
+          stylePresetLabel: stylePreset.label,
+          generatedThumbnailUrl: '',
+          imageGenerationError: null,
+          isGeneratingImage: true,
+        })) as ManualConcept[];
+
+      if (normalizedConcepts.length === 0) {
+        throw new Error('No concepts were generated. Try a more specific topic.');
+      }
+
+      setManualConcepts(normalizedConcepts);
+
+      let successfulImageCount = 0;
+
+      for (let i = 0; i < normalizedConcepts.length; i += 1) {
+        const concept = normalizedConcepts[i];
+        setManualGenerationStatus(`Rendering thumbnail ${i + 1} of ${normalizedConcepts.length}...`);
+
+        try {
+          const generatedThumbnailUrl = await generateManualThumbnailForConcept(concept, topic.trim(), stylePreset);
+          successfulImageCount += 1;
+
+          setManualConcepts((previous) =>
+            previous.map((item, index) =>
+              index === i
+                ? {
+                    ...item,
+                    generatedThumbnailUrl,
+                    imageGenerationError: null,
+                    isGeneratingImage: false,
+                  }
+                : item,
+            ),
+          );
+        } catch (imageError: any) {
+          const message = imageError?.message || 'Failed to generate thumbnail image.';
+          setManualConcepts((previous) =>
+            previous.map((item, index) =>
+              index === i
+                ? {
+                    ...item,
+                    generatedThumbnailUrl: '',
+                    imageGenerationError: message,
+                    isGeneratingImage: false,
+                  }
+                : item,
+            ),
+          );
+        }
+      }
+
+      if (successfulImageCount === 0) {
+        setManualError('Concepts were generated, but image rendering failed. Check model access in your Gemini key and try again.');
+      }
     } catch (error: any) {
-      setManualError(error.message || 'Failed to generate concepts.');
+      setManualError(error.message || 'Failed to generate thumbnail concepts.');
     } finally {
+      setManualGenerationStatus(null);
       setManualLoading(false);
+    }
+  };
+
+  const regenerateManualThumbnailImage = async (conceptIndex: number) => {
+    const concept = manualConcepts[conceptIndex];
+    if (!concept) return;
+    const stylePreset = activeManualStylePreset;
+
+    setManualError(null);
+    setManualConcepts((previous) =>
+      previous.map((item, index) =>
+        index === conceptIndex
+          ? {
+              ...item,
+              isGeneratingImage: true,
+              imageGenerationError: null,
+            }
+          : item,
+      ),
+    );
+
+    try {
+      const generatedThumbnailUrl = await generateManualThumbnailForConcept(concept, topic.trim() || concept.title, stylePreset);
+
+      setManualConcepts((previous) =>
+        previous.map((item, index) =>
+          index === conceptIndex
+            ? {
+                ...item,
+                generatedThumbnailUrl,
+                imageGenerationError: null,
+                isGeneratingImage: false,
+                stylePresetId: stylePreset.id,
+                stylePresetLabel: stylePreset.label,
+              }
+            : item,
+        ),
+      );
+    } catch (error: any) {
+      const message = error?.message || 'Failed to regenerate thumbnail image.';
+      setManualConcepts((previous) =>
+        previous.map((item, index) =>
+          index === conceptIndex
+            ? {
+                ...item,
+                imageGenerationError: message,
+                isGeneratingImage: false,
+              }
+            : item,
+        ),
+      );
     }
   };
 
@@ -694,7 +897,7 @@ ${getBrandKitPromptContext()}`;
               mode === 'manual' ? 'bg-white text-black' : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'
             }`}
           >
-            Manual Concepts
+            Thumbnail Generator
           </button>
         </div>
       </div>
@@ -703,6 +906,35 @@ ${getBrandKitPromptContext()}`;
         <>
           <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6">
             <label className="block text-sm font-medium text-zinc-300 mb-2">Video Topic or Title</label>
+            <p className="text-xs text-zinc-500 mb-3">
+              Generates 3 complete 16:9 thumbnail images plus the strategic rationale behind each concept.
+            </p>
+
+            <div className="mb-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500">Visual style preset</p>
+              <div className="mt-2 grid grid-cols-1 sm:grid-cols-3 gap-2">
+                {MANUAL_STYLE_PRESETS.map((preset) => {
+                  const isActive = manualStylePreset === preset.id;
+                  return (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      onClick={() => setManualStylePreset(preset.id)}
+                      disabled={manualLoading}
+                      className={`rounded-lg border px-3 py-2 text-left transition-colors disabled:opacity-60 ${
+                        isActive
+                          ? 'border-indigo-400/60 bg-indigo-500/10'
+                          : 'border-zinc-800 bg-zinc-950 hover:bg-zinc-900'
+                      }`}
+                    >
+                      <p className={`text-xs font-semibold ${isActive ? 'text-indigo-200' : 'text-zinc-200'}`}>{preset.label}</p>
+                      <p className={`mt-0.5 text-[11px] ${isActive ? 'text-indigo-300/90' : 'text-zinc-500'}`}>{preset.summary}</p>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
             <div className="flex gap-3">
               <input
                 type="text"
@@ -718,9 +950,13 @@ ${getBrandKitPromptContext()}`;
                 className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-6 py-2.5 rounded-lg font-medium flex items-center gap-2 transition-colors"
               >
                 {manualLoading ? <Loader2 size={18} className="animate-spin" /> : <ImageIcon size={18} />}
-                Generate
+                Generate Thumbnails
               </button>
             </div>
+
+            {manualGenerationStatus && (
+              <p className="text-xs text-indigo-300 mt-3 animate-pulse">{manualGenerationStatus}</p>
+            )}
           </div>
 
           {manualError && (
@@ -734,16 +970,81 @@ ${getBrandKitPromptContext()}`;
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
               {manualConcepts.map((concept, i) => (
                 <div key={i} className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden flex flex-col">
-                  <div className="h-44 bg-zinc-950 border-b border-zinc-800 relative flex items-center justify-center p-6 text-center">
-                    <div className="absolute inset-0 opacity-20 bg-gradient-to-br from-indigo-500/20 via-zinc-900 to-zinc-950"></div>
-                    <h3 className="relative z-10 text-2xl font-black tracking-tighter text-white uppercase">{concept.textOverlay}</h3>
+                  <div className="relative aspect-video bg-zinc-950 border-b border-zinc-800 overflow-hidden">
+                    {concept.generatedThumbnailUrl ? (
+                      <img
+                        src={concept.generatedThumbnailUrl}
+                        alt={`Generated thumbnail concept ${i + 1}`}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="absolute inset-0 flex items-center justify-center p-6 text-center">
+                        <div className="absolute inset-0 opacity-20 bg-gradient-to-br from-indigo-500/20 via-zinc-900 to-zinc-950" />
+                        <h3 className="relative z-10 text-2xl font-black tracking-tighter text-white uppercase">{concept.textOverlay}</h3>
+                      </div>
+                    )}
+
+                    {concept.isGeneratingImage && (
+                      <div className="absolute inset-0 bg-black/55 flex items-center justify-center">
+                        <div className="inline-flex items-center gap-2 rounded-full bg-black/60 border border-white/10 px-3 py-1.5 text-xs font-semibold text-slate-200">
+                          <Loader2 size={14} className="animate-spin" />
+                          Rendering image...
+                        </div>
+                      </div>
+                    )}
+
+                    <span className="absolute top-2 left-2 text-[10px] font-bold uppercase tracking-[0.16em] px-2 py-1 rounded bg-black/70 text-zinc-200">
+                      Concept {i + 1}
+                    </span>
                   </div>
                   <div className="p-5 space-y-3">
+                    <div className="inline-flex items-center rounded-full border border-zinc-700 bg-zinc-800/70 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-300">
+                      {concept.stylePresetLabel}
+                    </div>
                     <h3 className="text-lg font-bold text-zinc-100">{concept.title}</h3>
                     <p className="text-sm text-indigo-400">{concept.emotionOrVibe}</p>
                     <p className="text-sm text-zinc-300"><span className="text-zinc-500">Layout:</span> {concept.layoutDescription}</p>
                     <p className="text-sm text-zinc-300"><span className="text-zinc-500">Colors:</span> {concept.colorPalette}</p>
                     <p className="text-sm text-zinc-400 italic">{concept.whyItWorks}</p>
+
+                    {concept.imageGenerationError && (
+                      <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-2 text-xs text-amber-200">
+                        {concept.imageGenerationError}
+                      </div>
+                    )}
+
+                    {concept.thumbnailImagePrompt && (
+                      <p className="text-[11px] text-zinc-500 leading-relaxed">
+                        <span className="font-semibold text-zinc-400">Image prompt:</span> {concept.thumbnailImagePrompt}
+                      </p>
+                    )}
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => regenerateManualThumbnailImage(i)}
+                        disabled={manualLoading || concept.isGeneratingImage}
+                        className="rounded-lg bg-zinc-800 hover:bg-zinc-700 disabled:opacity-60 text-zinc-200 text-xs font-semibold py-2 px-3 transition-colors inline-flex items-center justify-center gap-2"
+                      >
+                        {concept.isGeneratingImage ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+                        Regenerate
+                      </button>
+
+                      {concept.generatedThumbnailUrl ? (
+                        <a
+                          href={concept.generatedThumbnailUrl}
+                          download={`thumbnail-concept-${i + 1}.png`}
+                          className="rounded-lg bg-white text-black hover:bg-zinc-200 text-xs font-semibold py-2 px-3 transition-colors inline-flex items-center justify-center gap-2"
+                        >
+                          <Download size={14} />
+                          Download
+                        </a>
+                      ) : (
+                        <div className="rounded-lg border border-zinc-800 text-zinc-600 text-xs font-semibold py-2 px-3 inline-flex items-center justify-center">
+                          Not ready
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}
