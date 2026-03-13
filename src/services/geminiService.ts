@@ -49,7 +49,67 @@ interface GeneratedThumbnailImageResult {
 const DEFAULT_THUMBNAIL_IMAGE_MODELS = [
   "imagen-4.0-generate-001",
   "imagen-3.0-generate-002",
+  "gemini-2.0-flash-preview-image-generation",
 ];
+
+async function tryImagenGeneration(
+  ai: GoogleGenAI,
+  model: string,
+  prompt: string,
+  aspectRatio: string,
+): Promise<GeneratedThumbnailImageResult> {
+  const response = await ai.models.generateImages({
+    model,
+    prompt,
+    config: {
+      numberOfImages: 1,
+      aspectRatio,
+      outputMimeType: "image/png",
+      includeRaiReason: true,
+      enhancePrompt: true,
+    },
+  });
+
+  const generatedImage = response.generatedImages?.[0];
+  const imageBytes = generatedImage?.image?.imageBytes;
+  const mimeType = generatedImage?.image?.mimeType || "image/png";
+
+  if (imageBytes) {
+    return { dataUrl: `data:${mimeType};base64,${imageBytes}`, model };
+  }
+
+  if (generatedImage?.raiFilteredReason) {
+    throw new Error(`Image request was filtered: ${generatedImage.raiFilteredReason}`);
+  }
+
+  throw new Error("Imagen model returned no image bytes.");
+}
+
+async function tryGeminiImageGeneration(
+  ai: GoogleGenAI,
+  model: string,
+  prompt: string,
+): Promise<GeneratedThumbnailImageResult> {
+  const response = await (ai.models.generateContent as any)({
+    model,
+    contents: prompt,
+    config: {
+      responseModalities: ["IMAGE"],
+    },
+  });
+
+  const parts: any[] = response.candidates?.[0]?.content?.parts ?? [];
+  for (const part of parts) {
+    if (part.inlineData?.mimeType?.startsWith("image/") && part.inlineData.data) {
+      return {
+        dataUrl: `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`,
+        model,
+      };
+    }
+  }
+
+  throw new Error("Gemini image model returned no image data.");
+}
 
 function uniqueModels(candidates: string[]): string[] {
   const deduped = new Set<string>();
@@ -143,39 +203,17 @@ export async function generateThumbnailImage(
     }
 
     let lastError: unknown = null;
+    const aspectRatio = options.aspectRatio || "16:9";
 
     for (const model of modelsToTry) {
       try {
         recordAPIRequest();
 
-        const response = await ai.models.generateImages({
-          model,
-          prompt,
-          config: {
-            numberOfImages: 1,
-            aspectRatio: options.aspectRatio || "16:9",
-            outputMimeType: "image/png",
-            includeRaiReason: true,
-            enhancePrompt: true,
-          },
-        });
-
-        const generatedImage = response.generatedImages?.[0];
-        const imageBytes = generatedImage?.image?.imageBytes;
-        const mimeType = generatedImage?.image?.mimeType || "image/png";
-
-        if (imageBytes) {
-          return {
-            dataUrl: `data:${mimeType};base64,${imageBytes}`,
-            model,
-          };
+        if (model.startsWith("imagen-")) {
+          return await tryImagenGeneration(ai, model, prompt, aspectRatio);
+        } else {
+          return await tryGeminiImageGeneration(ai, model, prompt);
         }
-
-        if (generatedImage?.raiFilteredReason) {
-          throw new Error(`Image request was filtered: ${generatedImage.raiFilteredReason}`);
-        }
-
-        throw new Error("Image model returned no image bytes.");
       } catch (modelError) {
         lastError = modelError;
       }
