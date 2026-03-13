@@ -74,6 +74,21 @@ function formatCompactNumber(value: number) {
   return Intl.NumberFormat(undefined, { notation: 'compact', maximumFractionDigits: 1 }).format(value);
 }
 
+function formatPublishedDate(value: string) {
+  if (!value) return 'Recent upload';
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return 'Recent upload';
+  }
+
+  return parsed.toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
 export default function ViralClipExtractor() {
   const [inputType, setInputType] = useState<InputType>('my-channel');
   const [file, setFile] = useState<File | null>(null);
@@ -83,6 +98,7 @@ export default function ViralClipExtractor() {
   const [loadingChannelVideos, setLoadingChannelVideos] = useState(false);
   const [channelVideos, setChannelVideos] = useState<LongFormVideo[]>([]);
   const [selectedChannelVideoId, setSelectedChannelVideoId] = useState('');
+  const [channelVideoQuery, setChannelVideoQuery] = useState('');
 
   const [clips, setClips] = useState<Clip[]>([]);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
@@ -115,6 +131,19 @@ export default function ViralClipExtractor() {
     () => channelVideos.find((video) => video.id === selectedChannelVideoId) || null,
     [channelVideos, selectedChannelVideoId],
   );
+
+  const filteredChannelVideos = useMemo(() => {
+    const normalizedQuery = channelVideoQuery.trim().toLowerCase();
+    if (!normalizedQuery) {
+      return channelVideos;
+    }
+
+    return channelVideos.filter((video) => {
+      const title = video.title.toLowerCase();
+      const description = video.description.toLowerCase();
+      return title.includes(normalizedQuery) || description.includes(normalizedQuery);
+    });
+  }, [channelVideoQuery, channelVideos]);
 
   const ensureChannelVideoSources = async () => {
     setLoadingChannelVideos(true);
@@ -460,32 +489,103 @@ export default function ViralClipExtractor() {
                   </div>
                 ) : (
                   <>
-                    <label className="text-sm font-medium text-slate-300">Choose one of your long-form videos</label>
-                    <select
-                      value={selectedChannelVideoId}
-                      onChange={(e) => setSelectedChannelVideoId(e.target.value)}
-                      className="w-full rounded-xl border border-white/10 bg-black/20 p-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                    >
-                      {channelVideos.map((video) => (
-                        <option key={video.id} value={video.id}>
-                          {video.title} ({video.durationLabel})
-                        </option>
-                      ))}
-                    </select>
+                    <div className="space-y-1">
+                      <label className="text-sm font-medium text-slate-300">Choose one of your long-form videos</label>
+                      <p className="text-xs text-slate-500">
+                        Search your library, then click a video card to lock in the source.
+                      </p>
+                    </div>
+
+                    <div className="relative">
+                      <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                      <input
+                        type="search"
+                        value={channelVideoQuery}
+                        onChange={(e) => setChannelVideoQuery(e.target.value)}
+                        placeholder="Search your long-form library..."
+                        className="w-full rounded-xl border border-white/10 bg-black/20 py-3 pl-10 pr-4 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between text-xs text-slate-500">
+                      <span>{filteredChannelVideos.length} visible</span>
+                      <span>{selectedChannelVideo ? '1 selected' : 'No video selected'}</span>
+                    </div>
+
+                    {filteredChannelVideos.length === 0 ? (
+                      <div className="rounded-xl border border-dashed border-white/10 bg-black/20 p-4 text-sm text-slate-400">
+                        No long-form videos match that search. Try a different title keyword.
+                      </div>
+                    ) : (
+                      <div className="max-h-[19rem] space-y-3 overflow-y-auto pr-1">
+                        {filteredChannelVideos.map((video) => {
+                          const isSelected = video.id === selectedChannelVideoId;
+
+                          return (
+                            <button
+                              key={video.id}
+                              type="button"
+                              onClick={() => setSelectedChannelVideoId(video.id)}
+                              aria-pressed={isSelected}
+                              className={`w-full rounded-2xl border p-3 text-left transition-all focus:outline-none focus:ring-2 focus:ring-blue-500/30 ${
+                                isSelected
+                                  ? 'border-blue-400/60 bg-blue-500/10 shadow-[0_0_0_1px_rgba(96,165,250,0.2)]'
+                                  : 'border-white/10 bg-black/20 hover:border-white/20 hover:bg-white/[0.03]'
+                              }`}
+                            >
+                              <div className="flex items-start gap-3">
+                                <div className="h-16 w-28 shrink-0 overflow-hidden rounded-xl border border-white/10 bg-black/30">
+                                  <img
+                                    src={video.thumbnail}
+                                    alt=""
+                                    className="h-full w-full object-cover"
+                                    referrerPolicy="no-referrer"
+                                  />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-start justify-between gap-3">
+                                    <p className="line-clamp-2 text-sm font-semibold text-white">{video.title}</p>
+                                    <span
+                                      className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] ${
+                                        isSelected ? 'bg-blue-400/20 text-blue-200' : 'bg-white/5 text-slate-400'
+                                      }`}
+                                    >
+                                      {isSelected ? 'Selected' : 'Pick'}
+                                    </span>
+                                  </div>
+                                  <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-400">
+                                    <span>{formatCompactNumber(video.viewCount)} views</span>
+                                    <span>{video.durationLabel}</span>
+                                    <span>{formatPublishedDate(video.publishedAt)}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
 
                     {selectedChannelVideo && (
-                      <div className="rounded-xl border border-white/10 bg-black/20 p-3 flex items-start gap-3">
-                        <img
-                          src={selectedChannelVideo.thumbnail}
-                          alt={selectedChannelVideo.title}
-                          className="w-20 h-12 rounded-md object-cover"
-                          referrerPolicy="no-referrer"
-                        />
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium text-white line-clamp-2">{selectedChannelVideo.title}</p>
-                          <p className="text-xs text-slate-400 mt-1">
-                            {formatCompactNumber(selectedChannelVideo.viewCount)} views • {selectedChannelVideo.durationLabel}
-                          </p>
+                      <div className="rounded-2xl border border-emerald-400/20 bg-emerald-500/[0.06] p-4">
+                        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-emerald-300">Selected source</p>
+                        <div className="mt-3 flex items-start gap-3">
+                          <img
+                            src={selectedChannelVideo.thumbnail}
+                            alt={selectedChannelVideo.title}
+                            className="h-14 w-24 rounded-lg object-cover"
+                            referrerPolicy="no-referrer"
+                          />
+                          <div className="min-w-0">
+                            <p className="line-clamp-2 text-sm font-semibold text-white">{selectedChannelVideo.title}</p>
+                            <p className="mt-1 text-xs text-slate-300">
+                              {formatCompactNumber(selectedChannelVideo.viewCount)} views • {selectedChannelVideo.durationLabel} •{' '}
+                              {formatPublishedDate(selectedChannelVideo.publishedAt)}
+                            </p>
+                            <p className="mt-2 text-xs text-slate-400">
+                              We will analyze this exact long-form video and extract the strongest Shorts moments.
+                            </p>
+                          </div>
                         </div>
                       </div>
                     )}
