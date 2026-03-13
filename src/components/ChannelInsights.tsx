@@ -55,6 +55,29 @@ function toNumber(value: unknown): number {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+function rowsToObjects(report?: { columnHeaders?: any[]; rows?: any[][] }): Array<Record<string, any>> {
+  const headers = report?.columnHeaders || [];
+  const rows = report?.rows || [];
+
+  return rows.map((row) => {
+    const item: Record<string, any> = {};
+    headers.forEach((header, index) => {
+      item[header.name] = row[index];
+    });
+    return item;
+  });
+}
+
+function hourMap(report?: { columnHeaders?: any[]; rows?: any[][] }): Record<number, number> {
+  const mapped: Record<number, number> = {};
+  const rows = rowsToObjects(report);
+  for (const row of rows) {
+    const hour = toNumber(row.hour);
+    mapped[hour] = toNumber(row.views);
+  }
+  return mapped;
+}
+
 function formatUtcHourInLocalTime(hour: number): string {
   const d = new Date();
   d.setUTCHours(hour, 0, 0, 0);
@@ -180,18 +203,36 @@ export default function ChannelInsights() {
     return obj;
   });
 
-  // Transform hourly data
-  const hourlyChartData = data.hourly.rows.map(row => {
+  // Transform hourly data. If the 30-day hourly report is unavailable,
+  // fall back to today's (or yesterday's) hourly buckets.
+  let hourlyChartData = data.hourly.rows.map(row => {
     const obj: any = {};
     data.hourly.columnHeaders.forEach((header, index) => {
       obj[header.name] = row[index];
     });
     // Note: YouTube Analytics API uses "hour" not "hourOfDay"
     const hourValue = obj.hour !== undefined ? obj.hour : obj.hourOfDay;
-    obj.hour = hourValue;
+    obj.hour = toNumber(hourValue);
     obj.displayHour = hourValue !== undefined ? `${hourValue}:00` : 'N/A';
     return obj;
   });
+
+  if (hourlyChartData.length === 0) {
+    const todayHourlyMap = hourMap(data.todayHourly);
+    const yesterdayHourlyMap = hourMap(data.yesterdayHourly);
+    const sourceMap = Object.keys(todayHourlyMap).length > 0 ? todayHourlyMap : yesterdayHourlyMap;
+
+    hourlyChartData = Object.entries(sourceMap)
+      .map(([hour, views]) => {
+        const hourNumber = toNumber(hour);
+        return {
+          hour: hourNumber,
+          views: toNumber(views),
+          displayHour: `${String(hourNumber).padStart(2, '0')}:00`,
+        };
+      })
+      .sort((a, b) => a.hour - b.hour);
+  }
 
   const bestHourlyEntry = [...hourlyChartData]
     .filter((entry) => entry.hour !== undefined && entry.hour !== null)
@@ -379,42 +420,53 @@ export default function ChannelInsights() {
           </div>
           <Clock size={18} className="text-zinc-500" />
         </div>
-        <div className="h-[300px] w-full min-w-0">
-          <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-            <BarChart data={hourlyChartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
-              <XAxis 
-                dataKey="hour" 
-                stroke="#71717a" 
-                fontSize={10} 
-                tickLine={false} 
-                axisLine={false} 
-                tickFormatter={(val) => `${val}:00`}
-              />
-              <YAxis 
-                stroke="#71717a" 
-                fontSize={10} 
-                tickLine={false} 
-                axisLine={false} 
-              />
-              <Tooltip 
-                cursor={{ fill: '#27272a' }}
-                contentStyle={{ backgroundColor: '#18181b', border: '1px solid #27272a', borderRadius: '8px' }}
-                itemStyle={{ color: '#e4e4e7', fontSize: '12px' }}
-                labelStyle={{ color: '#71717a', fontSize: '10px', marginBottom: '4px' }}
-                labelFormatter={(val) => `Time: ${val}:00`}
-              />
-              <Bar dataKey="views" radius={[4, 4, 0, 0]}>
-                {hourlyChartData.map((entry, index) => (
-                  <Cell 
-                    key={`cell-${index}`} 
-                    fill={toNumber(entry.hour) === bestHourValue ? '#6366f1' : '#3f3f46'} 
-                  />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
+        {hourlyChartData.length > 0 ? (
+          <div className="h-[300px] w-full min-w-0">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+              <BarChart data={hourlyChartData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
+                <XAxis 
+                  dataKey="hour" 
+                  stroke="#71717a" 
+                  fontSize={10} 
+                  tickLine={false} 
+                  axisLine={false} 
+                  tickFormatter={(val) => `${val}:00`}
+                />
+                <YAxis 
+                  stroke="#71717a" 
+                  fontSize={10} 
+                  tickLine={false} 
+                  axisLine={false} 
+                />
+                <Tooltip 
+                  cursor={{ fill: '#27272a' }}
+                  contentStyle={{ backgroundColor: '#18181b', border: '1px solid #27272a', borderRadius: '8px' }}
+                  itemStyle={{ color: '#e4e4e7', fontSize: '12px' }}
+                  labelStyle={{ color: '#71717a', fontSize: '10px', marginBottom: '4px' }}
+                  labelFormatter={(val) => `Time: ${val}:00`}
+                />
+                <Bar dataKey="views" radius={[4, 4, 0, 0]}>
+                  {hourlyChartData.map((entry, index) => (
+                    <Cell 
+                      key={`cell-${index}`} 
+                      fill={toNumber(entry.hour) === bestHourValue ? '#6366f1' : '#3f3f46'} 
+                    />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        ) : (
+          <div className="h-[300px] w-full min-w-0 rounded-xl border border-zinc-800 bg-zinc-950/40 flex items-center justify-center p-6 text-center">
+            <div>
+              <p className="text-sm font-semibold text-zinc-200">Hourly breakdown unavailable</p>
+              <p className="text-xs text-zinc-500 mt-2 max-w-md">
+                YouTube Analytics did not return hourly rows for this channel/date range yet. Daily insights are still accurate, and hourly data often appears once the channel has more recent processed activity.
+              </p>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
