@@ -79,6 +79,16 @@ const YTDLP_FORMAT_STRATEGIES = [
   'best',
 ];
 
+const YTDLP_EXTRACTOR_STRATEGIES = [
+  'youtube:player_client=android,tv,ios;player_skip=webpage,configs',
+  'youtube:player_client=android,ios;player_skip=webpage',
+  'youtube:player_client=android,web,tv,ios',
+];
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 function isFormatUnavailableError(error) {
   const raw = String(error?.stderr || error?.stdout || error?.message || '').toLowerCase();
   return (
@@ -88,11 +98,16 @@ function isFormatUnavailableError(error) {
   );
 }
 
+function isPageReloadError(error) {
+  const raw = String(error?.stderr || error?.stdout || error?.message || '').toLowerCase();
+  return raw.includes('the page needs to be reloaded');
+}
+
 async function downloadYouTubeSource({ youtubeUrl, inputPath, cookiesPath }) {
   const baseArgs = [
     '--no-warnings',
     '--no-playlist',
-    '--extractor-args', 'youtube:player_client=android,web,tv,ios',
+    '--extractor-retries', '3',
     '--add-header', 'User-Agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
     '--add-header', 'Accept-Language:en-US,en;q=0.9',
     '--merge-output-format', 'mp4',
@@ -104,30 +119,52 @@ async function downloadYouTubeSource({ youtubeUrl, inputPath, cookiesPath }) {
 
   let lastError = null;
 
-  for (const formatSelector of YTDLP_FORMAT_STRATEGIES) {
-    const args = [...baseArgs, '-f', formatSelector, '-o', inputPath, youtubeUrl];
+  for (const extractorArgs of YTDLP_EXTRACTOR_STRATEGIES) {
+    let shouldTryNextExtractorStrategy = false;
 
+    for (const formatSelector of YTDLP_FORMAT_STRATEGIES) {
+      const args = [...baseArgs, '--extractor-args', extractorArgs, '-f', formatSelector, '-o', inputPath, youtubeUrl];
+
+      try {
+        await runCommand('yt-dlp', args);
+        return;
+      } catch (error) {
+        lastError = error;
+        await fs.rm(inputPath, { force: true }).catch(() => {});
+
+        if (isPageReloadError(error)) {
+          shouldTryNextExtractorStrategy = true;
+          await sleep(1000);
+          break;
+        }
+
+        if (!isFormatUnavailableError(error)) {
+          throw error;
+        }
+      }
+    }
+
+    if (shouldTryNextExtractorStrategy) {
+      continue;
+    }
+
+    // Safety net for this extractor strategy: let yt-dlp auto-negotiate without an explicit format selector.
     try {
+      const args = [...baseArgs, '--extractor-args', extractorArgs, '-o', inputPath, youtubeUrl];
       await runCommand('yt-dlp', args);
       return;
     } catch (error) {
       lastError = error;
       await fs.rm(inputPath, { force: true }).catch(() => {});
 
-      if (!isFormatUnavailableError(error)) {
-        throw error;
+      if (isPageReloadError(error)) {
+        await sleep(1000);
+        continue;
       }
     }
   }
 
-  // Final safety net: let yt-dlp auto-negotiate without an explicit format selector.
-  try {
-    const args = [...baseArgs, '-o', inputPath, youtubeUrl];
-    await runCommand('yt-dlp', args);
-    return;
-  } catch (error) {
-    throw lastError || error;
-  }
+  throw lastError || new Error('yt-dlp could not download a playable source.');
 }
 
 function buildRendererError(error) {
@@ -170,6 +207,15 @@ function buildRendererError(error) {
       status: 422,
       message:
         'Cloud worker could not find a downloadable format for this video. Retry shortly or try a different source video.',
+      detail: raw.slice(0, 1200),
+    };
+  }
+
+  if (normalized.includes('the page needs to be reloaded')) {
+    return {
+      status: 503,
+      message:
+        'YouTube returned a transient extraction response for this video. Retry in a moment. If it keeps failing, configure YTDLP_COOKIES_B64 on the renderer service and redeploy.',
       detail: raw.slice(0, 1200),
     };
   }
