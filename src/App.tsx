@@ -1121,7 +1121,7 @@ export default function App() {
 
       <aside
         className={cn(
-          'fixed inset-y-0 left-0 z-40 w-64 sm:w-72 border-r transform transition-transform duration-200 ease-in-out lg:translate-x-0 lg:static lg:block flex flex-col overflow-hidden min-h-0',
+          'fixed inset-y-0 left-0 z-40 w-64 sm:w-72 border-r transform transition-transform duration-200 ease-in-out lg:translate-x-0 lg:static lg:h-screen lg:block flex flex-col overflow-hidden min-h-0',
           theme === 'light' ? 'bg-slate-50 border-slate-200' : 'bg-[#0a0a0a] border-white/10',
           isSidebarOpen ? 'translate-x-0' : '-translate-x-full',
         )}
@@ -1175,7 +1175,7 @@ export default function App() {
             })}
           </div>
 
-          <div className="min-h-0 flex-1 overflow-y-scroll space-y-4 sm:space-y-5 pr-1">
+          <div className="min-h-0 flex-1 overflow-y-scroll touch-pan-y space-y-4 sm:space-y-5 pr-1">
             <div className="space-y-1" data-tour-id="tour-studios-section">
               <p className="px-2 text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">Studios</p>
               {studioTabs.map((tab) => {
