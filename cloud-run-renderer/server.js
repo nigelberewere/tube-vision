@@ -72,6 +72,64 @@ function runCommand(command, args, timeoutMs = 20 * 60 * 1000) {
   });
 }
 
+const YTDLP_FORMAT_STRATEGIES = [
+  'bestvideo*+bestaudio/best',
+  'bestvideo+bestaudio/best',
+  'best[ext=mp4]/best',
+  'best',
+];
+
+function isFormatUnavailableError(error) {
+  const raw = String(error?.stderr || error?.stdout || error?.message || '').toLowerCase();
+  return (
+    raw.includes('requested format is not available') ||
+    raw.includes('no video formats found') ||
+    raw.includes('format is not available')
+  );
+}
+
+async function downloadYouTubeSource({ youtubeUrl, inputPath, cookiesPath }) {
+  const baseArgs = [
+    '--no-warnings',
+    '--no-playlist',
+    '--extractor-args', 'youtube:player_client=android,web,tv,ios',
+    '--add-header', 'User-Agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+    '--add-header', 'Accept-Language:en-US,en;q=0.9',
+    '--merge-output-format', 'mp4',
+  ];
+
+  if (cookiesPath && existsSync(cookiesPath)) {
+    baseArgs.push('--cookies', cookiesPath);
+  }
+
+  let lastError = null;
+
+  for (const formatSelector of YTDLP_FORMAT_STRATEGIES) {
+    const args = [...baseArgs, '-f', formatSelector, '-o', inputPath, youtubeUrl];
+
+    try {
+      await runCommand('yt-dlp', args);
+      return;
+    } catch (error) {
+      lastError = error;
+      await fs.rm(inputPath, { force: true }).catch(() => {});
+
+      if (!isFormatUnavailableError(error)) {
+        throw error;
+      }
+    }
+  }
+
+  // Final safety net: let yt-dlp auto-negotiate without an explicit format selector.
+  try {
+    const args = [...baseArgs, '-o', inputPath, youtubeUrl];
+    await runCommand('yt-dlp', args);
+    return;
+  } catch (error) {
+    throw lastError || error;
+  }
+}
+
 function buildRendererError(error) {
   const raw = String(error?.stderr || error?.stdout || error?.message || '').trim();
   const normalized = raw.toLowerCase();
@@ -101,6 +159,18 @@ function buildRendererError(error) {
       status: 404,
       message: 'The video is unavailable or blocked in the renderer region.',
       detail: 'Video unavailable',
+    };
+  }
+
+  if (
+    normalized.includes('requested format is not available') ||
+    normalized.includes('no video formats found')
+  ) {
+    return {
+      status: 422,
+      message:
+        'Cloud worker could not find a downloadable format for this video. Retry shortly or try a different source video.',
+      detail: raw.slice(0, 1200),
     };
   }
 
@@ -167,31 +237,22 @@ app.post('/render', async (req, res) => {
 
   try {
     await fs.mkdir(tempDir, { recursive: true });
-
-    const ytDlpArgs = [
-      '--no-warnings',
-      '--no-playlist',
-      '--extractor-args', 'youtube:player_client=android,web',
-      '--add-header', 'User-Agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
-      '--add-header', 'Accept-Language:en-US,en;q=0.9',
-      '--merge-output-format', 'mp4',
-      '-f', 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
-      '-o', inputPath,
-    ];
-
+    let hasCookies = false;
     if (ytDlpCookiesBase64) {
       try {
         const cookieText = Buffer.from(ytDlpCookiesBase64, 'base64').toString('utf8');
         await fs.writeFile(cookiesPath, cookieText, 'utf8');
-        ytDlpArgs.push('--cookies', cookiesPath);
+        hasCookies = true;
       } catch {
         console.warn('YTDLP_COOKIES_B64 is set but could not be decoded as base64. Continuing without cookies.');
       }
     }
 
-    ytDlpArgs.push(youtubeUrl);
-
-    await runCommand('yt-dlp', ytDlpArgs);
+    await downloadYouTubeSource({
+      youtubeUrl,
+      inputPath,
+      cookiesPath: hasCookies ? cookiesPath : '',
+    });
 
     await runCommand('ffmpeg', [
       '-hide_banner',
