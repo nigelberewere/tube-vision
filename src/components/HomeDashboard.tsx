@@ -158,6 +158,10 @@ function hourMap(report?: AnalyticsReport): Record<number, number> {
   return mapped;
 }
 
+function hasHourBucket(map: Record<number, number>, hour: number): boolean {
+  return Object.prototype.hasOwnProperty.call(map, hour);
+}
+
 function getLatestVideo(videos: VideoItem[]): VideoItem | null {
   if (!videos.length) {
     return null;
@@ -526,24 +530,37 @@ Return valid JSON only.`;
 
     const todayHourlyMap = hourMap(analytics?.todayHourly);
     const yesterdayHourlyMap = hourMap(analytics?.yesterdayHourly);
+    const hasAnyRecentHourlyData = Object.keys(todayHourlyMap).length > 0 || Object.keys(yesterdayHourlyMap).length > 0;
     const currentHour = new Date().getHours();
     const previousHour = currentHour === 0 ? 23 : currentHour - 1;
 
     const viewsLastHour =
       currentHour === 0
-        ? toNumber(yesterdayHourlyMap[23])
-        : toNumber(todayHourlyMap[previousHour]);
+        ? (hasHourBucket(yesterdayHourlyMap, 23) ? toNumber(yesterdayHourlyMap[23]) : null)
+        : (hasHourBucket(todayHourlyMap, previousHour) ? toNumber(todayHourlyMap[previousHour]) : null);
 
-    let viewsLast24Hours = 0;
+    let rolling24Views = 0;
+    let complete24HourWindow = true;
     for (let offset = 0; offset < 24; offset += 1) {
-      const hourIndex = (currentHour - offset + 24) % 24;
-      const isTodayBucket = offset < currentHour + 1;
-      viewsLast24Hours += isTodayBucket
-        ? toNumber(todayHourlyMap[hourIndex])
-        : toNumber(yesterdayHourlyMap[hourIndex]);
+      const absoluteHour = previousHour - offset;
+      const isTodayBucket = absoluteHour >= 0;
+      const hourIndex = (absoluteHour + 24) % 24;
+      const sourceMap = isTodayBucket ? todayHourlyMap : yesterdayHourlyMap;
+
+      if (!hasHourBucket(sourceMap, hourIndex)) {
+        complete24HourWindow = false;
+        break;
+      }
+
+      rolling24Views += toNumber(sourceMap[hourIndex]);
     }
 
+    const viewsLast24Hours = complete24HourWindow ? rolling24Views : null;
+
     const bestHour = [...hourlyObjects].sort((a, b) => toNumber(b.views) - toNumber(a.views))[0];
+    const bestHourDisplay = bestHour
+      ? `${bestHour.hour}:00`
+      : (typeof bestPostingTime?.bestHour === 'number' ? utcHourToLocalDisplay(bestPostingTime.bestHour) : '--:--');
 
     return {
       last7DaysViews,
@@ -552,9 +569,10 @@ Return valid JSON only.`;
       netSubs30Days,
       viewsLastHour,
       viewsLast24Hours,
-      bestHour: bestHour ? `${bestHour.hour}:00` : '--:--',
+      hasAnyRecentHourlyData,
+      bestHour: bestHourDisplay,
     };
-  }, [analytics, dailyObjects, hourlyObjects]);
+  }, [analytics, bestPostingTime, dailyObjects, hourlyObjects]);
 
   const strongTextClass = isLightTheme ? 'text-slate-900' : 'text-zinc-100';
   const bodyTextClass = isLightTheme ? 'text-slate-600' : 'text-zinc-300';
@@ -795,7 +813,10 @@ Return valid JSON only.`;
             <Eye size={17} />
           </div>
           <p className={cn('mt-4 text-xs font-bold uppercase tracking-wider', labelTextClass)}>Views Last Hour</p>
-          <p className={cn('mt-1 text-2xl font-bold', strongTextClass)}>{compact(metrics.viewsLastHour)}</p>
+          <p className={cn('mt-1 text-2xl font-bold', strongTextClass)}>{metrics.viewsLastHour === null ? '--' : compact(metrics.viewsLastHour)}</p>
+          <p className={cn('mt-1 text-xs', labelTextClass)}>
+            {metrics.viewsLastHour === null ? 'Hourly analytics unavailable' : 'Last completed hour'}
+          </p>
         </div>
 
         <div className={cn('rounded-xl border p-5', surfaceCardClass)}>
@@ -803,7 +824,10 @@ Return valid JSON only.`;
             <Activity size={17} />
           </div>
           <p className={cn('mt-4 text-xs font-bold uppercase tracking-wider', labelTextClass)}>Views Last 24h</p>
-          <p className={cn('mt-1 text-2xl font-bold', strongTextClass)}>{compact(metrics.viewsLast24Hours)}</p>
+          <p className={cn('mt-1 text-2xl font-bold', strongTextClass)}>{metrics.viewsLast24Hours === null ? '--' : compact(metrics.viewsLast24Hours)}</p>
+          <p className={cn('mt-1 text-xs', labelTextClass)}>
+            {metrics.viewsLast24Hours === null ? '24 hourly buckets not available yet' : 'Previous 24 completed hours'}
+          </p>
         </div>
 
         <div className={cn('rounded-xl border p-5', surfaceCardClass)}>
@@ -842,6 +866,9 @@ Return valid JSON only.`;
         <div className={cn('rounded-xl border p-5', surfaceCardClass)}>
           <p className={cn('text-xs font-bold uppercase tracking-wider', labelTextClass)}>Best Posting Hour</p>
           <p className={cn('mt-1 text-2xl font-bold', strongTextClass)}>{metrics.bestHour}</p>
+          <p className={cn('mt-1 text-xs', labelTextClass)}>
+            {metrics.hasAnyRecentHourlyData ? 'Based on hourly analytics' : 'Fallback from posting-time analysis'}
+          </p>
         </div>
       </div>
 
