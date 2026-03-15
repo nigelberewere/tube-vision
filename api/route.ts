@@ -683,6 +683,218 @@ async function fetchMineVideoSeeds(
   return { ok: true, seeds };
 }
 
+type SnapshotMetric = {
+  date: string;
+  subscriberCount: number;
+  videoCount: number;
+  viewCount: number;
+  estimatedDailyViews: number;
+  subscriberGrowth?: number;
+  viewGrowth?: number;
+  videoGrowth?: number;
+};
+
+function getIsoDateDaysAgo(days: number): string {
+  const cutoffDate = new Date();
+  cutoffDate.setDate(cutoffDate.getDate() - days);
+  return cutoffDate.toISOString().split('T')[0];
+}
+
+function mapSupabaseSnapshotRow(row: any): SnapshotMetric {
+  return {
+    date: String(row?.snapshot_date || ''),
+    subscriberCount: toNumber(row?.subscribers),
+    videoCount: toNumber(row?.video_count),
+    viewCount: toNumber(row?.total_views),
+    estimatedDailyViews: toNumber(row?.estimated_daily_views),
+  };
+}
+
+function attachGrowthDeltas(snapshots: SnapshotMetric[]): SnapshotMetric[] {
+  return snapshots.map((current, index) => {
+    if (index === 0) {
+      return current;
+    }
+
+    const previous = snapshots[index - 1];
+    return {
+      ...current,
+      subscriberGrowth: current.subscriberCount - previous.subscriberCount,
+      viewGrowth: current.viewCount - previous.viewCount,
+      videoGrowth: current.videoCount - previous.videoCount,
+    };
+  });
+}
+
+function summarizeGrowth(snapshots: SnapshotMetric[]) {
+  if (snapshots.length < 2) {
+    return null;
+  }
+
+  const first = snapshots[0];
+  const last = snapshots[snapshots.length - 1];
+
+  return {
+    period: `${snapshots.length} days`,
+    subscriberGrowth: last.subscriberCount - first.subscriberCount,
+    subscriberGrowthPct:
+      first.subscriberCount > 0
+        ? Number((((last.subscriberCount - first.subscriberCount) / first.subscriberCount) * 100).toFixed(2))
+        : 0,
+    viewGrowth: last.viewCount - first.viewCount,
+    videoGrowth: last.videoCount - first.videoCount,
+    avgDailyViews: Math.round(last.estimatedDailyViews),
+  };
+}
+
+function filterSnapshotsByDays(snapshots: SnapshotMetric[], days: number): SnapshotMetric[] {
+  const cutoffIso = getIsoDateDaysAgo(days);
+  return snapshots.filter((snapshot) => snapshot.date >= cutoffIso);
+}
+
+async function getEstimatedDailyViews(accessToken: string): Promise<number> {
+  const authHeader = { Authorization: `Bearer ${accessToken}` };
+  const endDate = new Date().toISOString().split('T')[0];
+  const startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+  try {
+    const analyticsResponse = await fetch(
+      `https://youtubeanalytics.googleapis.com/v2/reports?ids=channel==MINE&startDate=${startDate}&endDate=${endDate}&metrics=views`,
+      { headers: authHeader },
+    );
+
+    if (!analyticsResponse.ok) {
+      return 0;
+    }
+
+    const analyticsData = await analyticsResponse.json();
+    const rows = analyticsData.rows || [];
+    if (rows.length === 0) {
+      return 0;
+    }
+
+    const totalViews = rows.reduce((sum: number, row: any[]) => sum + toNumber(row[0]), 0);
+    return Math.round(totalViews / Math.max(1, rows.length));
+  } catch (error) {
+    console.warn('Failed to fetch daily views for snapshot:', error);
+    return 0;
+  }
+}
+
+async function resolveSnapshotUserId(req: VercelRequest, channelId: string): Promise<string | null> {
+  const authUser = await verifySupabaseUser(req);
+  if (authUser?.id) {
+    return authUser.id;
+  }
+
+  if (!supabaseServer) {
+    return null;
+  }
+
+  try {
+    const { data, error } = await supabaseServer
+      .from('youtube_accounts')
+      .select('user_id')
+      .eq('channel_id', channelId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error) {
+      console.error('Snapshot user_id lookup error:', error);
+      return null;
+    }
+
+    return data?.user_id ? String(data.user_id) : null;
+  } catch (error) {
+    console.error('Snapshot user_id lookup exception:', error);
+    return null;
+  }
+}
+
+async function saveSnapshotToSupabase(
+  user: any,
+  snapshotUserId: string,
+  force: boolean,
+): Promise<{ snapshot: SnapshotMetric; created: boolean }> {
+  if (!supabaseServer) {
+    throw new Error('Supabase server client is not configured');
+  }
+
+  const channelId = String(user?.channel?.id || '').trim();
+  const snapshotDate = new Date().toISOString().split('T')[0];
+  const subscribers = toNumber(user?.channel?.statistics?.subscriberCount);
+  const videoCount = toNumber(user?.channel?.statistics?.videoCount);
+  const viewCount = toNumber(user?.channel?.statistics?.viewCount);
+
+  if (!force) {
+    const { data: existing, error: existingError } = await supabaseServer
+      .from('channel_snapshots')
+      .select('snapshot_date, subscribers, video_count, total_views, estimated_daily_views')
+      .eq('user_id', snapshotUserId)
+      .eq('channel_id', channelId)
+      .eq('snapshot_date', snapshotDate)
+      .maybeSingle();
+
+    if (!existingError && existing) {
+      return { snapshot: mapSupabaseSnapshotRow(existing), created: false };
+    }
+
+    if (existingError && existingError.code !== 'PGRST116') {
+      console.error('Supabase existing snapshot fetch error:', existingError);
+    }
+  }
+
+  const estimatedDailyViews = await getEstimatedDailyViews(String(user?.tokens?.access_token || ''));
+
+  const payload = {
+    user_id: snapshotUserId,
+    channel_id: channelId,
+    snapshot_date: snapshotDate,
+    subscribers,
+    video_count: videoCount,
+    total_views: viewCount,
+    estimated_daily_views: estimatedDailyViews,
+  };
+
+  const { data, error } = await supabaseServer
+    .from('channel_snapshots')
+    .upsert(payload, { onConflict: 'channel_id,snapshot_date' })
+    .select('snapshot_date, subscribers, video_count, total_views, estimated_daily_views')
+    .single();
+
+  if (error || !data) {
+    throw error || new Error('Snapshot upsert returned no data');
+  }
+
+  return { snapshot: mapSupabaseSnapshotRow(data), created: true };
+}
+
+async function fetchSupabaseSnapshots(
+  channelId: string,
+  days: number,
+  snapshotUserId: string,
+): Promise<SnapshotMetric[]> {
+  if (!supabaseServer) {
+    throw new Error('Supabase server client is not configured');
+  }
+
+  const cutoffIso = getIsoDateDaysAgo(days);
+  const { data, error } = await supabaseServer
+    .from('channel_snapshots')
+    .select('snapshot_date, subscribers, video_count, total_views, estimated_daily_views')
+    .eq('user_id', snapshotUserId)
+    .eq('channel_id', channelId)
+    .gte('snapshot_date', cutoffIso)
+    .order('snapshot_date', { ascending: true });
+
+  if (error) {
+    throw error;
+  }
+
+  return attachGrowthDeltas((data || []).map(mapSupabaseSnapshotRow));
+}
+
 installYouTubeDataApiCacheFetch({
   supabaseServer,
   cacheSecret: process.env.YOUTUBE_CACHE_SECRET || OAUTH_STATE_SECRET,
@@ -3320,41 +3532,113 @@ Return as JSON.`;
     return res.json({ success: true });
   }
 
-  // Channel Snapshots - Growth Momentum (Vercel stub endpoints)
-  // Note: Full snapshot persistence with SQLite only available on local dev server
-  // Vercel returns current metrics without historical data
+  // Channel Snapshots - Growth Momentum (Supabase persistence)
   if (path === 'api/snapshots/save' && req.method === 'POST') {
-    // Vercel doesn't persist data between function invocations
-    // Local dev server uses better-sqlite3 for snapshots
-    return res.json({ 
-      success: false,
-      message: 'Snapshot persistence only available on local dev server. Use npm run dev for full snapshot features.'
-    });
+    const user = await getActiveYouTubeUser(req);
+    if (!user || !user.tokens || !user.channel?.id) {
+      return res.status(401).json({ error: 'Not authenticated or no channel connected' });
+    }
+
+    const snapshotUserId = await resolveSnapshotUserId(req, String(user.channel.id));
+    if (!snapshotUserId || !supabaseServer) {
+      return res.status(503).json({ error: 'Snapshot persistence unavailable. Verify Supabase auth and server env.' });
+    }
+
+    try {
+      const force = req.query.force === '1' || (req.body as any)?.force === true;
+      const result = await saveSnapshotToSupabase(user, snapshotUserId, force);
+
+      return res.json({
+        success: true,
+        snapshot: result.snapshot,
+        created: result.created,
+        storage: 'supabase',
+        message: result.created ? 'Snapshot saved successfully' : 'Snapshot already exists for today',
+      });
+    } catch (error) {
+      console.error('Save snapshot error:', error);
+      return res.status(500).json({ error: 'Failed to save snapshot' });
+    }
   }
 
   if (path === 'api/snapshots/history' && req.method === 'GET') {
-    // Return empty snapshots for Vercel deployment
-    return res.json({
-      snapshots: [],
-      count: 0,
-      period: 'N/A',
-      startDate: null,
-      endDate: null,
-      note: 'Snapshot history only available on local dev server. Use npm run dev for Growth Momentum chart.'
-    });
+    const user = await getActiveYouTubeUser(req);
+    if (!user || !user.tokens || !user.channel?.id) {
+      return res.status(401).json({ error: 'Not authenticated or no channel connected' });
+    }
+
+    const channelId = String(user.channel.id);
+    const days = Math.max(1, Number(req.query.days) || 90);
+    const snapshotUserId = await resolveSnapshotUserId(req, channelId);
+
+    if (!snapshotUserId || !supabaseServer) {
+      return res.status(503).json({ error: 'Snapshot persistence unavailable. Verify Supabase auth and server env.' });
+    }
+
+    try {
+      try {
+        await saveSnapshotToSupabase(user, snapshotUserId, false);
+      } catch (snapshotError) {
+        console.warn('Snapshot auto-save skipped while loading history:', snapshotError);
+      }
+
+      const snapshots = await fetchSupabaseSnapshots(channelId, days, snapshotUserId);
+
+      return res.json({
+        channelId,
+        snapshots,
+        count: snapshots.length,
+        period: `${days} days`,
+        startDate: snapshots.length > 0 ? snapshots[0].date : null,
+        endDate: snapshots.length > 0 ? snapshots[snapshots.length - 1].date : null,
+      });
+    } catch (error) {
+      console.error('Get snapshots history error:', error);
+      return res.status(500).json({ error: 'Failed to fetch snapshot history' });
+    }
   }
 
   if (path === 'api/snapshots/momentum' && req.method === 'GET') {
-    // Return placeholder momentum data for Vercel
-    return res.json({
-      momentum: {
-        week: null,
-        month: null,
-        quarter: null
-      },
-      currentMetrics: {},
-      note: 'Growth momentum tracking only available on local dev server. Use npm run dev for full features.'
-    });
+    const user = await getActiveYouTubeUser(req);
+    if (!user || !user.tokens || !user.channel?.id) {
+      return res.status(401).json({ error: 'Not authenticated or no channel connected' });
+    }
+
+    const channelId = String(user.channel.id);
+    const snapshotUserId = await resolveSnapshotUserId(req, channelId);
+
+    if (!snapshotUserId || !supabaseServer) {
+      return res.status(503).json({ error: 'Snapshot persistence unavailable. Verify Supabase auth and server env.' });
+    }
+
+    try {
+      try {
+        await saveSnapshotToSupabase(user, snapshotUserId, false);
+      } catch (snapshotError) {
+        console.warn('Snapshot auto-save skipped while loading momentum:', snapshotError);
+      }
+
+      const quarter = await fetchSupabaseSnapshots(channelId, 90, snapshotUserId);
+      const month = filterSnapshotsByDays(quarter, 30);
+      const week = filterSnapshotsByDays(quarter, 7);
+
+      return res.json({
+        channelId,
+        momentum: {
+          week: summarizeGrowth(week),
+          month: summarizeGrowth(month),
+          quarter: summarizeGrowth(quarter),
+        },
+        currentMetrics: {
+          subscribers: user.channel.statistics?.subscriberCount || 0,
+          videoCount: user.channel.statistics?.videoCount || 0,
+          totalViews: user.channel.statistics?.viewCount || 0,
+        },
+      });
+    } catch (error) {
+      console.error('Get snapshot momentum error:', error);
+      return res.status(500).json({ error: 'Failed to fetch growth momentum' });
+    }
   }
 
   // Gemini API Key Validation Endpoint (BYOK)

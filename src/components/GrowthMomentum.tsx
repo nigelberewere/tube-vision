@@ -44,6 +44,16 @@ export default function GrowthMomentum({ isConnected, className, theme = 'dark' 
     setError(null);
 
     try {
+      // Ensure today's snapshot exists before loading trend endpoints.
+      const saveResponse = await fetch('/api/snapshots/save', { method: 'POST' });
+      if (saveResponse.status === 401) {
+        setError('Reconnect your YouTube account');
+        return;
+      }
+      if (!saveResponse.ok) {
+        console.warn('Snapshot save endpoint returned non-OK status:', saveResponse.status);
+      }
+
       const [historyRes, momentumRes] = await Promise.all([
         fetch('/api/snapshots/history?days=90'),
         fetch('/api/snapshots/momentum'),
