@@ -770,7 +770,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       access_type: 'offline',
       scope: [
         'https://www.googleapis.com/auth/youtube.readonly',
-        'https://www.googleapis.com/auth/youtube.force-ssl',
+        // 'https://www.googleapis.com/auth/youtube.force-ssl', // TODO: re-enable once Google re-approves with edit/delete scopes
         'https://www.googleapis.com/auth/yt-analytics.readonly',
         'https://www.googleapis.com/auth/userinfo.email',
         'https://www.googleapis.com/auth/userinfo.profile',
@@ -834,7 +834,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         'https://www.googleapis.com/auth/userinfo.email',
         'https://www.googleapis.com/auth/userinfo.profile',
         'https://www.googleapis.com/auth/youtube.readonly',
-        'https://www.googleapis.com/auth/youtube.force-ssl',
+        // 'https://www.googleapis.com/auth/youtube.force-ssl', // TODO: re-enable once Google re-approves with edit/delete scopes
         'https://www.googleapis.com/auth/yt-analytics.readonly',
       ],
       prompt: 'consent',

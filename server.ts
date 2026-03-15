@@ -867,7 +867,7 @@ For every video provided, evaluate segments based on:
       access_type: "offline",
       scope: [
         "https://www.googleapis.com/auth/youtube.readonly",
-        "https://www.googleapis.com/auth/youtube.force-ssl",
+        // "https://www.googleapis.com/auth/youtube.force-ssl", // TODO: re-enable once Google re-approves with edit/delete scopes
         "https://www.googleapis.com/auth/yt-analytics.readonly",
         "https://www.googleapis.com/auth/userinfo.email",
         "https://www.googleapis.com/auth/userinfo.profile",
@@ -931,7 +931,7 @@ For every video provided, evaluate segments based on:
         "https://www.googleapis.com/auth/userinfo.email",
         "https://www.googleapis.com/auth/userinfo.profile",
         "https://www.googleapis.com/auth/youtube.readonly",
-        "https://www.googleapis.com/auth/youtube.force-ssl",
+        // "https://www.googleapis.com/auth/youtube.force-ssl", // TODO: re-enable once Google re-approves with edit/delete scopes
         "https://www.googleapis.com/auth/yt-analytics.readonly",
       ],
       prompt: "consent",
