@@ -87,7 +87,7 @@ export type YouTubeAccount = {
 export type SavedContent = {
   id: string;
   user_id: string;
-  content_type: 'script' | 'coach_history' | 'thumbnail' | 'keyword_research';
+  content_type: 'script' | 'coach_history' | 'thumbnail' | 'keyword_research' | 'competitor_analysis';
   title: string | null;
   data: Record<string, any>;
   created_at: string;
@@ -228,5 +228,62 @@ export async function signOut() {
   if (error) {
     console.error('Error signing out:', error);
     throw error;
+  }
+}
+
+// Singleton title used by fetchSingletonContent / upsertSingletonContent for blob-style storage.
+const SINGLETON_TITLE = '__singleton__';
+
+/**
+ * Helper: Fetch a single "singleton" content blob for a given content type.
+ * Returns null if the user is not authenticated or no row exists.
+ */
+export async function fetchSingletonContent(
+  contentType: SavedContent['content_type'],
+  title: string = SINGLETON_TITLE,
+): Promise<SavedContent | null> {
+  const user = await getCurrentUser();
+  if (!user) return null;
+
+  const { data, error } = await supabase
+    .from('saved_content')
+    .select('*')
+    .eq('user_id', user.id)
+    .eq('content_type', contentType)
+    .eq('title', title)
+    .maybeSingle();
+
+  if (error) {
+    console.error('Error fetching singleton content:', error);
+    return null;
+  }
+
+  return data as SavedContent | null;
+}
+
+/**
+ * Helper: Upsert a singleton blob row for a given content type.
+ * Creates the row on first call; updates it on subsequent calls.
+ * Silently no-ops when the user is not authenticated.
+ */
+export async function upsertSingletonContent(
+  contentType: SavedContent['content_type'],
+  data: Record<string, any>,
+  title: string = SINGLETON_TITLE,
+): Promise<void> {
+  const user = await getCurrentUser();
+  if (!user) return;
+
+  const existing = await fetchSingletonContent(contentType, title);
+
+  if (existing) {
+    await supabase
+      .from('saved_content')
+      .update({ data, updated_at: new Date().toISOString() })
+      .eq('id', existing.id);
+  } else {
+    await supabase
+      .from('saved_content')
+      .insert({ user_id: user.id, content_type: contentType, title, data });
   }
 }

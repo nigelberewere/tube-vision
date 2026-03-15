@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import Markdown from 'react-markdown';
+import { fetchSingletonContent, upsertSingletonContent } from '../lib/supabase';
 
 interface Message {
   role: 'user' | 'model';
@@ -252,6 +253,7 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const chatRef = useRef<any>(null);
   const initializedHistoryKeyRef = useRef<string | null>(null);
+  const supabaseSyncRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const historyStorageKey = useMemo(
     () => buildScopedStorageKey(JANSO_HISTORY_STORAGE_KEY, userProfile?.id),
@@ -263,6 +265,18 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages]);
+
+  // Debounced sync to Supabase — keeps chat history alive across storage clears
+  useEffect(() => {
+    if (!userProfile?.id || conversations.length === 0) return;
+    if (supabaseSyncRef.current) clearTimeout(supabaseSyncRef.current);
+    supabaseSyncRef.current = setTimeout(() => {
+      upsertSingletonContent('coach_history', { conversations }).catch(() => {});
+    }, 2000);
+    return () => {
+      if (supabaseSyncRef.current) clearTimeout(supabaseSyncRef.current);
+    };
+  }, [conversations, userProfile?.id]);
 
   useEffect(() => {
     if (initializedHistoryKeyRef.current === historyStorageKey) {
@@ -289,14 +303,36 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
       return;
     }
 
-    const initialConversation = createConversationRecord(
-      [createWelcomeMessage(channelContext)],
-      channelContext?.title,
-    );
-    setConversations([initialConversation]);
-    setActiveConversationId(initialConversation.id);
-    setMessages(initialConversation.messages);
-    persistConversations([initialConversation], historyStorageKey);
+    const setInitialConversation = () => {
+      const initialConversation = createConversationRecord(
+        [createWelcomeMessage(channelContext)],
+        channelContext?.title,
+      );
+      setConversations([initialConversation]);
+      setActiveConversationId(initialConversation.id);
+      setMessages(initialConversation.messages);
+      persistConversations([initialConversation], historyStorageKey);
+    };
+
+    // localStorage is empty — try restoring from Supabase (survives cookie/storage clears)
+    if (userProfile?.id) {
+      fetchSingletonContent('coach_history').then((row) => {
+        const fromCloud = parseStoredConversations(
+          row?.data?.conversations ? JSON.stringify(row.data.conversations) : null,
+        );
+        if (fromCloud.length > 0) {
+          persistConversations(fromCloud, historyStorageKey);
+          setConversations(fromCloud);
+          setActiveConversationId(fromCloud[0].id);
+          setMessages(fromCloud[0].messages);
+        } else {
+          setInitialConversation();
+        }
+      }).catch(() => setInitialConversation());
+      return;
+    }
+
+    setInitialConversation();
   }, [historyStorageKey, userProfile?.id, channelContext]);
 
   useEffect(() => {

@@ -34,6 +34,7 @@ import {
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { ShimmerCard, ShimmerVideoCard } from './Shimmer';
+import { fetchSingletonContent, upsertSingletonContent } from '../lib/supabase';
 
 interface CompetitorChannel {
   id: string;
@@ -112,22 +113,32 @@ export default function CompetitorAnalysis() {
   const [gapAnalysisError, setGapAnalysisError] = useState<string | null>(null);
   const [loadingGapAnalysis, setLoadingGapAnalysis] = useState(false);
 
-  // Load tracked competitors from localStorage
+  // Load tracked competitors from localStorage, falling back to Supabase after storage clears
   useEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
       try {
         setTrackedCompetitors(JSON.parse(stored));
+        return;
       } catch (e) {
         console.error('Failed to parse tracked competitors:', e);
       }
     }
+    // localStorage empty — try Supabase
+    fetchSingletonContent('competitor_analysis').then((row) => {
+      const competitors = row?.data?.competitors;
+      if (Array.isArray(competitors) && competitors.length > 0) {
+        setTrackedCompetitors(competitors);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(competitors));
+      }
+    }).catch(() => {});
   }, []);
 
-  // Save tracked competitors to localStorage
+  // Save tracked competitors to localStorage and Supabase
   const saveTrackedCompetitors = (competitors: CompetitorChannel[]) => {
     setTrackedCompetitors(competitors);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(competitors));
+    upsertSingletonContent('competitor_analysis', { competitors }).catch(() => {});
   };
 
   // Toggle tracking for a competitor
