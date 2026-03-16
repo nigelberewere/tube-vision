@@ -1,20 +1,22 @@
 import { useEffect, useState } from "react";
 
-import { CTASection } from "@/src/components/CTASection";
-import { CookieConsentBanner } from "@/src/components/CookieConsentBanner";
-import { FAQ } from "@/src/components/FAQ";
-import { FeaturePage, type FeatureSlug } from "@/src/components/FeaturePage";
-import { GuidePage, type GuideSlug } from "@/src/components/GuidePage";
 import { AboutPage } from "@/src/components/AboutPage";
-import { UseCasePage, type UseCaseSlug } from "@/src/components/UseCasePage";
+import { BlogHub } from "@/src/components/BlogHub";
+import { BlogPost } from "@/src/components/BlogPost";
 import { ContactPage } from "@/src/components/ContactPage";
+import { CookieConsentBanner } from "@/src/components/CookieConsentBanner";
+import { CTASection } from "@/src/components/CTASection";
+import { FAQ } from "@/src/components/FAQ";
 import { FAQPage } from "@/src/components/FAQPage";
+import { FeaturePage, type FeatureSlug } from "@/src/components/FeaturePage";
 import { Features } from "@/src/components/Features";
 import { Footer } from "@/src/components/Footer";
+import { GuidePage, type GuideSlug } from "@/src/components/GuidePage";
 import { Hero } from "@/src/components/Hero";
 import { LegalViewer } from "@/src/components/LegalViewer";
 import { Navigation } from "@/src/components/Navigation";
 import { Pricing } from "@/src/components/Pricing";
+import { UseCasePage, type UseCaseSlug } from "@/src/components/UseCasePage";
 import { getAuthUrl } from "@/src/lib/config";
 import { cn } from "@/src/lib/utils";
 
@@ -31,7 +33,9 @@ type Page =
   | "about"
   | "usecase"
   | "contact"
-  | "faq";
+  | "faq"
+  | "blog"
+  | "blog_post";
 
 const FEATURE_SLUGS = ["script-architect", "viral-clip-creator", "voice-over-studio", "youtube-seo"] as const;
 const GUIDE_SLUGS = ["api-setup", "platform-workflow"] as const;
@@ -59,6 +63,12 @@ function getUseCaseSlugFromPath(pathname: string): UseCaseSlug | null {
   return (USECASE_SLUGS as readonly string[]).includes(slug) ? (slug as UseCaseSlug) : null;
 }
 
+function getBlogPostSlugFromPath(pathname: string): string | null {
+  const match = pathname.match(/^\/blog\/([^/]+)$/);
+  if (!match) return null;
+  return match[1];
+}
+
 function getPageFromPath(pathname: string): Page {
   if (pathname === "/privacy") return "privacy";
   if (pathname === "/terms") return "terms";
@@ -68,6 +78,8 @@ function getPageFromPath(pathname: string): Page {
   if (getUseCaseSlugFromPath(pathname)) return "usecase";
   if (pathname === "/contact") return "contact";
   if (pathname === "/faq") return "faq";
+  if (pathname === "/blog") return "blog";
+  if (getBlogPostSlugFromPath(pathname)) return "blog_post";
   return "home";
 }
 
@@ -81,6 +93,9 @@ export default function App() {
   );
   const [currentUseCaseSlug, setCurrentUseCaseSlug] = useState<UseCaseSlug | null>(
     () => getUseCaseSlugFromPath(window.location.pathname),
+  );
+  const [currentBlogPostSlug, setCurrentBlogPostSlug] = useState<string | null>(
+    () => getBlogPostSlugFromPath(window.location.pathname),
   );
   const [theme, setTheme] = useState<Theme>(() => {
     const storedTheme = window.localStorage.getItem(THEME_STORAGE_KEY);
@@ -100,6 +115,7 @@ export default function App() {
       setCurrentFeatureSlug(getFeatureSlugFromPath(path));
       setCurrentGuideSlug(getGuideSlugFromPath(path));
       setCurrentUseCaseSlug(getUseCaseSlugFromPath(path));
+      setCurrentBlogPostSlug(getBlogPostSlugFromPath(path));
     };
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
@@ -117,6 +133,7 @@ export default function App() {
     setCurrentFeatureSlug(null);
     setCurrentGuideSlug(null);
     setCurrentUseCaseSlug(null);
+    setCurrentBlogPostSlug(null);
     window.scrollTo({ top: 0, behavior: "auto" });
   };
 
@@ -170,12 +187,34 @@ export default function App() {
     setCurrentFeatureSlug(null);
     setCurrentGuideSlug(null);
     setCurrentUseCaseSlug(null);
+    setCurrentBlogPostSlug(null);
     window.scrollTo({ top: 0, behavior: "auto" });
   };
 
   const goToFAQ = () => {
     window.history.pushState({}, "", "/faq");
     setPage("faq");
+    setCurrentFeatureSlug(null);
+    setCurrentGuideSlug(null);
+    setCurrentUseCaseSlug(null);
+    setCurrentBlogPostSlug(null);
+    window.scrollTo({ top: 0, behavior: "auto" });
+  };
+
+  const goToBlog = () => {
+    window.history.pushState({}, "", "/blog");
+    setPage("blog");
+    setCurrentFeatureSlug(null);
+    setCurrentGuideSlug(null);
+    setCurrentUseCaseSlug(null);
+    setCurrentBlogPostSlug(null);
+    window.scrollTo({ top: 0, behavior: "auto" });
+  };
+
+  const goToBlogPost = (slug: string) => {
+    window.history.pushState({}, "", `/blog/${slug}`);
+    setPage("blog_post");
+    setCurrentBlogPostSlug(slug);
     setCurrentFeatureSlug(null);
     setCurrentGuideSlug(null);
     setCurrentUseCaseSlug(null);
@@ -360,9 +399,66 @@ export default function App() {
           onNavigateToUseCase={goToUseCase}
           onNavigateToContact={goToContact}
           onNavigateToFAQ={goToFAQ}
+          onNavigateToBlog={goToBlog}
         />
         <main className="relative">
           <FAQPage isDark={isDark} onBack={goHome} />
+        </main>
+        <Footer isDark={isDark} />
+        <CookieConsentBanner theme={isDark ? "dark" : "light"} />
+      </div>
+    );
+  }
+
+  if (page === "blog") {
+    return (
+      <div className={cn(
+        "relative min-h-screen overflow-x-clip transition-colors duration-500",
+        isDark ? "bg-[#050505] text-slate-200" : "bg-slate-100 text-slate-900",
+      )}>
+        <Navigation
+          theme={theme}
+          isDark={isDark}
+          onToggleTheme={() => setTheme((prev) => (prev === "dark" ? "light" : "dark"))}
+          onPrimaryAction={openDashboardAuth}
+          onNavigateToFeature={goToFeature}
+          onNavigateToGuide={goToGuide}
+          onNavigateToAbout={goToAbout}
+          onNavigateToUseCase={goToUseCase}
+          onNavigateToContact={goToContact}
+          onNavigateToFAQ={goToFAQ}
+          onNavigateToBlog={goToBlog}
+        />
+        <main className="relative">
+          <BlogHub isDark={isDark} onBack={goHome} onNavigateToPost={goToBlogPost} />
+        </main>
+        <Footer isDark={isDark} />
+        <CookieConsentBanner theme={isDark ? "dark" : "light"} />
+      </div>
+    );
+  }
+
+  if (page === "blog_post" && currentBlogPostSlug) {
+    return (
+      <div className={cn(
+        "relative min-h-screen overflow-x-clip transition-colors duration-500",
+        isDark ? "bg-[#050505] text-slate-200" : "bg-slate-100 text-slate-900",
+      )}>
+        <Navigation
+          theme={theme}
+          isDark={isDark}
+          onToggleTheme={() => setTheme((prev) => (prev === "dark" ? "light" : "dark"))}
+          onPrimaryAction={openDashboardAuth}
+          onNavigateToFeature={goToFeature}
+          onNavigateToGuide={goToGuide}
+          onNavigateToAbout={goToAbout}
+          onNavigateToUseCase={goToUseCase}
+          onNavigateToContact={goToContact}
+          onNavigateToFAQ={goToFAQ}
+          onNavigateToBlog={goToBlog}
+        />
+        <main className="relative">
+          <BlogPost slug={currentBlogPostSlug} isDark={isDark} onBack={goToBlog} onConnect={openDashboardAuth} />
         </main>
         <Footer isDark={isDark} />
         <CookieConsentBanner theme={isDark ? "dark" : "light"} />

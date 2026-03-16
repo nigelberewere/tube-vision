@@ -36,6 +36,7 @@ type NavigationProps = {
   onNavigateToUseCase?: (slug: string) => void;
   onNavigateToContact?: () => void;
   onNavigateToFAQ?: () => void;
+  onNavigateToBlog?: () => void;
 };
 
 // const DOCS_URL = "https://docs.janso.studio"; // TODO: Uncomment when docs are available
@@ -64,6 +65,7 @@ export function Navigation({
   onNavigateToUseCase,
   onNavigateToContact,
   onNavigateToFAQ,
+  onNavigateToBlog,
 }: NavigationProps) {
   const logoSrc = getDashboardAssetUrl("/favicon.svg")
 
@@ -184,6 +186,14 @@ export function Navigation({
                   <span className="text-sm font-medium">Contact & Support</span>
                   <span className={cn("text-xs", isDark ? "text-slate-400" : "text-slate-500")}>Feature requests, bug reports</span>
                 </button>
+                <div className={cn("mt-1 border-t pt-1", isDark ? "border-white/10" : "border-slate-100")}>
+                  <button type="button" onClick={() => onNavigateToBlog && onNavigateToBlog()}
+                    className={cn("flex w-full flex-col items-start rounded-xl px-3 py-2.5 text-left transition-colors", isDark ? "hover:bg-white/[0.07]" : "hover:bg-slate-50")}
+                  >
+                    <span className="text-sm font-medium text-indigo-500 font-semibold">The Growth Hub</span>
+                    <span className={cn("text-xs", isDark ? "text-slate-400" : "text-slate-500")}>Read our latest articles</span>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
