@@ -67,7 +67,7 @@ export function Hero({ isDark, onConnect }: HeroProps) {
           </div>
 
           <div className={cn("text-sm", isDark ? "text-slate-400" : "text-slate-600")}>
-            Trusted by <span className="font-semibold text-green-500">12,000+</span> creators across gaming,
+            Trusted by <span className="font-semibold text-green-500">forward-thinking</span> creators across gaming,
             education, tech, and lifestyle.
           </div>
         </motion.div>

@@ -115,7 +115,7 @@ const CONFIGS: Record<FeatureSlug, FeaturePageConfig> = {
       },
     ],
     ctaHeadline: "Write Your Next Script in Under a Minute",
-    ctaSubheadline: "Join 12,000+ creators who use Janso Studio to plan, write, and publish faster.",
+    ctaSubheadline: "Join forward-thinking creators who use Janso Studio to plan, write, and publish faster.",
   },
 
   "viral-clip-creator": {

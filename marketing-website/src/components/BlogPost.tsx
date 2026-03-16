@@ -17,49 +17,96 @@ type BlogPostProps = {
 const MOCK_CONTENT: Record<string, React.ReactNode> = {
   "youtube-keyword-research-gemini": (
     <>
-      <p>Finding the right keywords can be the difference between a video that flatlines at 50 views and one that drives evergreen traffic for years. But most creators approach SEO the wrong way—they target massive, highly competitive terms like "gaming setup" where they have zero chance of ranking.</p>
+      <p className="lead">Finding the right keywords can be the difference between a video that flatlines at 50 views and one that drives evergreen traffic for years. But most creators approach SEO the wrong way—they target massive, highly competitive terms like "gaming setup" where they have zero chance of ranking.</p>
+      
       <h2>The Problem with Traditional Keyword Research</h2>
-      <p>Traditional tools give you search volume and a generic "competition" score. They don't look at semantic relationships, and they don't analyze your specific channel's authority. This leads to creators wasting hours optimizing for the wrong terms.</p>
+      <p>Traditional tools give you search volume and a generic "competition" score. They don't look at semantic relationships, and they don't analyze your specific channel's authority. This leads to creators wasting hours optimizing for the wrong terms. If your channel has 500 subscribers, trying to rank for a keyword that MKBHD owns is a fool's errand.</p>
+      
+      <p>What you actually need is <strong>semantic search optimization</strong>. YouTube doesn't just read your tags anymore; it uses AI to understand the entire context of your video. It transcribes the audio, reads the on-screen text, and analyzes the viewer's journey before and after your video.</p>
+      
       <h2>Enter Gemini AI</h2>
-      <p>With Janso Studio's SEO Optimizer, we use Gemini to perform semantic keyword clustering. Instead of just giving you the keyword, we provide:</p>
+      <p>With Janso Studio's SEO Optimizer, we use Gemini to perform semantic keyword clustering. Instead of just giving you a single target keyword, we provide a complete optimization roadmap:</p>
       <ul>
-        <li><strong>Primary target keywords:</strong> The exact phrase your title must include.</li>
-        <li><strong>Semantic variations:</strong> What else searchers are typing (e.g., "cheap gaming desk" vs "budget pc setup").</li>
-        <li><strong>Competitor Gaps:</strong> Keywords your competitors rank for, but you haven't covered yet.</li>
+        <li><strong>Primary target keywords:</strong> The exact phrase your title must include for maximum click-through rate.</li>
+        <li><strong>Semantic variations:</strong> What else searchers are typing (e.g., "cheap gaming desk" vs "budget pc setup"). Using these naturally in your script helps Google understand relevance.</li>
+        <li><strong>Competitor Gaps:</strong> Keywords your competitors rank for, but you haven't covered yet. These are your lowest-hanging fruits.</li>
       </ul>
-      <p>By leveraging AI, you don't just guess what the algorithm wants. You build a data-driven content library designed to rank.</p>
+      
+      <h2>How to Implement Semantic SEO Today</h2>
+      <p>To start ranking faster, you need to align your content with user intent. Here is a three-step framework you can apply to your next video:</p>
+      
+      <ol>
+        <li><strong>Identify the Root Problem:</strong> People don't search for "how to fix a pipe"; they search for "stop leaking sink fast." Find the pain point.</li>
+        <li><strong>Use the "Autocomplete Plus" Method:</strong> Type your idea into YouTube, but add letters (e.g., "video editing for h..."). Gemini does this at scale, finding long-tail gems.</li>
+        <li><strong>Write to Google, Speak to Humans:</strong> Pack your description with context, but keep your video intro fast and human. The AI handles the metadata; you handle the delivery.</li>
+      </ol>
+      
+      <blockquote>
+        <p>"Don't fight the algorithm. Understand what the algorithm is trying to do—serve the right video to the right viewer—and give it the exact data it needs to choose you."</p>
+      </blockquote>
+      
+      <p>By leveraging AI, you don't just guess what the algorithm wants. You build a data-driven content library designed to rank, accumulate watch time, and grow your channel while you sleep.</p>
     </>
   ),
   "structuring-scripts-retention": (
     <>
-      <p>If a viewer clicks off your video in the first three seconds, it doesn't matter how good your thumbnail was. YouTube's algorithm relies heavily on Average View Duration (AVD) to decide whether to push your video to a broader audience.</p>
+      <p className="lead">If a viewer clicks off your video in the first three seconds, it doesn't matter how good your thumbnail was. YouTube's algorithm relies heavily on Average View Duration (AVD) to decide whether to push your video to a broader audience.</p>
+      
       <h2>The Hook: Your Most Important 15 Seconds</h2>
-      <p>Never start a video with "Hey guys, welcome back to the channel." Instead, use the AIDA framework (Attention, Interest, Desire, Action) built into Janso Studio's Script Architect.</p>
+      <p>Never start a video with "Hey guys, welcome back to the channel." The modern viewer's attention span is incredibly fragile. Instead, use the AIDA framework (Attention, Interest, Desire, Action) built into Janso Studio's Script Architect.</p>
+      
       <blockquote>
-        <p>"A great hook visually and verbally confirms that clicking the thumbnail was the right decision."</p>
+        <p>"A great hook visually and verbally confirms that clicking the thumbnail was the right decision. It pays off the promise immediately."</p>
       </blockquote>
-      <h2>Pattern Interrupts</h2>
-      <p>Even the best content can feel monotonous if the pacing never changes. A pattern interrupt is anything that breaks the rhythm of a video:</p>
+      
+      <p>A strong hook does three things:</p>
       <ul>
-        <li>Changing the camera angle or focal length.</li>
-        <li>Adding a B-roll sequence or sound effect.</li>
-        <li>Shifting the tone of voice or narrative pace.</li>
+        <li><strong>Restates the premise:</strong> Affirm they are in the right place.</li>
+        <li><strong>Raises the stakes:</strong> Explain why watching to the end is crucial.</li>
+        <li><strong>Opens a loop:</strong> Tease a payoff that won't happen until later in the video.</li>
       </ul>
-      <p>Our AI recommends placing a pattern interrupt every 90 seconds to reset the viewer's attention span and keep them engaged through the midpoint drop-off.</p>
+      
+      <h2>Pattern Interrupts: Resetting Attention</h2>
+      <p>Even the best content can feel monotonous if the pacing never changes. A pattern interrupt is anything that breaks the rhythm of a video. Think of it as a reset button for the viewer's brain.</p>
+      
+      <p>Effective pattern interrupts include:</p>
+      <ul>
+        <li>Changing the camera angle or focal length suddenly.</li>
+        <li>Adding a B-roll sequence, text-on-screen, or a sound effect.</li>
+        <li>Shifting the tone of voice or narrative pace (e.g., going from energetic to a quiet, serious whisper).</li>
+        <li>Cutting to a completely different location or using a zoom transition.</li>
+      </ul>
+      
+      <p>Our Script Architect AI analyzes your script's density and automatically recommends placing a pattern interrupt every 60 to 90 seconds. This is precisely the window where analytics show the highest probability of viewer drop-off.</p>
+      
+      <h2>The "Payoff" and the End Screen</h2>
+      <p>Finally, how you end the video is just as important as how you start. Don't say "That's all for today" or "In conclusion"—viewers will instantly close the tab. Instead, seamlessly transition from your final point of value directly into an End Screen recommendation.</p>
+      
+      <p>By maintaining narrative momentum right up until the final frame, you drastically increase your chances of starting a binge session, which is the holy grail of YouTube growth.</p>
     </>
   ),
   "product-update-v2": (
     <>
-      <p>Today marks the biggest milestone in Janso Studio's history. We are thrilled to announce version 2.0, a complete reimagining of the creator workflow.</p>
+      <p className="lead">Today marks the biggest milestone in Janso Studio's history. We are thrilled to announce version 2.0, a complete reimagining of the creator workflow, built entirely around speed, privacy, and seamless integration.</p>
+      
       <h2>What's New in v2.0?</h2>
-      <p>We've completely overhauled the interface based on feedback from over 12,000 creators. The biggest change? A unified dashboard.</p>
-      <ul>
-        <li><strong>Seamless Pipeline:</strong> Generate an idea, write the script via Script Architect, and send it directly to Voice Over Studio without ever copy-pasting text.</li>
-        <li><strong>Client-Side FFmpeg Upgrades:</strong> The Viral Clip Creator is now 40% faster at processing heavy 4K files, entirely within your browser for ultimate privacy.</li>
-        <li><strong>New AI Voices:</strong> 5 new expressive voice characters added to our text-to-speech engine, optimized specifically for fast-paced short-form content.</li>
-      </ul>
-      <h2>Looking Ahead</h2>
-      <p>We're not stopping here. Next quarter, we're focusing on deep analytics integrations so you can see your retention graphs directly alongside your script outlines. Stay tuned!</p>
+      <p>We've completely overhauled the interface based on feedback from our early access creators. The problem was clear: jumping between five different tools ruins the creative flow. The solution? A unified, zero-friction dashboard.</p>
+      
+      <h3>1. The Seamless Pipeline</h3>
+      <p>In v1.0, you generated a script, copied it, opened the voiceover tool, pasted it, and exported. In v2.0, those tools talk to each other. Generate an idea, write the script via Script Architect, and send it directly to Voice Over Studio with a single click. The pacing, emotional cues, and paragraph breaks are preserved automatically.</p>
+      
+      <h3>2. Client-Side FFmpeg Upgrades</h3>
+      <p>The Viral Clip Creator is now a beast. We've optimized our WebAssembly implementation, making it <strong>40% faster</strong> at processing heavy 4K files. The best part? It still runs entirely within your browser. You get desktop-level performance with ultimate data privacy, and zero upload wait times.</p>
+      
+      <h3>3. Expanded AI Voice Library</h3>
+      <p>We've added 5 new expressive voice characters to our text-to-speech engine. These aren't generic corporate voices; they are optimized specifically for fast-paced short-form content, featuring natural breaths, dynamic emphasis, and pacing controls that understand comedic timing.</p>
+      
+      <h2>The 'Bring Your Own Key' (BYOK) Philosophy</h2>
+      <p>We believe AI should be powerful and transparent. Version 2.0 doubles down on our BYOK integrations. By using your own Google Gemini API key, you bypass platform rate limits, pay base costs, and guarantee that your scripts remain your private intellectual property.</p>
+      
+      <h2>Looking Ahead to Q3</h2>
+      <p>We're not stopping here. Next quarter, we're focusing on deep analytics integrations. Imagine seeing your YouTube retention graphs directly alongside your script outlines, so the AI can learn exactly which lines caused viewers to stay or leave.</p>
+      <p>Welcome to the future of YouTube creation. Let's get building.</p>
     </>
   )
 };
