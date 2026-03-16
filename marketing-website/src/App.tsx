@@ -369,42 +369,6 @@ export default function App() {
       </div>
     );
   }
-    return (
-      <div
-        className={cn(
-          "relative min-h-screen overflow-x-clip transition-colors duration-500",
-          isDark ? "bg-[#050505] text-slate-200" : "bg-slate-100 text-slate-900",
-        )}
-      >
-        <div
-          aria-hidden="true"
-          className={cn(
-            "pointer-events-none absolute inset-0",
-            isDark
-              ? "[background:radial-gradient(circle_at_12%_18%,rgba(99,102,241,0.22),transparent_28%),radial-gradient(circle_at_88%_14%,rgba(239,68,68,0.2),transparent_30%),radial-gradient(circle_at_52%_82%,rgba(16,185,129,0.16),transparent_32%)]"
-              : "[background:radial-gradient(circle_at_12%_18%,rgba(99,102,241,0.14),transparent_28%),radial-gradient(circle_at_88%_14%,rgba(239,68,68,0.12),transparent_30%),radial-gradient(circle_at_52%_82%,rgba(16,185,129,0.1),transparent_32%)]",
-          )}
-        />
-        <Navigation
-          theme={theme}
-          isDark={isDark}
-          onToggleTheme={() => setTheme((prev) => (prev === "dark" ? "light" : "dark"))}
-          onPrimaryAction={openDashboardAuth}
-          onNavigateToFeature={goToFeature}
-        />
-        <main className="relative">
-          <FeaturePage
-            slug={currentFeatureSlug}
-            isDark={isDark}
-            onBack={goHome}
-            onConnect={openDashboardAuth}
-          />
-        </main>
-        <Footer isDark={isDark} />
-        <CookieConsentBanner theme={isDark ? "dark" : "light"} />
-      </div>
-    );
-  }
 
   return (
     <div
