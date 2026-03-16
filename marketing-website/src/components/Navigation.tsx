@@ -1,5 +1,7 @@
+import { ChevronDown } from "lucide-react";
 import { motion } from "motion/react";
 
+import { type FeatureSlug } from "@/src/components/FeaturePage";
 import { ThemeToggle } from "@/src/components/ThemeToggle";
 import { getDashboardAssetUrl } from "@/src/lib/config";
 import { cn } from "@/src/lib/utils";
@@ -28,14 +30,26 @@ type NavigationProps = {
   isDark: boolean;
   onToggleTheme: () => void;
   onPrimaryAction: () => void;
+  onNavigateToFeature: (slug: FeatureSlug) => void;
+  onNavigateToGuide?: (slug: string) => void;
+  onNavigateToAbout?: () => void;
+  onNavigateToUseCase?: (slug: string) => void;
+  onNavigateToContact?: () => void;
+  onNavigateToFAQ?: () => void;
 };
 
 // const DOCS_URL = "https://docs.janso.studio"; // TODO: Uncomment when docs are available
 
-const links = [
-  { label: "Features", href: "#features", external: false },
+const featureLinks: { label: string; slug: FeatureSlug; description: string }[] = [
+  { label: "AI Script Architect", slug: "script-architect", description: "Overcome writer's block instantly" },
+  { label: "Viral Clip Creator", slug: "viral-clip-creator", description: "Long-form to Shorts in minutes" },
+  { label: "Voice Over Studio", slug: "voice-over-studio", description: "Studio-quality AI voices" },
+  { label: "YouTube SEO & Keywords", slug: "youtube-seo", description: "Rank higher with Gemini AI" },
+];
+
+const navLinks = [
   { label: "Pricing", href: "#pricing", external: false },
-  { label: "About", href: "#about", external: false }
+  { label: "About", href: "#about", external: false },
   // { label: "Docs", href: DOCS_URL, external: true } // TODO: Re-add when docs site is ready
 ];
 
@@ -43,7 +57,8 @@ export function Navigation({
   theme,
   isDark,
   onToggleTheme,
-  onPrimaryAction
+  onPrimaryAction,
+  onNavigateToFeature,
 }: NavigationProps) {
   const logoSrc = getDashboardAssetUrl("/favicon.svg")
 
@@ -67,20 +82,148 @@ export function Navigation({
         </a>
 
         <div className="hidden items-center gap-6 md:flex">
-          {links.map((link) => (
-            <a
-              key={link.label}
-              href={link.href}
-              target={link.external ? "_blank" : undefined}
-              rel={link.external ? "noopener noreferrer" : undefined}
+          {/* Features dropdown */}
+          <div className="group relative">
+            <button
+              type="button"
               className={cn(
-                "text-sm transition-colors",
-                isDark ? "text-slate-300 hover:text-white" : "text-slate-700 hover:text-slate-900"
+                "inline-flex items-center gap-1 text-sm transition-colors",
+                isDark ? "text-slate-300 hover:text-white" : "text-slate-700 hover:text-slate-900",
               )}
             >
-              {link.label}
-            </a>
-          ))}
+              Features
+              <ChevronDown className="h-3.5 w-3.5 opacity-60 transition-transform duration-200 group-hover:rotate-180" />
+            </button>
+            <div className="pointer-events-none absolute left-0 top-full z-50 pt-3 opacity-0 transition-all duration-200 group-hover:pointer-events-auto group-hover:opacity-100">
+              <div
+                className={cn(
+                  "w-64 rounded-2xl border p-1.5 shadow-xl",
+                  isDark ? "glass-card bg-[#0a0a0a]/90" : "border-slate-200 bg-white",
+                )}
+              >
+                {featureLinks.map((fl) => (
+                  <button
+                    key={fl.slug}
+                    type="button"
+                    onClick={() => onNavigateToFeature(fl.slug)}
+                    className={cn(
+                      "flex w-full flex-col items-start rounded-xl px-3 py-2.5 text-left transition-colors",
+                      isDark ? "hover:bg-white/[0.07]" : "hover:bg-slate-50",
+                    )}
+                  >
+                    <span className="text-sm font-medium">{fl.label}</span>
+                    <span className={cn("text-xs", isDark ? "text-slate-400" : "text-slate-500")}>{fl.description}</span>
+                  </button>
+                ))}
+                <div className={cn("mt-1 border-t pt-1", isDark ? "border-white/10" : "border-slate-100")}>\
+                  <a
+                    href="#features"
+                    className={cn(
+                      "flex w-full items-center gap-1 rounded-xl px-3 py-2 text-xs transition-colors",
+                      isDark ? "text-slate-400 hover:text-slate-200" : "text-slate-500 hover:text-slate-700",
+                    )}
+                  >
+                    View all features
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Learn dropdown */}
+          <div className="group relative">
+            <button
+              type="button"
+              className={cn(
+                "inline-flex items-center gap-1 text-sm transition-colors",
+                isDark ? "text-slate-300 hover:text-white" : "text-slate-700 hover:text-slate-900",
+              )}
+            >
+              Learn
+              <ChevronDown className="h-3.5 w-3.5 opacity-60 transition-transform duration-200 group-hover:rotate-180" />
+            </button>
+            <div className="pointer-events-none absolute left-0 top-full z-50 pt-3 opacity-0 transition-all duration-200 group-hover:pointer-events-auto group-hover:opacity-100">
+              <div
+                className={cn(
+                  "w-64 rounded-2xl border p-1.5 shadow-xl",
+                  isDark ? "glass-card bg-[#0a0a0a]/90" : "border-slate-200 bg-white",
+                )}
+              >
+                <button type="button" onClick={() => onNavigateToGuide && onNavigateToGuide("api-setup")}
+                  className={cn("flex w-full flex-col items-start rounded-xl px-3 py-2.5 text-left transition-colors", isDark ? "hover:bg-white/[0.07]" : "hover:bg-slate-50")}
+                >
+                  <span className="text-sm font-medium">Gemini API Setup Guide</span>
+                  <span className={cn("text-xs", isDark ? "text-slate-400" : "text-slate-500")}>How to get your free key</span>
+                </button>
+                <button type="button" onClick={() => onNavigateToGuide && onNavigateToGuide("platform-workflow")}
+                  className={cn("flex w-full flex-col items-start rounded-xl px-3 py-2.5 text-left transition-colors", isDark ? "hover:bg-white/[0.07]" : "hover:bg-slate-50")}
+                >
+                  <span className="text-sm font-medium">Platform Workflow</span>
+                  <span className={cn("text-xs", isDark ? "text-slate-400" : "text-slate-500")}>From idea to SEO</span>
+                </button>
+                <button type="button" onClick={() => onNavigateToAbout && onNavigateToAbout()}
+                  className={cn("flex w-full flex-col items-start rounded-xl px-3 py-2.5 text-left transition-colors", isDark ? "hover:bg-white/[0.07]" : "hover:bg-slate-50")}
+                >
+                  <span className="text-sm font-medium">About Us & Vision</span>
+                  <span className={cn("text-xs", isDark ? "text-slate-400" : "text-slate-500")}>The story behind Janso Studio</span>
+                </button>
+                <button type="button" onClick={() => onNavigateToFAQ && onNavigateToFAQ()}
+                  className={cn("flex w-full flex-col items-start rounded-xl px-3 py-2.5 text-left transition-colors", isDark ? "hover:bg-white/[0.07]" : "hover:bg-slate-50")}
+                >
+                  <span className="text-sm font-medium">FAQ</span>
+                  <span className={cn("text-xs", isDark ? "text-slate-400" : "text-slate-500")}>Privacy, browser-side, more</span>
+                </button>
+                <button type="button" onClick={() => onNavigateToContact && onNavigateToContact()}
+                  className={cn("flex w-full flex-col items-start rounded-xl px-3 py-2.5 text-left transition-colors", isDark ? "hover:bg-white/[0.07]" : "hover:bg-slate-50")}
+                >
+                  <span className="text-sm font-medium">Contact & Support</span>
+                  <span className={cn("text-xs", isDark ? "text-slate-400" : "text-slate-500")}>Feature requests, bug reports</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Use Cases dropdown */}
+          <div className="group relative">
+            <button
+              type="button"
+              className={cn(
+                "inline-flex items-center gap-1 text-sm transition-colors",
+                isDark ? "text-slate-300 hover:text-white" : "text-slate-700 hover:text-slate-900",
+              )}
+            >
+              Use Cases
+              <ChevronDown className="h-3.5 w-3.5 opacity-60 transition-transform duration-200 group-hover:rotate-180" />
+            </button>
+            <div className="pointer-events-none absolute left-0 top-full z-50 pt-3 opacity-0 transition-all duration-200 group-hover:pointer-events-auto group-hover:opacity-100">
+              <div
+                className={cn(
+                  "w-64 rounded-2xl border p-1.5 shadow-xl",
+                  isDark ? "glass-card bg-[#0a0a0a]/90" : "border-slate-200 bg-white",
+                )}
+              >
+                <button type="button" onClick={() => onNavigateToUseCase && onNavigateToUseCase("educators")}
+                  className={cn("flex w-full flex-col items-start rounded-xl px-3 py-2.5 text-left transition-colors", isDark ? "hover:bg-white/[0.07]" : "hover:bg-slate-50")}
+                >
+                  <span className="text-sm font-medium">For Educators</span>
+                  <span className={cn("text-xs", isDark ? "text-slate-400" : "text-slate-500")}>Tutorials, lessons, accessibility</span>
+                </button>
+                <button type="button" onClick={() => onNavigateToUseCase && onNavigateToUseCase("gaming")}
+                  className={cn("flex w-full flex-col items-start rounded-xl px-3 py-2.5 text-left transition-colors", isDark ? "hover:bg-white/[0.07]" : "hover:bg-slate-50")}
+                >
+                  <span className="text-sm font-medium">For Gaming Channels</span>
+                  <span className={cn("text-xs", isDark ? "text-slate-400" : "text-slate-500")}>Highlights, Shorts, commentary</span>
+                </button>
+                <button type="button" onClick={() => onNavigateToUseCase && onNavigateToUseCase("faceless")}
+                  className={cn("flex w-full flex-col items-start rounded-xl px-3 py-2.5 text-left transition-colors", isDark ? "hover:bg-white/[0.07]" : "hover:bg-slate-50")}
+                >
+                  <span className="text-sm font-medium">For Faceless Channels</span>
+                  <span className={cn("text-xs", isDark ? "text-slate-400" : "text-slate-500")}>Idea generation, AI voiceover</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
         </div>
 
         <div className="flex items-center gap-2 md:gap-3">

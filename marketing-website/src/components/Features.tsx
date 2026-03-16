@@ -1,5 +1,6 @@
 import {
   BarChart4,
+  ChevronRight,
   FileText,
   GraduationCap,
   ImageIcon,
@@ -10,10 +11,12 @@ import {
 } from "lucide-react";
 import { motion } from "motion/react";
 
+import { type FeatureSlug } from "@/src/components/FeaturePage";
 import { cn } from "@/src/lib/utils";
 
 type FeaturesProps = {
   isDark: boolean;
+  onNavigateToFeature: (slug: FeatureSlug) => void;
 };
 
 type FeatureItem = {
@@ -21,60 +24,65 @@ type FeatureItem = {
   description: string;
   icon: typeof Mic;
   accentClass: string;
+  learnMoreSlug?: FeatureSlug;
 };
 
 const features: FeatureItem[] = [
   {
-    title: "AI YouTube Script Generator for Creators",
+    title: "AI Voice Over Studio for YouTube Creators",
     description: "Generate expressive AI voiceovers with tone controls, pacing, and emotion profiles tuned for audience retention.",
     icon: Mic,
-    accentClass: "from-blue-500 to-indigo-500"
+    accentClass: "from-blue-500 to-indigo-500",
+    learnMoreSlug: "voice-over-studio",
   },
   {
     title: "YouTube Viral Clip Extractor AI Tool",
     description: "Extract viral-ready short clips from long-form videos using scene understanding and hook detection.",
     icon: Play,
-    accentClass: "from-red-500 to-orange-500"
+    accentClass: "from-red-500 to-orange-500",
+    learnMoreSlug: "viral-clip-creator",
   },
   {
     title: "YouTube Thumbnail Idea Generator AI",
     description: "Run heatmap analysis and A/B test thumbnail concepts before publishing your next high-stakes upload.",
     icon: ImageIcon,
-    accentClass: "from-pink-500 to-red-500"
+    accentClass: "from-pink-500 to-red-500",
   },
   {
     title: "YouTube SEO Optimizer for Video Titles",
     description: "Improve discoverability with optimized titles, descriptions, tags, and semantic keyword coverage.",
     icon: Search,
-    accentClass: "from-indigo-500 to-purple-500"
+    accentClass: "from-indigo-500 to-purple-500",
+    learnMoreSlug: "youtube-seo",
   },
   {
     title: "YouTube Analytics Dashboard",
     description: "Track growth trends, retention curves, and content velocity with creator-focused metrics.",
     icon: BarChart4,
-    accentClass: "from-green-500 to-emerald-500"
+    accentClass: "from-green-500 to-emerald-500",
   },
   {
     title: "AI YouTube Growth Coach",
     description: "Get personalized growth advice, upload strategy, and experiments tailored to your channel goals.",
     icon: GraduationCap,
-    accentClass: "from-violet-500 to-indigo-500"
+    accentClass: "from-violet-500 to-indigo-500",
   },
   {
-    title: "YouTube Keyword Research Tool for Small Channels",
+    title: "AI Script Architect for YouTube Videos",
     description: "Build high-retention scripts with hook generators, structure templates, and narrative pacing guidance.",
     icon: FileText,
-    accentClass: "from-sky-500 to-blue-600"
+    accentClass: "from-sky-500 to-blue-600",
+    learnMoreSlug: "script-architect",
   },
   {
     title: "YouTube Competitor Channel Analysis Tool",
     description: "Analyze competitors, identify collab opportunities, and map audience overlap for faster expansion.",
     icon: Users,
-    accentClass: "from-teal-500 to-cyan-500"
-  }
+    accentClass: "from-teal-500 to-cyan-500",
+  },
 ];
 
-export function Features({ isDark }: FeaturesProps) {
+export function Features({ isDark, onNavigateToFeature }: FeaturesProps) {
   return (
     <section id="features" className="px-4 py-18 md:px-8 md:py-24">
       <div className="mx-auto w-full max-w-6xl">
@@ -119,6 +127,18 @@ export function Features({ isDark }: FeaturesProps) {
                 </div>
                 <h3 className="mb-2 text-base font-semibold">{feature.title}</h3>
                 <p className={cn("text-sm leading-relaxed", isDark ? "text-slate-300" : "text-slate-700")}>{feature.description}</p>
+                {feature.learnMoreSlug && (
+                  <button
+                    type="button"
+                    onClick={() => onNavigateToFeature(feature.learnMoreSlug!)}
+                    className={cn(
+                      "mt-3 inline-flex items-center gap-1 text-xs font-medium transition-colors",
+                      isDark ? "text-indigo-400 hover:text-indigo-200" : "text-indigo-600 hover:text-indigo-800",
+                    )}
+                  >
+                    Learn more <ChevronRight className="h-3 w-3" />
+                  </button>
+                )}
               </motion.article>
             );
           })}

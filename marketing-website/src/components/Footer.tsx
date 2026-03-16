@@ -6,6 +6,25 @@ type FooterProps = {
   isDark: boolean;
 };
 
+const FEATURE_LINKS = [
+  { label: "AI Script Architect", href: "/features/script-architect" },
+  { label: "Viral Clip Creator", href: "/features/viral-clip-creator" },
+  { label: "Voice Over Studio", href: "/features/voice-over-studio" },
+  { label: "YouTube SEO & Keywords", href: "/features/youtube-seo" },
+];
+const LEARN_LINKS = [
+  { label: "Gemini API Setup Guide", href: "/guides/api-setup" },
+  { label: "Platform Workflow", href: "/guides/platform-workflow" },
+  { label: "About Us & Vision", href: "/about" },
+  { label: "FAQ", href: "/faq" },
+  { label: "Contact & Support", href: "/contact" },
+];
+const USECASE_LINKS = [
+  { label: "For Educators", href: "/usecase/educators" },
+  { label: "For Gaming Channels", href: "/usecase/gaming" },
+  { label: "For Faceless Channels", href: "/usecase/faceless" },
+];
+
 export function Footer({ isDark }: FooterProps) {
   return (
     <footer
@@ -14,7 +33,7 @@ export function Footer({ isDark }: FooterProps) {
         isDark ? "border-white/10" : "border-slate-200"
       )}
     >
-      <div className="mx-auto grid w-full max-w-6xl gap-8 md:grid-cols-[1.2fr_1fr_auto] md:items-start">
+      <div className="mx-auto grid w-full max-w-6xl gap-8 md:grid-cols-[1.2fr_auto_auto_auto] md:items-start">
         <div>
           <p className="text-lg font-semibold">Janso Studio</p>
           <p className={cn("mt-2 max-w-md text-sm", isDark ? "text-slate-400" : "text-slate-600")}>
@@ -22,7 +41,29 @@ export function Footer({ isDark }: FooterProps) {
           </p>
         </div>
 
-        <div className="flex gap-8 text-sm">
+        <div className="flex flex-col gap-2 text-sm">
+          <p className={cn("mb-1 text-xs font-semibold uppercase tracking-wider", isDark ? "text-slate-500" : "text-slate-400")}>Features</p>
+          {FEATURE_LINKS.map((link) => (
+            <a key={link.href} href={link.href} className={cn("transition", isDark ? "text-slate-300 hover:text-white" : "text-slate-700 hover:text-slate-900")}>{link.label}</a>
+          ))}
+        </div>
+        <div className="flex flex-col gap-2 text-sm">
+          <p className={cn("mb-1 text-xs font-semibold uppercase tracking-wider", isDark ? "text-slate-500" : "text-slate-400")}>Learn</p>
+          {LEARN_LINKS.map((link) => (
+            <a key={link.href} href={link.href} className={cn("transition", isDark ? "text-slate-300 hover:text-white" : "text-slate-700 hover:text-slate-900")}>{link.label}</a>
+          ))}
+        </div>
+        <div className="flex flex-col gap-2 text-sm">
+          <p className={cn("mb-1 text-xs font-semibold uppercase tracking-wider", isDark ? "text-slate-500" : "text-slate-400")}>Use Cases</p>
+          {USECASE_LINKS.map((link) => (
+            <a key={link.href} href={link.href} className={cn("transition", isDark ? "text-slate-300 hover:text-white" : "text-slate-700 hover:text-slate-900")}>{link.label}</a>
+          ))}
+        </div>
+
+        <div className="flex flex-col gap-2 text-sm">
+          <p className={cn("mb-1 text-xs font-semibold uppercase tracking-wider", isDark ? "text-slate-500" : "text-slate-400")}>
+            Company
+          </p>
           <a
             className={cn(
               "transition",

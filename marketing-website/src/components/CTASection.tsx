@@ -43,7 +43,16 @@ export function CTASection({ isDark, onConnect }: CTASectionProps) {
             isDark ? "glass-card" : "border-slate-200 bg-white"
           )}
         >
-          <h2 className="text-2xl font-semibold tracking-tight md:text-3xl">How it works</h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-2xl font-semibold tracking-tight md:text-3xl">How it works</h2>
+            <button
+              type="button"
+              onClick={() => window.history.pushState({}, "", "/guides/api-setup") || window.dispatchEvent(new PopStateEvent("popstate"))}
+              className={cn("ml-4 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors border border-indigo-400/40", isDark ? "bg-white/10 text-indigo-200 hover:bg-white/20" : "bg-indigo-50 text-indigo-700 hover:bg-indigo-100")}
+            >
+              Gemini API Setup Guide
+            </button>
+          </div>
           <div className="mt-6 grid gap-3 md:grid-cols-3">
             {steps.map((step, idx) => {
               const Icon = step.icon;
