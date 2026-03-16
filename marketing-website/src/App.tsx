@@ -120,22 +120,28 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: "auto" });
   };
 
-  const goToFeature = (slug: FeatureSlug) => {
-    window.history.pushState({}, "", `/features/${slug}`);
-    setPage("feature");
-    setCurrentFeatureSlug(slug);
-    setCurrentGuideSlug(null);
-    setCurrentUseCaseSlug(null);
-    window.scrollTo({ top: 0, behavior: "auto" });
+
+  // Navigation handlers now accept string for compatibility with Navigation props
+  const goToFeature = (slug: string) => {
+    if ((FEATURE_SLUGS as readonly string[]).includes(slug)) {
+      window.history.pushState({}, "", `/features/${slug}`);
+      setPage("feature");
+      setCurrentFeatureSlug(slug as FeatureSlug);
+      setCurrentGuideSlug(null);
+      setCurrentUseCaseSlug(null);
+      window.scrollTo({ top: 0, behavior: "auto" });
+    }
   };
 
-  const goToGuide = (slug: GuideSlug) => {
-    window.history.pushState({}, "", `/guides/${slug}`);
-    setPage("guide");
-    setCurrentGuideSlug(slug);
-    setCurrentFeatureSlug(null);
-    setCurrentUseCaseSlug(null);
-    window.scrollTo({ top: 0, behavior: "auto" });
+  const goToGuide = (slug: string) => {
+    if ((GUIDE_SLUGS as readonly string[]).includes(slug)) {
+      window.history.pushState({}, "", `/guides/${slug}`);
+      setPage("guide");
+      setCurrentGuideSlug(slug as GuideSlug);
+      setCurrentFeatureSlug(null);
+      setCurrentUseCaseSlug(null);
+      window.scrollTo({ top: 0, behavior: "auto" });
+    }
   };
 
   const goToAbout = () => {
@@ -147,13 +153,15 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: "auto" });
   };
 
-  const goToUseCase = (slug: UseCaseSlug) => {
-    window.history.pushState({}, "", `/usecase/${slug}`);
-    setPage("usecase");
-    setCurrentUseCaseSlug(slug);
-    setCurrentFeatureSlug(null);
-    setCurrentGuideSlug(null);
-    window.scrollTo({ top: 0, behavior: "auto" });
+  const goToUseCase = (slug: string) => {
+    if ((USECASE_SLUGS as readonly string[]).includes(slug)) {
+      window.history.pushState({}, "", `/usecase/${slug}`);
+      setPage("usecase");
+      setCurrentUseCaseSlug(slug as UseCaseSlug);
+      setCurrentFeatureSlug(null);
+      setCurrentGuideSlug(null);
+      window.scrollTo({ top: 0, behavior: "auto" });
+    }
   };
 
   const goToContact = () => {
@@ -174,6 +182,7 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: "auto" });
   };
 
+
   if (page === "privacy" || page === "terms") {
     return (
       <>
@@ -184,140 +193,182 @@ export default function App() {
   }
 
   if (page === "feature" && currentFeatureSlug) {
-      if (page === "guide" && currentGuideSlug) {
-        return (
-          <div className={cn(
-            "relative min-h-screen overflow-x-clip transition-colors duration-500",
-            isDark ? "bg-[#050505] text-slate-200" : "bg-slate-100 text-slate-900",
-          )}>
-            <Navigation
-              theme={theme}
-              isDark={isDark}
-              onToggleTheme={() => setTheme((prev) => (prev === "dark" ? "light" : "dark"))}
-              onPrimaryAction={openDashboardAuth}
-              onNavigateToFeature={goToFeature}
-              onNavigateToGuide={goToGuide}
-              onNavigateToAbout={goToAbout}
-              onNavigateToUseCase={goToUseCase}
-              onNavigateToContact={goToContact}
-              onNavigateToFAQ={goToFAQ}
-            />
-            <main className="relative">
-              <GuidePage slug={currentGuideSlug} isDark={isDark} onBack={goHome} />
-            </main>
-            <Footer isDark={isDark} />
-            <CookieConsentBanner theme={isDark ? "dark" : "light"} />
-          </div>
-        );
-      }
+    return (
+      <div
+        className={cn(
+          "relative min-h-screen overflow-x-clip transition-colors duration-500",
+          isDark ? "bg-[#050505] text-slate-200" : "bg-slate-100 text-slate-900",
+        )}
+      >
+        <div
+          aria-hidden="true"
+          className={cn(
+            "pointer-events-none absolute inset-0",
+            isDark
+              ? "[background:radial-gradient(circle_at_12%_18%,rgba(99,102,241,0.22),transparent_28%),radial-gradient(circle_at_88%_14%,rgba(239,68,68,0.2),transparent_30%),radial-gradient(circle_at_52%_82%,rgba(16,185,129,0.16),transparent_32%)]"
+              : "[background:radial-gradient(circle_at_12%_18%,rgba(99,102,241,0.14),transparent_28%),radial-gradient(circle_at_88%_14%,rgba(239,68,68,0.12),transparent_30%),radial-gradient(circle_at_52%_82%,rgba(16,185,129,0.1),transparent_32%)]",
+          )}
+        />
+        <Navigation
+          theme={theme}
+          isDark={isDark}
+          onToggleTheme={() => setTheme((prev) => (prev === "dark" ? "light" : "dark"))}
+          onPrimaryAction={openDashboardAuth}
+          onNavigateToFeature={goToFeature}
+          onNavigateToGuide={goToGuide}
+          onNavigateToAbout={goToAbout}
+          onNavigateToUseCase={goToUseCase}
+          onNavigateToContact={goToContact}
+          onNavigateToFAQ={goToFAQ}
+        />
+        <main className="relative">
+          <FeaturePage
+            slug={currentFeatureSlug}
+            isDark={isDark}
+            onBack={goHome}
+            onConnect={openDashboardAuth}
+          />
+        </main>
+        <Footer isDark={isDark} />
+        <CookieConsentBanner theme={isDark ? "dark" : "light"} />
+      </div>
+    );
+  }
 
-      if (page === "about") {
-        return (
-          <div className={cn(
-            "relative min-h-screen overflow-x-clip transition-colors duration-500",
-            isDark ? "bg-[#050505] text-slate-200" : "bg-slate-100 text-slate-900",
-          )}>
-            <Navigation
-              theme={theme}
-              isDark={isDark}
-              onToggleTheme={() => setTheme((prev) => (prev === "dark" ? "light" : "dark"))}
-              onPrimaryAction={openDashboardAuth}
-              onNavigateToFeature={goToFeature}
-              onNavigateToGuide={goToGuide}
-              onNavigateToAbout={goToAbout}
-              onNavigateToUseCase={goToUseCase}
-              onNavigateToContact={goToContact}
-              onNavigateToFAQ={goToFAQ}
-            />
-            <main className="relative">
-              <AboutPage isDark={isDark} onBack={goHome} />
-            </main>
-            <Footer isDark={isDark} />
-            <CookieConsentBanner theme={isDark ? "dark" : "light"} />
-          </div>
-        );
-      }
+  if (page === "guide" && currentGuideSlug) {
+    return (
+      <div className={cn(
+        "relative min-h-screen overflow-x-clip transition-colors duration-500",
+        isDark ? "bg-[#050505] text-slate-200" : "bg-slate-100 text-slate-900",
+      )}>
+        <Navigation
+          theme={theme}
+          isDark={isDark}
+          onToggleTheme={() => setTheme((prev) => (prev === "dark" ? "light" : "dark"))}
+          onPrimaryAction={openDashboardAuth}
+          onNavigateToFeature={goToFeature}
+          onNavigateToGuide={goToGuide}
+          onNavigateToAbout={goToAbout}
+          onNavigateToUseCase={goToUseCase}
+          onNavigateToContact={goToContact}
+          onNavigateToFAQ={goToFAQ}
+        />
+        <main className="relative">
+          <GuidePage slug={currentGuideSlug} isDark={isDark} onBack={goHome} />
+        </main>
+        <Footer isDark={isDark} />
+        <CookieConsentBanner theme={isDark ? "dark" : "light"} />
+      </div>
+    );
+  }
 
-      if (page === "usecase" && currentUseCaseSlug) {
-        return (
-          <div className={cn(
-            "relative min-h-screen overflow-x-clip transition-colors duration-500",
-            isDark ? "bg-[#050505] text-slate-200" : "bg-slate-100 text-slate-900",
-          )}>
-            <Navigation
-              theme={theme}
-              isDark={isDark}
-              onToggleTheme={() => setTheme((prev) => (prev === "dark" ? "light" : "dark"))}
-              onPrimaryAction={openDashboardAuth}
-              onNavigateToFeature={goToFeature}
-              onNavigateToGuide={goToGuide}
-              onNavigateToAbout={goToAbout}
-              onNavigateToUseCase={goToUseCase}
-              onNavigateToContact={goToContact}
-              onNavigateToFAQ={goToFAQ}
-            />
-            <main className="relative">
-              <UseCasePage slug={currentUseCaseSlug} isDark={isDark} onBack={goHome} />
-            </main>
-            <Footer isDark={isDark} />
-            <CookieConsentBanner theme={isDark ? "dark" : "light"} />
-          </div>
-        );
-      }
+  if (page === "about") {
+    return (
+      <div className={cn(
+        "relative min-h-screen overflow-x-clip transition-colors duration-500",
+        isDark ? "bg-[#050505] text-slate-200" : "bg-slate-100 text-slate-900",
+      )}>
+        <Navigation
+          theme={theme}
+          isDark={isDark}
+          onToggleTheme={() => setTheme((prev) => (prev === "dark" ? "light" : "dark"))}
+          onPrimaryAction={openDashboardAuth}
+          onNavigateToFeature={goToFeature}
+          onNavigateToGuide={goToGuide}
+          onNavigateToAbout={goToAbout}
+          onNavigateToUseCase={goToUseCase}
+          onNavigateToContact={goToContact}
+          onNavigateToFAQ={goToFAQ}
+        />
+        <main className="relative">
+          <AboutPage isDark={isDark} onBack={goHome} />
+        </main>
+        <Footer isDark={isDark} />
+        <CookieConsentBanner theme={isDark ? "dark" : "light"} />
+      </div>
+    );
+  }
 
-      if (page === "contact") {
-        return (
-          <div className={cn(
-            "relative min-h-screen overflow-x-clip transition-colors duration-500",
-            isDark ? "bg-[#050505] text-slate-200" : "bg-slate-100 text-slate-900",
-          )}>
-            <Navigation
-              theme={theme}
-              isDark={isDark}
-              onToggleTheme={() => setTheme((prev) => (prev === "dark" ? "light" : "dark"))}
-              onPrimaryAction={openDashboardAuth}
-              onNavigateToFeature={goToFeature}
-              onNavigateToGuide={goToGuide}
-              onNavigateToAbout={goToAbout}
-              onNavigateToUseCase={goToUseCase}
-              onNavigateToContact={goToContact}
-              onNavigateToFAQ={goToFAQ}
-            />
-            <main className="relative">
-              <ContactPage isDark={isDark} onBack={goHome} />
-            </main>
-            <Footer isDark={isDark} />
-            <CookieConsentBanner theme={isDark ? "dark" : "light"} />
-          </div>
-        );
-      }
+  if (page === "usecase" && currentUseCaseSlug) {
+    return (
+      <div className={cn(
+        "relative min-h-screen overflow-x-clip transition-colors duration-500",
+        isDark ? "bg-[#050505] text-slate-200" : "bg-slate-100 text-slate-900",
+      )}>
+        <Navigation
+          theme={theme}
+          isDark={isDark}
+          onToggleTheme={() => setTheme((prev) => (prev === "dark" ? "light" : "dark"))}
+          onPrimaryAction={openDashboardAuth}
+          onNavigateToFeature={goToFeature}
+          onNavigateToGuide={goToGuide}
+          onNavigateToAbout={goToAbout}
+          onNavigateToUseCase={goToUseCase}
+          onNavigateToContact={goToContact}
+          onNavigateToFAQ={goToFAQ}
+        />
+        <main className="relative">
+          <UseCasePage slug={currentUseCaseSlug} isDark={isDark} onBack={goHome} />
+        </main>
+        <Footer isDark={isDark} />
+        <CookieConsentBanner theme={isDark ? "dark" : "light"} />
+      </div>
+    );
+  }
 
-      if (page === "faq") {
-        return (
-          <div className={cn(
-            "relative min-h-screen overflow-x-clip transition-colors duration-500",
-            isDark ? "bg-[#050505] text-slate-200" : "bg-slate-100 text-slate-900",
-          )}>
-            <Navigation
-              theme={theme}
-              isDark={isDark}
-              onToggleTheme={() => setTheme((prev) => (prev === "dark" ? "light" : "dark"))}
-              onPrimaryAction={openDashboardAuth}
-              onNavigateToFeature={goToFeature}
-              onNavigateToGuide={goToGuide}
-              onNavigateToAbout={goToAbout}
-              onNavigateToUseCase={goToUseCase}
-              onNavigateToContact={goToContact}
-              onNavigateToFAQ={goToFAQ}
-            />
-            <main className="relative">
-              <FAQPage isDark={isDark} onBack={goHome} />
-            </main>
-            <Footer isDark={isDark} />
-            <CookieConsentBanner theme={isDark ? "dark" : "light"} />
-          </div>
-        );
-      }
+  if (page === "contact") {
+    return (
+      <div className={cn(
+        "relative min-h-screen overflow-x-clip transition-colors duration-500",
+        isDark ? "bg-[#050505] text-slate-200" : "bg-slate-100 text-slate-900",
+      )}>
+        <Navigation
+          theme={theme}
+          isDark={isDark}
+          onToggleTheme={() => setTheme((prev) => (prev === "dark" ? "light" : "dark"))}
+          onPrimaryAction={openDashboardAuth}
+          onNavigateToFeature={goToFeature}
+          onNavigateToGuide={goToGuide}
+          onNavigateToAbout={goToAbout}
+          onNavigateToUseCase={goToUseCase}
+          onNavigateToContact={goToContact}
+          onNavigateToFAQ={goToFAQ}
+        />
+        <main className="relative">
+          <ContactPage isDark={isDark} onBack={goHome} />
+        </main>
+        <Footer isDark={isDark} />
+        <CookieConsentBanner theme={isDark ? "dark" : "light"} />
+      </div>
+    );
+  }
+
+  if (page === "faq") {
+    return (
+      <div className={cn(
+        "relative min-h-screen overflow-x-clip transition-colors duration-500",
+        isDark ? "bg-[#050505] text-slate-200" : "bg-slate-100 text-slate-900",
+      )}>
+        <Navigation
+          theme={theme}
+          isDark={isDark}
+          onToggleTheme={() => setTheme((prev) => (prev === "dark" ? "light" : "dark"))}
+          onPrimaryAction={openDashboardAuth}
+          onNavigateToFeature={goToFeature}
+          onNavigateToGuide={goToGuide}
+          onNavigateToAbout={goToAbout}
+          onNavigateToUseCase={goToUseCase}
+          onNavigateToContact={goToContact}
+          onNavigateToFAQ={goToFAQ}
+        />
+        <main className="relative">
+          <FAQPage isDark={isDark} onBack={goHome} />
+        </main>
+        <Footer isDark={isDark} />
+        <CookieConsentBanner theme={isDark ? "dark" : "light"} />
+      </div>
+    );
+  }
     return (
       <div
         className={cn(
