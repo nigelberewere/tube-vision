@@ -103,7 +103,7 @@ export function Navigation({
               <div
                 className={cn(
                   "w-64 rounded-2xl border p-1.5 shadow-xl",
-                  isDark ? "glass-card bg-[#0a0a0a]/90" : "border-slate-200 bg-white",
+                  isDark ? "border-white/10 bg-[#050505]" : "border-slate-200 bg-white",
                 )}
               >
                 {featureLinks.map((fl) => (
@@ -151,7 +151,7 @@ export function Navigation({
               <div
                 className={cn(
                   "w-64 rounded-2xl border p-1.5 shadow-xl",
-                  isDark ? "glass-card bg-[#0a0a0a]/90" : "border-slate-200 bg-white",
+                  isDark ? "border-white/10 bg-[#050505]" : "border-slate-200 bg-white",
                 )}
               >
                 <button type="button" onClick={() => onNavigateToGuide && onNavigateToGuide("api-setup")}
@@ -204,7 +204,7 @@ export function Navigation({
               <div
                 className={cn(
                   "w-64 rounded-2xl border p-1.5 shadow-xl",
-                  isDark ? "glass-card bg-[#0a0a0a]/90" : "border-slate-200 bg-white",
+                  isDark ? "border-white/10 bg-[#050505]" : "border-slate-200 bg-white",
                 )}
               >
                 <button type="button" onClick={() => onNavigateToUseCase && onNavigateToUseCase("educators")}
