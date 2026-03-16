@@ -59,6 +59,11 @@ export function Navigation({
   onToggleTheme,
   onPrimaryAction,
   onNavigateToFeature,
+  onNavigateToGuide,
+  onNavigateToAbout,
+  onNavigateToUseCase,
+  onNavigateToContact,
+  onNavigateToFAQ,
 }: NavigationProps) {
   const logoSrc = getDashboardAssetUrl("/favicon.svg")
 

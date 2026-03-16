@@ -47,7 +47,10 @@ export function CTASection({ isDark, onConnect }: CTASectionProps) {
             <h2 className="text-2xl font-semibold tracking-tight md:text-3xl">How it works</h2>
             <button
               type="button"
-              onClick={() => window.history.pushState({}, "", "/guides/api-setup") || window.dispatchEvent(new PopStateEvent("popstate"))}
+              onClick={() => {
+                window.history.pushState({}, "", "/guides/api-setup");
+                window.dispatchEvent(new PopStateEvent("popstate"));
+              }}
               className={cn("ml-4 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors border border-indigo-400/40", isDark ? "bg-white/10 text-indigo-200 hover:bg-white/20" : "bg-indigo-50 text-indigo-700 hover:bg-indigo-100")}
             >
               Gemini API Setup Guide
