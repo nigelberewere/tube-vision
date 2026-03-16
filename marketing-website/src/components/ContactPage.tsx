@@ -23,7 +23,7 @@ export function ContactPage({ isDark, onBack }: { isDark: boolean; onBack: () =>
   };
 
   return (
-    <div className={cn("min-h-screen pb-12 transition-colors duration-500", isDark ? "bg-[#050505] text-slate-200" : "bg-slate-100 text-slate-900")}> 
+    <div className={cn("w-full pb-12 transition-colors duration-500", isDark ? "text-slate-200" : "text-slate-900")}> 
       <div className="mx-auto w-full max-w-md px-4 pt-10 md:px-0 md:pt-16">
         <button
           type="button"

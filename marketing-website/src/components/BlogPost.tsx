@@ -76,7 +76,7 @@ export function BlogPost({ slug, isDark, onBack, onConnect }: BlogPostProps) {
 
   if (!post) {
     return (
-      <div className={cn("min-h-screen pt-20 text-center transition-colors duration-500", isDark ? "bg-[#050505] text-slate-200" : "bg-slate-100 text-slate-900")}>
+      <div className={cn("w-full pt-20 text-center transition-colors duration-500", isDark ? "text-slate-200" : "text-slate-900")}>
         <h1 className="text-2xl font-bold">Post not found</h1>
         <button onClick={onBack} className="mt-4 text-indigo-500 underline">Return to Blog Hub</button>
       </div>

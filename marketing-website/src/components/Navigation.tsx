@@ -104,8 +104,8 @@ export function Navigation({
             <div className="pointer-events-none absolute left-0 top-full z-50 pt-3 opacity-0 transition-all duration-200 group-hover:pointer-events-auto group-hover:opacity-100">
               <div
                 className={cn(
-                  "w-64 rounded-2xl border p-1.5 shadow-xl",
-                  isDark ? "border-white/10 bg-[#050505]" : "border-slate-200 bg-white",
+                  "w-64 rounded-2xl border p-1.5 shadow-xl backdrop-blur-xl",
+                  isDark ? "border-white/10 bg-[#050505]/80" : "border-slate-200 bg-white/80",
                 )}
               >
                 {featureLinks.map((fl) => (
@@ -152,8 +152,8 @@ export function Navigation({
             <div className="pointer-events-none absolute left-0 top-full z-50 pt-3 opacity-0 transition-all duration-200 group-hover:pointer-events-auto group-hover:opacity-100">
               <div
                 className={cn(
-                  "w-64 rounded-2xl border p-1.5 shadow-xl",
-                  isDark ? "border-white/10 bg-[#050505]" : "border-slate-200 bg-white",
+                  "w-64 rounded-2xl border p-1.5 shadow-xl backdrop-blur-xl",
+                  isDark ? "border-white/10 bg-[#050505]/80" : "border-slate-200 bg-white/80",
                 )}
               >
                 <button type="button" onClick={() => onNavigateToGuide && onNavigateToGuide("api-setup")}
@@ -213,8 +213,8 @@ export function Navigation({
             <div className="pointer-events-none absolute left-0 top-full z-50 pt-3 opacity-0 transition-all duration-200 group-hover:pointer-events-auto group-hover:opacity-100">
               <div
                 className={cn(
-                  "w-64 rounded-2xl border p-1.5 shadow-xl",
-                  isDark ? "border-white/10 bg-[#050505]" : "border-slate-200 bg-white",
+                  "w-64 rounded-2xl border p-1.5 shadow-xl backdrop-blur-xl",
+                  isDark ? "border-white/10 bg-[#050505]/80" : "border-slate-200 bg-white/80",
                 )}
               >
                 <button type="button" onClick={() => onNavigateToUseCase && onNavigateToUseCase("educators")}

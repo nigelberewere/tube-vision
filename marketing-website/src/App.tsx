@@ -41,7 +41,6 @@ const FEATURE_SLUGS = ["script-architect", "viral-clip-creator", "voice-over-stu
 const GUIDE_SLUGS = ["api-setup", "platform-workflow"] as const;
 const USECASE_SLUGS = ["educators", "gaming", "faceless"] as const;
 
-
 function getFeatureSlugFromPath(pathname: string): FeatureSlug | null {
   const match = pathname.match(/^\/features\/([^/]+)$/);
   if (!match) return null;
@@ -137,26 +136,26 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: "auto" });
   };
 
-
-  // Navigation handlers now accept string for compatibility with Navigation props
   const goToFeature = (slug: string) => {
-    if ((FEATURE_SLUGS as readonly string[]).includes(slug)) {
+    if ((FEATURE_SLUGS as readonly string[]).includes(slug as any)) {
       window.history.pushState({}, "", `/features/${slug}`);
       setPage("feature");
       setCurrentFeatureSlug(slug as FeatureSlug);
       setCurrentGuideSlug(null);
       setCurrentUseCaseSlug(null);
+      setCurrentBlogPostSlug(null);
       window.scrollTo({ top: 0, behavior: "auto" });
     }
   };
 
   const goToGuide = (slug: string) => {
-    if ((GUIDE_SLUGS as readonly string[]).includes(slug)) {
+    if ((GUIDE_SLUGS as readonly string[]).includes(slug as any)) {
       window.history.pushState({}, "", `/guides/${slug}`);
       setPage("guide");
       setCurrentGuideSlug(slug as GuideSlug);
       setCurrentFeatureSlug(null);
       setCurrentUseCaseSlug(null);
+      setCurrentBlogPostSlug(null);
       window.scrollTo({ top: 0, behavior: "auto" });
     }
   };
@@ -167,16 +166,18 @@ export default function App() {
     setCurrentFeatureSlug(null);
     setCurrentGuideSlug(null);
     setCurrentUseCaseSlug(null);
+    setCurrentBlogPostSlug(null);
     window.scrollTo({ top: 0, behavior: "auto" });
   };
 
   const goToUseCase = (slug: string) => {
-    if ((USECASE_SLUGS as readonly string[]).includes(slug)) {
+    if ((USECASE_SLUGS as readonly string[]).includes(slug as any)) {
       window.history.pushState({}, "", `/usecase/${slug}`);
       setPage("usecase");
       setCurrentUseCaseSlug(slug as UseCaseSlug);
       setCurrentFeatureSlug(null);
       setCurrentGuideSlug(null);
+      setCurrentBlogPostSlug(null);
       window.scrollTo({ top: 0, behavior: "auto" });
     }
   };
@@ -221,7 +222,6 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: "auto" });
   };
 
-
   if (page === "privacy" || page === "terms") {
     return (
       <>
@@ -231,238 +231,33 @@ export default function App() {
     );
   }
 
+  let mainContent: React.ReactNode = null;
+
   if (page === "feature" && currentFeatureSlug) {
-    return (
-      <div
-        className={cn(
-          "relative min-h-screen overflow-x-clip transition-colors duration-500",
-          isDark ? "bg-[#050505] text-slate-200" : "bg-slate-100 text-slate-900",
-        )}
-      >
-        <div
-          aria-hidden="true"
-          className={cn(
-            "pointer-events-none absolute inset-0",
-            isDark
-              ? "[background:radial-gradient(circle_at_12%_18%,rgba(99,102,241,0.22),transparent_28%),radial-gradient(circle_at_88%_14%,rgba(239,68,68,0.2),transparent_30%),radial-gradient(circle_at_52%_82%,rgba(16,185,129,0.16),transparent_32%)]"
-              : "[background:radial-gradient(circle_at_12%_18%,rgba(99,102,241,0.14),transparent_28%),radial-gradient(circle_at_88%_14%,rgba(239,68,68,0.12),transparent_30%),radial-gradient(circle_at_52%_82%,rgba(16,185,129,0.1),transparent_32%)]",
-          )}
-        />
-        <Navigation
-          theme={theme}
-          isDark={isDark}
-          onToggleTheme={() => setTheme((prev) => (prev === "dark" ? "light" : "dark"))}
-          onPrimaryAction={openDashboardAuth}
-          onNavigateToFeature={goToFeature}
-          onNavigateToGuide={goToGuide}
-          onNavigateToAbout={goToAbout}
-          onNavigateToUseCase={goToUseCase}
-          onNavigateToContact={goToContact}
-          onNavigateToFAQ={goToFAQ}
-        />
-        <main className="relative">
-          <FeaturePage
-            slug={currentFeatureSlug}
-            isDark={isDark}
-            onBack={goHome}
-            onConnect={openDashboardAuth}
-          />
-        </main>
-        <Footer isDark={isDark} />
-        <CookieConsentBanner theme={isDark ? "dark" : "light"} />
-      </div>
-    );
-  }
-
-  if (page === "guide" && currentGuideSlug) {
-    return (
-      <div className={cn(
-        "relative min-h-screen overflow-x-clip transition-colors duration-500",
-        isDark ? "bg-[#050505] text-slate-200" : "bg-slate-100 text-slate-900",
-      )}>
-        <Navigation
-          theme={theme}
-          isDark={isDark}
-          onToggleTheme={() => setTheme((prev) => (prev === "dark" ? "light" : "dark"))}
-          onPrimaryAction={openDashboardAuth}
-          onNavigateToFeature={goToFeature}
-          onNavigateToGuide={goToGuide}
-          onNavigateToAbout={goToAbout}
-          onNavigateToUseCase={goToUseCase}
-          onNavigateToContact={goToContact}
-          onNavigateToFAQ={goToFAQ}
-        />
-        <main className="relative">
-          <GuidePage slug={currentGuideSlug} isDark={isDark} onBack={goHome} />
-        </main>
-        <Footer isDark={isDark} />
-        <CookieConsentBanner theme={isDark ? "dark" : "light"} />
-      </div>
-    );
-  }
-
-  if (page === "about") {
-    return (
-      <div className={cn(
-        "relative min-h-screen overflow-x-clip transition-colors duration-500",
-        isDark ? "bg-[#050505] text-slate-200" : "bg-slate-100 text-slate-900",
-      )}>
-        <Navigation
-          theme={theme}
-          isDark={isDark}
-          onToggleTheme={() => setTheme((prev) => (prev === "dark" ? "light" : "dark"))}
-          onPrimaryAction={openDashboardAuth}
-          onNavigateToFeature={goToFeature}
-          onNavigateToGuide={goToGuide}
-          onNavigateToAbout={goToAbout}
-          onNavigateToUseCase={goToUseCase}
-          onNavigateToContact={goToContact}
-          onNavigateToFAQ={goToFAQ}
-        />
-        <main className="relative">
-          <AboutPage isDark={isDark} onBack={goHome} />
-        </main>
-        <Footer isDark={isDark} />
-        <CookieConsentBanner theme={isDark ? "dark" : "light"} />
-      </div>
-    );
-  }
-
-  if (page === "usecase" && currentUseCaseSlug) {
-    return (
-      <div className={cn(
-        "relative min-h-screen overflow-x-clip transition-colors duration-500",
-        isDark ? "bg-[#050505] text-slate-200" : "bg-slate-100 text-slate-900",
-      )}>
-        <Navigation
-          theme={theme}
-          isDark={isDark}
-          onToggleTheme={() => setTheme((prev) => (prev === "dark" ? "light" : "dark"))}
-          onPrimaryAction={openDashboardAuth}
-          onNavigateToFeature={goToFeature}
-          onNavigateToGuide={goToGuide}
-          onNavigateToAbout={goToAbout}
-          onNavigateToUseCase={goToUseCase}
-          onNavigateToContact={goToContact}
-          onNavigateToFAQ={goToFAQ}
-        />
-        <main className="relative">
-          <UseCasePage slug={currentUseCaseSlug} isDark={isDark} onBack={goHome} />
-        </main>
-        <Footer isDark={isDark} />
-        <CookieConsentBanner theme={isDark ? "dark" : "light"} />
-      </div>
-    );
-  }
-
-  if (page === "contact") {
-    return (
-      <div className={cn(
-        "relative min-h-screen overflow-x-clip transition-colors duration-500",
-        isDark ? "bg-[#050505] text-slate-200" : "bg-slate-100 text-slate-900",
-      )}>
-        <Navigation
-          theme={theme}
-          isDark={isDark}
-          onToggleTheme={() => setTheme((prev) => (prev === "dark" ? "light" : "dark"))}
-          onPrimaryAction={openDashboardAuth}
-          onNavigateToFeature={goToFeature}
-          onNavigateToGuide={goToGuide}
-          onNavigateToAbout={goToAbout}
-          onNavigateToUseCase={goToUseCase}
-          onNavigateToContact={goToContact}
-          onNavigateToFAQ={goToFAQ}
-        />
-        <main className="relative">
-          <ContactPage isDark={isDark} onBack={goHome} />
-        </main>
-        <Footer isDark={isDark} />
-        <CookieConsentBanner theme={isDark ? "dark" : "light"} />
-      </div>
-    );
-  }
-
-  if (page === "faq") {
-    return (
-      <div className={cn(
-        "relative min-h-screen overflow-x-clip transition-colors duration-500",
-        isDark ? "bg-[#050505] text-slate-200" : "bg-slate-100 text-slate-900",
-      )}>
-        <Navigation
-          theme={theme}
-          isDark={isDark}
-          onToggleTheme={() => setTheme((prev) => (prev === "dark" ? "light" : "dark"))}
-          onPrimaryAction={openDashboardAuth}
-          onNavigateToFeature={goToFeature}
-          onNavigateToGuide={goToGuide}
-          onNavigateToAbout={goToAbout}
-          onNavigateToUseCase={goToUseCase}
-          onNavigateToContact={goToContact}
-          onNavigateToFAQ={goToFAQ}
-          onNavigateToBlog={goToBlog}
-        />
-        <main className="relative">
-          <FAQPage isDark={isDark} onBack={goHome} />
-        </main>
-        <Footer isDark={isDark} />
-        <CookieConsentBanner theme={isDark ? "dark" : "light"} />
-      </div>
-    );
-  }
-
-  if (page === "blog") {
-    return (
-      <div className={cn(
-        "relative min-h-screen overflow-x-clip transition-colors duration-500",
-        isDark ? "bg-[#050505] text-slate-200" : "bg-slate-100 text-slate-900",
-      )}>
-        <Navigation
-          theme={theme}
-          isDark={isDark}
-          onToggleTheme={() => setTheme((prev) => (prev === "dark" ? "light" : "dark"))}
-          onPrimaryAction={openDashboardAuth}
-          onNavigateToFeature={goToFeature}
-          onNavigateToGuide={goToGuide}
-          onNavigateToAbout={goToAbout}
-          onNavigateToUseCase={goToUseCase}
-          onNavigateToContact={goToContact}
-          onNavigateToFAQ={goToFAQ}
-          onNavigateToBlog={goToBlog}
-        />
-        <main className="relative">
-          <BlogHub isDark={isDark} onBack={goHome} onNavigateToPost={goToBlogPost} />
-        </main>
-        <Footer isDark={isDark} />
-        <CookieConsentBanner theme={isDark ? "dark" : "light"} />
-      </div>
-    );
-  }
-
-  if (page === "blog_post" && currentBlogPostSlug) {
-    return (
-      <div className={cn(
-        "relative min-h-screen overflow-x-clip transition-colors duration-500",
-        isDark ? "bg-[#050505] text-slate-200" : "bg-slate-100 text-slate-900",
-      )}>
-        <Navigation
-          theme={theme}
-          isDark={isDark}
-          onToggleTheme={() => setTheme((prev) => (prev === "dark" ? "light" : "dark"))}
-          onPrimaryAction={openDashboardAuth}
-          onNavigateToFeature={goToFeature}
-          onNavigateToGuide={goToGuide}
-          onNavigateToAbout={goToAbout}
-          onNavigateToUseCase={goToUseCase}
-          onNavigateToContact={goToContact}
-          onNavigateToFAQ={goToFAQ}
-          onNavigateToBlog={goToBlog}
-        />
-        <main className="relative">
-          <BlogPost slug={currentBlogPostSlug} isDark={isDark} onBack={goToBlog} onConnect={openDashboardAuth} />
-        </main>
-        <Footer isDark={isDark} />
-        <CookieConsentBanner theme={isDark ? "dark" : "light"} />
-      </div>
+    mainContent = <FeaturePage slug={currentFeatureSlug} isDark={isDark} onBack={goHome} onConnect={openDashboardAuth} />;
+  } else if (page === "guide" && currentGuideSlug) {
+    mainContent = <GuidePage slug={currentGuideSlug} isDark={isDark} onBack={goHome} />;
+  } else if (page === "about") {
+    mainContent = <AboutPage isDark={isDark} onBack={goHome} />;
+  } else if (page === "usecase" && currentUseCaseSlug) {
+    mainContent = <UseCasePage slug={currentUseCaseSlug} isDark={isDark} onBack={goHome} onConnect={openDashboardAuth} />;
+  } else if (page === "contact") {
+    mainContent = <ContactPage isDark={isDark} onBack={goHome} />;
+  } else if (page === "faq") {
+    mainContent = <FAQPage isDark={isDark} onBack={goHome} />;
+  } else if (page === "blog") {
+    mainContent = <BlogHub isDark={isDark} onBack={goHome} onNavigateToPost={goToBlogPost} />;
+  } else if (page === "blog_post" && currentBlogPostSlug) {
+    mainContent = <BlogPost slug={currentBlogPostSlug} isDark={isDark} onBack={goToBlog} onConnect={openDashboardAuth} />;
+  } else {
+    mainContent = (
+      <>
+        <Hero isDark={isDark} onConnect={openDashboardAuth} />
+        <Features isDark={isDark} onNavigateToFeature={goToFeature} />
+        <Pricing isDark={isDark} onConnect={openDashboardAuth} />
+        <FAQ isDark={isDark} />
+        <CTASection isDark={isDark} onConnect={openDashboardAuth} />
+      </>
     );
   }
 
@@ -473,16 +268,16 @@ export default function App() {
         isDark ? "bg-[#050505] text-slate-200" : "bg-slate-100 text-slate-900"
       )}
     >
+      {/* Global Background Gradient */}
       <div
         aria-hidden="true"
         className={cn(
-          "pointer-events-none absolute inset-0",
+          "pointer-events-none absolute inset-0 z-0",
           isDark
             ? "[background:radial-gradient(circle_at_12%_18%,rgba(99,102,241,0.22),transparent_28%),radial-gradient(circle_at_88%_14%,rgba(239,68,68,0.2),transparent_30%),radial-gradient(circle_at_52%_82%,rgba(16,185,129,0.16),transparent_32%)]"
             : "[background:radial-gradient(circle_at_12%_18%,rgba(99,102,241,0.14),transparent_28%),radial-gradient(circle_at_88%_14%,rgba(239,68,68,0.12),transparent_30%),radial-gradient(circle_at_52%_82%,rgba(16,185,129,0.1),transparent_32%)]"
         )}
       />
-
 
       <Navigation
         theme={theme}
@@ -495,14 +290,11 @@ export default function App() {
         onNavigateToUseCase={goToUseCase}
         onNavigateToContact={goToContact}
         onNavigateToFAQ={goToFAQ}
+        onNavigateToBlog={goToBlog}
       />
 
-      <main className="relative">
-        <Hero isDark={isDark} onConnect={openDashboardAuth} />
-        <Features isDark={isDark} onNavigateToFeature={goToFeature} />
-        <Pricing isDark={isDark} onConnect={openDashboardAuth} />
-        <FAQ isDark={isDark} />
-        <CTASection isDark={isDark} onConnect={openDashboardAuth} />
+      <main className="relative z-10 w-full overflow-visible">
+        {mainContent}
       </main>
 
       <Footer isDark={isDark} />
