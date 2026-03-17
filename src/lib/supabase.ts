@@ -53,6 +53,51 @@ export const supabase = createClient(
 );
 
 /**
+ * Global fetch interceptor for internal API requests.
+ * Automatically injects the active Supabase Auth token, bridging
+ * legacy backend routes with the Supabase Auth system to prevent
+ * disconnected user issues.
+ */
+if (typeof window !== 'undefined') {
+  const originalFetch = window.fetch;
+  window.fetch = async (...args) => {
+    const [resource, config] = args;
+    
+    let isInternalApi = false;
+    if (typeof resource === 'string') {
+      isInternalApi = resource.startsWith('/api/');
+    } else if (resource instanceof URL) {
+      isInternalApi = resource.pathname.startsWith('/api/');
+    } else if (resource instanceof Request) {
+      const url = resource.url.startsWith('/') ? resource.url : new URL(resource.url, window.location.origin).pathname;
+      isInternalApi = url.startsWith('/api/');
+    }
+
+    if (isInternalApi) {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.access_token) {
+          const newHeaders = new Headers(config?.headers || (resource instanceof Request ? resource.headers : undefined));
+          if (!newHeaders.has('Authorization') && !newHeaders.has('authorization')) {
+            newHeaders.set('Authorization', `Bearer ${session.access_token}`);
+            // If the original resource was a Request object, we don't want to override its other 
+            // properties by passing a generic config, but it's okay for our current codebase.
+            return originalFetch(resource, {
+              ...config,
+              headers: newHeaders
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Failed to inject Supabase Auth token:', error);
+      }
+    }
+
+    return originalFetch(...args);
+  };
+}
+
+/**
  * Database types for type-safe queries
  * 
  * TODO: Generate these types from Supabase CLI:
