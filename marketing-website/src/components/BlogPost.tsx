@@ -180,7 +180,7 @@ export function BlogPost({ slug, isDark, onBack, onConnect }: BlogPostProps) {
 
               <div className={cn("flex items-center justify-between border-y py-4 md:py-6", isDark ? "border-white/10" : "border-slate-200")}>
                 <div className="flex items-center gap-3">
-                  <div className={cn("flex h-10 w-10 md:h-12 md:w-12 items-center justify-center rounded-full text-sm font-bold text-white shadow-sm", post.imageColor)}>
+                  <div className={cn("flex h-10 w-10 md:h-12 md:w-12 items-center justify-center rounded-full text-sm font-bold text-white shadow-sm bg-gradient-to-br", post.authorInitialColor)}>
                     {post.author.charAt(0)}
                   </div>
                   <div className="flex flex-col">
@@ -201,9 +201,18 @@ export function BlogPost({ slug, isDark, onBack, onConnect }: BlogPostProps) {
           </header>
 
           <motion.div
-            initial={{ opacity: 0, y: 10 }}
+            initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.1 }}
+            className="mb-12 overflow-hidden rounded-3xl border border-white/10 shadow-2xl"
+          >
+            <img src={post.imageUrl} alt={post.title} className="w-full h-auto max-h-[500px] object-cover" />
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
             className={cn("prose md:prose-lg max-w-none", isDark ? "prose-invert" : "")}
           >
             {content}

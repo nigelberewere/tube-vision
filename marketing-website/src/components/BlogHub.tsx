@@ -12,7 +12,8 @@ export type BlogPostOverview = {
   date: string;
   readTime: string;
   author: string;
-  imageColor: string;
+  imageUrl: string;
+  authorInitialColor: string;
 };
 
 // Mock data for the blog hub
@@ -25,7 +26,8 @@ export const BLOG_POSTS: BlogPostOverview[] = [
     date: "Mar 17, 2026",
     readTime: "6 min read",
     author: "Janso Growth Team",
-    imageColor: "from-blue-500 to-indigo-600",
+    imageUrl: "/images/blog/seo.png",
+    authorInitialColor: "from-blue-500 to-indigo-600",
   },
   {
     slug: "structuring-scripts-retention",
@@ -35,7 +37,8 @@ export const BLOG_POSTS: BlogPostOverview[] = [
     date: "Mar 17, 2026",
     readTime: "8 min read",
     author: "Janso Content Team",
-    imageColor: "from-emerald-400 to-teal-600",
+    imageUrl: "/images/blog/script.png",
+    authorInitialColor: "from-emerald-400 to-teal-600",
   },
   {
     slug: "product-update-v2",
@@ -45,7 +48,8 @@ export const BLOG_POSTS: BlogPostOverview[] = [
     date: "Mar 17, 2026",
     readTime: "4 min read",
     author: "Product Team",
-    imageColor: "from-violet-500 to-fuchsia-600",
+    imageUrl: "/images/blog/v2.png",
+    authorInitialColor: "from-violet-500 to-fuchsia-600",
   },
 ];
 
@@ -125,7 +129,9 @@ export function BlogHub({ isDark, onBack, onNavigateToPost }: BlogHubProps) {
                 )}
               >
                 {/* Simulated Article Header Image */}
-                <div className={cn("h-48 w-full bg-gradient-to-br opacity-80 transition-opacity group-hover:opacity-100", post.imageColor)} />
+                <div className="h-48 w-full overflow-hidden bg-slate-800">
+                  <img src={post.imageUrl} alt={post.title} className="h-full w-full object-cover opacity-80 transition-transform duration-500 group-hover:scale-105 group-hover:opacity-100" />
+                </div>
                 
                 <div className="flex flex-1 flex-col p-6">
                   <div className="mb-4 flex items-center justify-between text-xs">
@@ -152,7 +158,7 @@ export function BlogHub({ isDark, onBack, onNavigateToPost }: BlogHubProps) {
 
                   <div className={cn("flex items-center justify-between border-t pt-4", isDark ? "border-white/10" : "border-slate-100")}>
                     <div className="flex items-center gap-2">
-                      <div className={cn("flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold text-white shadow-sm", post.imageColor)}>
+                      <div className={cn("flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold text-white shadow-sm bg-gradient-to-br", post.authorInitialColor)}>
                         {post.author.charAt(0)}
                       </div>
                       <div className="flex flex-col">
