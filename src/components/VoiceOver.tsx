@@ -273,6 +273,24 @@ export default function VoiceOver() {
     };
   }, [audioUrl]);
 
+  // Apply speed, volume, and pitch settings to the DOM element directly
+  // since the Gemini TTS API does not natively support these parameters in its SDK config yet.
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.volume = Math.min(1.0, Math.max(0.0, volume));
+      
+      // Basic pitch hacking via playback rate if requested natively by the browser
+      if ('preservesPitch' in audioRef.current) {
+        audioRef.current.preservesPitch = pitch === 0;
+      }
+      
+      // If pitch is altered, we bend the playback rate slightly to achieve the chipmunk/deep effect
+      // Otherwise, we strictly honor the speed setting.
+      const pitchMultiplier = pitch !== 0 ? (1 + (pitch * 0.3)) : 1.0;
+      audioRef.current.playbackRate = Math.max(0.1, speed * pitchMultiplier);
+    }
+  }, [speed, volume, pitch, audioUrl]);
+
   const handlePreviewVoice = async (e: React.MouseEvent, voiceName: string) => {
     e.stopPropagation();
     if (previewingVoice || playingPreview) {
@@ -1132,6 +1150,14 @@ export default function VoiceOver() {
                               if (translation.isPlaying) {
                                 audio.pause();
                               } else {
+                                // Apply speed, volume, and pitch to dubbed audio too!
+                                audio.volume = Math.min(1.0, Math.max(0.0, volume));
+                                if ('preservesPitch' in audio) {
+                                  audio.preservesPitch = pitch === 0;
+                                }
+                                const pitchMultiplier = pitch !== 0 ? (1 + (pitch * 0.3)) : 1.0;
+                                audio.playbackRate = Math.max(0.1, speed * pitchMultiplier);
+                                
                                 audio.play();
                               }
                               setTranslations(prev => prev.map(t =>
