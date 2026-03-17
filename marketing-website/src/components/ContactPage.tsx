@@ -13,10 +13,30 @@ export function ContactPage({ isDark, onBack }: { isDark: boolean; onBack: () =>
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setStatus("sending");
+    
     try {
-      // Replace with your backend endpoint or email service
-      await new Promise((res) => setTimeout(res, 1200));
-      setStatus("sent");
+      const response = await fetch("https://api.web3forms.com/submit", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({
+          access_key: "247b4cb3-daae-4c95-9c79-e4046d1ec7ad",
+          name: form.name,
+          email: form.email,
+          message: form.message,
+        }),
+      });
+
+      const result = await response.json();
+      
+      if (result.success) {
+        setStatus("sent");
+        setForm({ name: "", email: "", message: "" });
+      } else {
+        setStatus("error");
+      }
     } catch {
       setStatus("error");
     }
