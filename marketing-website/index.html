@@ -8,7 +8,79 @@
       name="description"
       content="AI-powered YouTube analytics tool with script generator, viral clip extractor, SEO optimizer, and keyword research for content creators. Grow your channel faster with Janso Studio."
     />
+    <meta name="keywords" content="YouTube analytics, AI script generator, YouTube SEO, viral clip creator, YouTube keyword research, content creator tools, Janso Studio" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://janso.studio/" />
+    <meta property="og:title" content="Janso Studio - AI YouTube Analytics & Script Generator for Creators" />
+    <meta property="og:description" content="AI-powered YouTube analytics tool with script generator, viral clip extractor, SEO optimizer, and keyword research for content creators." />
+    <meta property="og:site_name" content="Janso Studio" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Janso Studio - AI YouTube Analytics & Script Generator" />
+    <meta name="twitter:description" content="Grow your YouTube channel faster with AI-powered analytics, script generation, viral clip extraction, and SEO tools." />
+
     <link rel="canonical" href="https://janso.studio/" />
+
+    <!-- JSON-LD Structured Data -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "WebSite",
+          "@id": "https://janso.studio/#website",
+          "url": "https://janso.studio/",
+          "name": "Janso Studio",
+          "description": "AI-powered YouTube analytics and optimization platform for content creators.",
+          "publisher": {
+            "@type": "Organization",
+            "name": "Janso Studio",
+            "url": "https://janso.studio/",
+            "logo": {
+              "@type": "ImageObject",
+              "url": "https://app.janso.studio/favicon.svg"
+            }
+          },
+          "potentialAction": {
+            "@type": "SearchAction",
+            "target": {
+              "@type": "EntryPoint",
+              "urlTemplate": "https://janso.studio/?q={search_term_string}"
+            },
+            "query-input": "required name=search_term_string"
+          }
+        },
+        {
+          "@type": "WebApplication",
+          "@id": "https://app.janso.studio/#webapp",
+          "name": "Janso Studio Dashboard",
+          "url": "https://app.janso.studio/",
+          "applicationCategory": "BusinessApplication",
+          "operatingSystem": "Web",
+          "description": "AI-powered YouTube analytics dashboard with script generation, viral clip extraction, SEO optimizer, and keyword research.",
+          "offers": {
+            "@type": "Offer",
+            "price": "0",
+            "priceCurrency": "USD",
+            "description": "Free to start"
+          }
+        },
+        {
+          "@type": "SiteLinksSearchBox",
+          "url": "https://janso.studio/",
+          "potentialAction": {
+            "@type": "SearchAction",
+            "target": "https://janso.studio/?q={search_term_string}",
+            "query-input": "required name=search_term_string"
+          }
+        }
+      ]
+    }
+    </script>
+
     <script>
       (() => {
         const configuredDashboardUrl = "%VITE_DASHBOARD_URL%".trim()
@@ -30,7 +102,7 @@
         )
       })()
     </script>
-    <title>Janso Studio - AI YouTube Analytics & Script Generator for Creators</title>
+    <title>Janso Studio - AI YouTube Analytics &amp; Script Generator for Creators</title>
   </head>
   <body>
     <div id="root"></div>
