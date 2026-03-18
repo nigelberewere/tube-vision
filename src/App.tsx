@@ -806,6 +806,7 @@ export default function App() {
 
   const handleSwitchAccount = async (index: number) => {
     try {
+      setLoadingUser(true); // Ensure loading state is set
       const authHeaders = getSupabaseAuthHeaders();
       const response = await fetch('/api/user/switch', {
         method: 'POST',
@@ -815,13 +816,16 @@ export default function App() {
         },
         body: JSON.stringify({ index }),
       });
-      
+
       if (response.ok) {
+        // Optional: wait a short moment for backend propagation
+        await new Promise((res) => setTimeout(res, 250));
         await fetchUser();
         setIsProfileMenuOpen(false);
       }
     } catch (error) {
       console.error('Switch account error:', error);
+      setLoadingUser(false);
     }
   };
 
