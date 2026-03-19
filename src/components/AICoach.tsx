@@ -268,10 +268,27 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
 
   // Debounced sync to Supabase — keeps chat history alive across storage clears
   useEffect(() => {
-    if (!userProfile?.id || conversations.length === 0) return;
+    if (!userProfile?.id || conversations.length === 0) {
+      console.log('[AICoach sync effect] Skipped: userProfile?.id or conversations.length === 0', {
+        userProfile,
+        conversationsLength: conversations.length
+      });
+      return;
+    }
+    console.log('[AICoach sync effect] Scheduling Supabase sync', {
+      userId: userProfile.id,
+      conversationsCount: conversations.length,
+      conversations
+    });
     if (supabaseSyncRef.current) clearTimeout(supabaseSyncRef.current);
     supabaseSyncRef.current = setTimeout(() => {
-      upsertSingletonContent('coach_history', { conversations }).catch(() => {});
+      console.log('[AICoach sync effect] Calling upsertSingletonContent for coach_history', {
+        userId: userProfile.id,
+        conversations
+      });
+      upsertSingletonContent('coach_history', { conversations }).catch((err) => {
+        console.error('[AICoach sync effect] Error in upsertSingletonContent:', err);
+      });
     }, 2000);
     return () => {
       if (supabaseSyncRef.current) clearTimeout(supabaseSyncRef.current);
