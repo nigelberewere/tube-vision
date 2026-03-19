@@ -519,7 +519,38 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
 
     const userMessage = input.trim();
     setInput('');
-    setMessages(prev => [...prev, { role: 'user', text: userMessage }]);
+    setMessages(prev => {
+      const newMessage: Message = { role: 'user', text: userMessage };
+      const updated = [...prev, newMessage];
+      setConversations((previous) => {
+        const now = new Date().toISOString();
+        const index = previous.findIndex((conversation) => conversation.id === activeConversationId);
+        let updatedConvs = [...previous];
+        if (index >= 0) {
+          updatedConvs[index] = {
+            ...updatedConvs[index],
+            title: buildConversationTitle(updated, channelContext?.title),
+            updatedAt: now,
+            messages: updated as Message[],
+          };
+        } else {
+          updatedConvs = [
+            {
+              id: activeConversationId,
+              title: buildConversationTitle(updated, channelContext?.title),
+              createdAt: now,
+              updatedAt: now,
+              messages: updated as Message[],
+            },
+            ...updatedConvs,
+          ];
+        }
+        const sorted = sortConversationsByLatest(updatedConvs).slice(0, MAX_SAVED_CONVERSATIONS);
+        persistConversations(sorted, historyStorageKey);
+        return sorted;
+      });
+      return updated;
+    });
     setLoading(true);
 
     // Import BYOK utilities dynamically to avoid circular dependencies
