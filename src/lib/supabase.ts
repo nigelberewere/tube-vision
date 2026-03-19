@@ -272,18 +272,37 @@ export async function upsertSingletonContent(
   title: string = SINGLETON_TITLE,
 ): Promise<void> {
   const user = await getCurrentUser();
-  if (!user) return;
+  if (!user) {
+    console.warn('[upsertSingletonContent] No authenticated user. Skipping upsert.', { contentType, data, title });
+    return;
+  }
 
-  const existing = await fetchSingletonContent(contentType, title);
+  console.log('[upsertSingletonContent] Called with:', { userId: user.id, contentType, data, title });
 
-  if (existing) {
-    await supabase
-      .from('saved_content')
-      .update({ data, updated_at: new Date().toISOString() })
-      .eq('id', existing.id);
-  } else {
-    await supabase
-      .from('saved_content')
-      .insert({ user_id: user.id, content_type: contentType, title, data });
+  try {
+    const existing = await fetchSingletonContent(contentType, title);
+
+    if (existing) {
+      const { error } = await supabase
+        .from('saved_content')
+        .update({ data, updated_at: new Date().toISOString() })
+        .eq('id', existing.id);
+      if (error) {
+        console.error('[upsertSingletonContent] Error updating saved_content:', error);
+      } else {
+        console.log('[upsertSingletonContent] Updated existing saved_content row:', existing.id);
+      }
+    } else {
+      const { error, data: insertData } = await supabase
+        .from('saved_content')
+        .insert({ user_id: user.id, content_type: contentType, title, data });
+      if (error) {
+        console.error('[upsertSingletonContent] Error inserting into saved_content:', error);
+      } else {
+        console.log('[upsertSingletonContent] Inserted new saved_content row:', insertData);
+      }
+    }
+  } catch (err) {
+    console.error('[upsertSingletonContent] Unexpected error:', err);
   }
 }
