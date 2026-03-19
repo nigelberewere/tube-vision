@@ -239,6 +239,7 @@ function toGeminiHistory(messages: Message[]) {
     }));
 }
 
+console.log('[AICoach] Component file loaded (should appear in browser console)');
 export default function AICoach({ channelContext, userProfile }: AICoachProps) {
   const [messages, setMessages] = useState<Message[]>([createWelcomeMessage(channelContext)]);
   const [input, setInput] = useState('');
@@ -261,6 +262,7 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
   );
 
   useEffect(() => {
+    console.log('[AICoach sync effect] useEffect triggered', { userProfile, conversations });
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }

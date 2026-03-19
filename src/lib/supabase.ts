@@ -271,6 +271,8 @@ export async function upsertSingletonContent(
   data: Record<string, any>,
   title: string = SINGLETON_TITLE,
 ): Promise<void> {
+
+  console.log('[upsertSingletonContent] Function entered', { contentType, data, title });
   const user = await getCurrentUser();
   if (!user) {
     console.warn('[upsertSingletonContent] No authenticated user. Skipping upsert.', { contentType, data, title });
