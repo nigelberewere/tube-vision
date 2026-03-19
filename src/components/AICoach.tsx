@@ -241,9 +241,6 @@ function toGeminiHistory(messages: Message[]) {
 
 console.log('[AICoach] Component file loaded (should appear in browser console)');
 export default function AICoach({ channelContext, userProfile }: AICoachProps) {
-      console.error('[AICoach] console.error is working');
-      alert('[AICoach] alert is working');
-    console.log('[AICoach] JSX render executing');
   const [messages, setMessages] = useState<Message[]>([createWelcomeMessage(channelContext)]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
