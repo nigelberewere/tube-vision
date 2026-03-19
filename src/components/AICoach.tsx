@@ -744,6 +744,9 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
 
   return (
     <div className="flex flex-col min-h-[calc(100vh-8rem)] animate-in fade-in duration-500">
+      <div style={{ background: 'red', color: 'white', fontWeight: 'bold', padding: '12px', textAlign: 'center', fontSize: '18px', zIndex: 9999 }}>
+        [AICoach] COMPONENT IS RENDERING
+      </div>
       <div className="mb-4 sm:mb-5">
         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-zinc-100">Janso</h1>
         <p className="text-sm sm:text-base text-zinc-400 mt-1.5">Your personal 24/7 strategist for content ideas, hooks, and growth.</p>
