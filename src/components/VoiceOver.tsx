@@ -576,7 +576,15 @@ export default function VoiceOver() {
       }
     } catch (err: any) {
       console.error("TTS Error:", err);
-      setError(err.message || "Failed to generate speech.");
+      let friendlyMsg = err?.message || "Failed to generate speech.";
+      if (typeof friendlyMsg === 'string' && (
+        friendlyMsg.includes('429') ||
+        friendlyMsg.includes('RESOURCE_EXHAUSTED') ||
+        friendlyMsg.toLowerCase().includes('quota')
+      )) {
+        friendlyMsg = "Sorry, our voice feature is temporarily unavailable due to high demand. Please try again in a few moments!";
+      }
+      setError(friendlyMsg);
     } finally {
       setIsGenerating(false);
     }
