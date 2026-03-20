@@ -287,6 +287,7 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const chatRef = useRef<any>(null);
   const initializedHistoryKeyRef = useRef<string | null>(null);
+  const hydratedHistoryKeyRef = useRef<string | null>(null);
   const supabaseSyncRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const latestConversationsRef = useRef<ConversationRecord[]>([]);
   const conversationsRef = useRef<ConversationRecord[]>([]);
@@ -305,6 +306,7 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
   }, [historyStorageUserIds]);
 
   const primaryHistoryStorageKey = historyStorageKeys[0] || JANSO_HISTORY_STORAGE_KEY;
+  const isHistoryHydrated = hydratedHistoryKeyRef.current === primaryHistoryStorageKey;
 
   useEffect(() => {
     console.log('[AICoach sync effect] useEffect triggered', { userProfile, conversations });
@@ -363,8 +365,9 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
 
   // Debounced sync to Supabase — keeps chat history alive across storage clears
   useEffect(() => {
-    if (!persistentUserId || conversations.length === 0) {
+    if (!isHistoryHydrated || !persistentUserId || conversations.length === 0) {
       console.log('[AICoach sync effect] Skipped: userProfile?.id or conversations.length === 0', {
+        isHistoryHydrated,
         persistentUserId,
         conversationsLength: conversations.length
       });
@@ -386,7 +389,7 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
     return () => {
       if (supabaseSyncRef.current) clearTimeout(supabaseSyncRef.current);
     };
-  }, [conversations, persistentUserId, syncConversationsToCloud]);
+  }, [conversations, isHistoryHydrated, persistentUserId, syncConversationsToCloud]);
 
   useEffect(() => {
     if (!persistentUserId) return;
@@ -424,6 +427,7 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
     }
 
     initializedHistoryKeyRef.current = primaryHistoryStorageKey;
+    hydratedHistoryKeyRef.current = null;
 
     const cached = coachConversationCache.get(primaryHistoryStorageKey);
     if (cached && cached.conversations.length > 0) {
@@ -460,6 +464,7 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
       setActiveConversationId(initialConversation.id);
       setMessages(initialConversation.messages);
       persistConversationsToKeys([initialConversation], historyStorageKeys);
+      hydratedHistoryKeyRef.current = primaryHistoryStorageKey;
     };
 
     const loadStoredConversationSet = (nextConversations: ConversationRecord[]) => {
@@ -472,6 +477,7 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
         activeConversationId: nextConversations[0].id,
         messages: nextConversations[0].messages,
       });
+      hydratedHistoryKeyRef.current = primaryHistoryStorageKey;
     };
 
     // Prefer Supabase for authenticated users so history stays in sync across devices.
