@@ -307,6 +307,7 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
 
   const primaryHistoryStorageKey = historyStorageKeys[0] || JANSO_HISTORY_STORAGE_KEY;
   const isHistoryHydrated = hydratedHistoryKeyRef.current === primaryHistoryStorageKey;
+  const canAttemptServerHistory = Boolean(channelContext?.id || persistentUserId || userProfile?.id);
 
   useEffect(() => {
     console.log('[AICoach sync effect] useEffect triggered', { userProfile, conversations });
@@ -351,8 +352,29 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
   }, [messages, primaryHistoryStorageKey]);
 
   const syncConversationsToCloud = useMemo(
-    () => (nextConversations: ConversationRecord[]) => {
-      if (!persistentUserId || nextConversations.length === 0) {
+    () => async (nextConversations: ConversationRecord[]) => {
+      if (nextConversations.length === 0) {
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/user/coach-history', {
+          method: 'PUT',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ conversations: nextConversations }),
+        });
+
+        if (response.ok) {
+          return;
+        }
+      } catch (error) {
+        console.error('[AICoach sync effect] Server coach history save failed:', error);
+      }
+
+      if (!persistentUserId) {
         return;
       }
 
@@ -365,7 +387,7 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
 
   // Debounced sync to Supabase — keeps chat history alive across storage clears
   useEffect(() => {
-    if (!isHistoryHydrated || !persistentUserId || conversations.length === 0) {
+    if (!isHistoryHydrated || conversations.length === 0) {
       console.log('[AICoach sync effect] Skipped: userProfile?.id or conversations.length === 0', {
         isHistoryHydrated,
         persistentUserId,
@@ -384,7 +406,7 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
         userId: persistentUserId,
         conversations
       });
-      syncConversationsToCloud(conversations);
+      void syncConversationsToCloud(conversations);
     }, 500);
     return () => {
       if (supabaseSyncRef.current) clearTimeout(supabaseSyncRef.current);
@@ -392,7 +414,7 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
   }, [conversations, isHistoryHydrated, persistentUserId, syncConversationsToCloud]);
 
   useEffect(() => {
-    if (!persistentUserId) return;
+    if (!canAttemptServerHistory) return;
 
     const flushCloudSync = () => {
       if (document.visibilityState === 'hidden') {
@@ -400,7 +422,7 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
           clearTimeout(supabaseSyncRef.current);
           supabaseSyncRef.current = null;
         }
-        syncConversationsToCloud(latestConversationsRef.current);
+        void syncConversationsToCloud(latestConversationsRef.current);
       }
     };
 
@@ -409,7 +431,7 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
         clearTimeout(supabaseSyncRef.current);
         supabaseSyncRef.current = null;
       }
-      syncConversationsToCloud(latestConversationsRef.current);
+      void syncConversationsToCloud(latestConversationsRef.current);
     };
 
     document.addEventListener('visibilitychange', flushCloudSync);
@@ -419,7 +441,7 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
       document.removeEventListener('visibilitychange', flushCloudSync);
       window.removeEventListener('beforeunload', flushOnUnload);
     };
-  }, [persistentUserId, syncConversationsToCloud]);
+  }, [canAttemptServerHistory, syncConversationsToCloud]);
 
   useEffect(() => {
     if (initializedHistoryKeyRef.current === primaryHistoryStorageKey) {
@@ -480,19 +502,76 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
       hydratedHistoryKeyRef.current = primaryHistoryStorageKey;
     };
 
-    // Prefer Supabase for authenticated users so history stays in sync across devices.
-    if (persistentUserId) {
-      fetchSingletonContent('coach_history').then((row) => {
-        const fromCloud = parseStoredConversations(
-          row?.data?.conversations ? JSON.stringify(row.data.conversations) : null,
-        );
-        const preferredConversations = pickPreferredConversationSet(stored, fromCloud);
-        if (preferredConversations.length > 0) {
-          loadStoredConversationSet(preferredConversations);
-        } else {
-          setInitialConversation();
-        }
-      }).catch(() => setInitialConversation());
+    if (canAttemptServerHistory) {
+      fetch('/api/user/coach-history', {
+        credentials: 'include',
+      })
+        .then(async (response) => {
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+          }
+
+          return response.json();
+        })
+        .then((payload) => {
+          const fromServer = parseStoredConversations(
+            Array.isArray(payload?.conversations) ? JSON.stringify(payload.conversations) : null,
+          );
+          const preferredConversations = pickPreferredConversationSet(stored, fromServer);
+          if (preferredConversations.length > 0) {
+            loadStoredConversationSet(preferredConversations);
+            return;
+          }
+
+          if (!persistentUserId) {
+            setInitialConversation();
+            return;
+          }
+
+          fetchSingletonContent('coach_history')
+            .then((row) => {
+              const fromCloud = parseStoredConversations(
+                row?.data?.conversations ? JSON.stringify(row.data.conversations) : null,
+              );
+              const fallbackPreferredConversations = pickPreferredConversationSet(stored, fromCloud);
+              if (fallbackPreferredConversations.length > 0) {
+                loadStoredConversationSet(fallbackPreferredConversations);
+              } else {
+                setInitialConversation();
+              }
+            })
+            .catch(() => setInitialConversation());
+        })
+        .catch(() => {
+          if (!persistentUserId) {
+            if (stored.length > 0) {
+              loadStoredConversationSet(stored);
+            } else {
+              setInitialConversation();
+            }
+            return;
+          }
+
+          fetchSingletonContent('coach_history')
+            .then((row) => {
+              const fromCloud = parseStoredConversations(
+                row?.data?.conversations ? JSON.stringify(row.data.conversations) : null,
+              );
+              const preferredConversations = pickPreferredConversationSet(stored, fromCloud);
+              if (preferredConversations.length > 0) {
+                loadStoredConversationSet(preferredConversations);
+              } else {
+                setInitialConversation();
+              }
+            })
+            .catch(() => {
+              if (stored.length > 0) {
+                loadStoredConversationSet(stored);
+              } else {
+                setInitialConversation();
+              }
+            });
+        });
       return;
     }
 
@@ -502,7 +581,7 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
     }
 
     setInitialConversation();
-  }, [primaryHistoryStorageKey, historyStorageKeys, historyStorageUserIds.length, authUser?.id, persistentUserId, channelContext]);
+  }, [canAttemptServerHistory, primaryHistoryStorageKey, historyStorageKeys, historyStorageUserIds.length, authUser?.id, persistentUserId, channelContext, userProfile?.id]);
 
   useEffect(() => {
     if (!channelContext?.id) {
