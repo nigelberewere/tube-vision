@@ -200,6 +200,7 @@ export default function App() {
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
   const [onboardingStepIndex, setOnboardingStepIndex] = useState(0);
+  const [hasVisitedCoach, setHasVisitedCoach] = useState(false);
   const [seoVideoTopic, setSeoVideoTopic] = useState<string>('');
   const [scriptTopic, setScriptTopic] = useState<string>('');
   const [geminiErrorToast, setGeminiErrorToast] = useState<GeminiUserErrorDetail | null>(null);
@@ -663,6 +664,12 @@ export default function App() {
   }, [activeTab, settingsPanelTab]);
 
   useEffect(() => {
+    if (activeTab === 'coach') {
+      setHasVisitedCoach(true);
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
     if (typeof window !== 'undefined') {
       window.localStorage.setItem('tube_vision_theme', theme);
@@ -1084,16 +1091,7 @@ export default function App() {
       case 'channel':
         return <ChannelAnalytics />;
       case 'coach':
-        return <AICoach 
-          channelContext={user?.channel} 
-          userProfile={(supabaseUser?.id || user)
-            ? {
-                id: supabaseUser?.id || user?.id || '',
-                name: user?.name || supabaseUser?.email || 'Creator',
-                picture: user?.picture || '',
-              }
-            : undefined}
-        />;
+        return null;
       case 'ideas':
         return <VideoIdeaGenerator 
           channelContext={user?.channel} 
@@ -1188,6 +1186,16 @@ export default function App() {
       </>
     );
   }
+
+  const coachUserProfile = (supabaseUser?.id || user)
+    ? {
+        id: supabaseUser?.id || user?.id || '',
+        name: user?.name || supabaseUser?.email || 'Creator',
+        picture: user?.picture || '',
+      }
+    : undefined;
+
+  const shouldMountCoach = hasVisitedCoach || activeTab === 'coach';
 
   return (
     <div
@@ -1595,6 +1603,15 @@ export default function App() {
 
           {renderSectionHelper()}
 
+          {shouldMountCoach && (
+            <div className={cn(activeTab === 'coach' ? 'block' : 'hidden')} aria-hidden={activeTab !== 'coach'}>
+              <AICoach
+                channelContext={user?.channel}
+                userProfile={coachUserProfile}
+              />
+            </div>
+          )}
+
           {!user && !loadingUser && !requiresChannelConnection && activeTab !== 'home' && activeTab !== 'settings' && (
             <div className="mb-6 sm:mb-8 bg-white/[0.04] border border-white/15 rounded-2xl p-4 sm:p-6 flex flex-col md:flex-row items-start sm:items-center gap-4 sm:gap-6">
               <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white/10 flex items-center justify-center text-slate-200 flex-shrink-0">
@@ -1618,7 +1635,7 @@ export default function App() {
             </div>
           )}
 
-          {renderContent()}
+          {activeTab !== 'coach' && renderContent()}
         </div>
       </main>
 
