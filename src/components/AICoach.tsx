@@ -273,7 +273,7 @@ function toGeminiHistory(messages: Message[]) {
 
 console.log('[AICoach] Component file loaded (should appear in browser console)');
 export default function AICoach({ channelContext, userProfile }: AICoachProps) {
-  const { user: authUser, session: authSession } = useAuth();
+  const { user: authUser, session: authSession, loading: authLoading } = useAuth();
   const [messages, setMessages] = useState<Message[]>([createWelcomeMessage(channelContext)]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -319,6 +319,7 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
       'X-Supabase-Auth': token,
     };
   }, [authSession?.access_token]);
+  const historyBootstrapKey = `${primaryHistoryStorageKey}:${authLoading ? 'auth-loading' : 'auth-ready'}:${serverHistoryHeaders ? 'server-auth' : 'server-anon'}`;
 
   useEffect(() => {
     console.log('[AICoach sync effect] useEffect triggered', { userProfile, conversations });
@@ -456,11 +457,11 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
   }, [canAttemptServerHistory, syncConversationsToCloud]);
 
   useEffect(() => {
-    if (initializedHistoryKeyRef.current === primaryHistoryStorageKey) {
+    if (initializedHistoryKeyRef.current === historyBootstrapKey) {
       return;
     }
 
-    initializedHistoryKeyRef.current = primaryHistoryStorageKey;
+    initializedHistoryKeyRef.current = historyBootstrapKey;
     hydratedHistoryKeyRef.current = null;
 
     const cached = coachConversationCache.get(primaryHistoryStorageKey);
@@ -468,6 +469,7 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
       setConversations(cached.conversations);
       setActiveConversationId(cached.activeConversationId || cached.conversations[0].id);
       setMessages(cached.messages.length > 0 ? cached.messages : cached.conversations[0].messages);
+      hydratedHistoryKeyRef.current = primaryHistoryStorageKey;
       return;
     }
 
@@ -487,6 +489,17 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
         stored = legacy;
         persistConversationsToKeys(legacy, historyStorageKeys);
       }
+    }
+
+    if (authLoading && canAttemptServerHistory && !serverHistoryHeaders) {
+      if (stored.length > 0) {
+        persistConversationsToKeys(stored, historyStorageKeys);
+        setConversations(stored);
+        setActiveConversationId(stored[0].id);
+        setMessages(stored[0].messages);
+        hydratedHistoryKeyRef.current = primaryHistoryStorageKey;
+      }
+      return;
     }
 
     const setInitialConversation = () => {
@@ -594,7 +607,7 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
     }
 
     setInitialConversation();
-  }, [canAttemptServerHistory, primaryHistoryStorageKey, historyStorageKeys, historyStorageUserIds.length, authUser?.id, persistentUserId, channelContext, serverHistoryHeaders, userProfile?.id]);
+  }, [authLoading, canAttemptServerHistory, historyBootstrapKey, primaryHistoryStorageKey, historyStorageKeys, historyStorageUserIds.length, authUser?.id, persistentUserId, channelContext, serverHistoryHeaders, userProfile?.id]);
 
   useEffect(() => {
     if (!channelContext?.id) {
