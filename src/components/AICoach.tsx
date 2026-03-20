@@ -1008,54 +1008,38 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
   const userDisplayName = userProfile?.name || channelContext?.title || 'Creator';
 
   return (
-    <div className="relative flex flex-col min-h-[calc(100vh-8rem)] animate-in fade-in duration-500">
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-x-0 top-0 h-64 rounded-[2.25rem] opacity-80 blur-3xl"
-        style={{
-          background:
-            'radial-gradient(circle at 15% 20%, rgba(34,197,94,0.14), transparent 30%), radial-gradient(circle at 85% 0%, rgba(59,130,246,0.18), transparent 32%), radial-gradient(circle at 50% 30%, rgba(244,114,182,0.12), transparent 35%)',
-        }}
-      />
-
-      <div className="relative mb-5 sm:mb-6 rounded-[28px] border border-white/8 bg-[linear-gradient(180deg,rgba(18,24,39,0.94),rgba(10,13,22,0.9))] px-5 py-5 shadow-[0_24px_80px_rgba(0,0,0,0.45)] backdrop-blur-xl sm:px-6">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div className="space-y-3">
-            <div className="inline-flex items-center gap-2 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.24em] text-emerald-200">
-              <span className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_16px_rgba(74,222,128,0.8)]" />
-              AI Strategy Console
-            </div>
-            <div>
-              <h1 className="text-3xl font-semibold tracking-[-0.04em] text-zinc-50 sm:text-4xl">Janso</h1>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-300 sm:text-base">
-                A cinematic growth partner for titles, hooks, content direction, and channel strategy.
-              </p>
-            </div>
+    <div className="flex flex-col min-h-[calc(100vh-8rem)] animate-in fade-in duration-500">
+      <div className="mb-4 sm:mb-5">
+        <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-zinc-100">Janso</h1>
+            <p className="text-sm sm:text-base text-zinc-400 mt-1.5">
+              Your personal strategist for content ideas, hooks, and channel growth.
+            </p>
           </div>
-
-          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
-            <div className="rounded-2xl border border-white/8 bg-white/[0.04] px-3 py-2">
-              <p className="text-[10px] uppercase tracking-[0.22em] text-zinc-500">Focused Channel</p>
-              <p className="mt-1 text-sm font-semibold text-zinc-100 truncate">{activeChannelTitle}</p>
+          <div className="flex flex-wrap gap-2">
+            <div className="rounded-xl border border-zinc-800 bg-zinc-900/70 px-3 py-2">
+              <p className="text-[10px] uppercase tracking-[0.18em] text-zinc-500">Channel</p>
+              <p className="mt-1 text-sm font-semibold text-zinc-100">{activeChannelTitle}</p>
             </div>
-            <div className="rounded-2xl border border-white/8 bg-white/[0.04] px-3 py-2">
-              <p className="text-[10px] uppercase tracking-[0.22em] text-zinc-500">Strategist Mode</p>
-              <p className="mt-1 text-sm font-semibold text-zinc-100">Retention + CTR</p>
+            <div className="rounded-xl border border-zinc-800 bg-zinc-900/70 px-3 py-2">
+              <p className="text-[10px] uppercase tracking-[0.18em] text-zinc-500">Mode</p>
+              <p className="mt-1 text-sm font-semibold text-zinc-100">Growth Strategy</p>
             </div>
           </div>
         </div>
       </div>
 
       {channelContext?.id && (
-        <div className="mb-5 rounded-[26px] border border-sky-400/20 bg-[linear-gradient(135deg,rgba(21,33,53,0.88),rgba(14,17,28,0.96))] px-4 py-3 shadow-[0_18px_45px_rgba(0,0,0,0.28)] sm:px-5">
+        <div className="mb-4 rounded-2xl border border-indigo-500/30 bg-indigo-500/10 px-4 py-3">
           <div className="flex items-start gap-3">
-            <div className="mt-0.5 flex h-9 w-9 items-center justify-center rounded-2xl border border-sky-300/20 bg-sky-400/10 text-sky-200">
+            <div className="w-8 h-8 rounded-lg bg-indigo-500/20 flex items-center justify-center text-indigo-300 mt-0.5">
               <BellRing size={16} />
             </div>
 
             <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between gap-3">
-                <p className="text-xs font-bold uppercase tracking-[0.18em] text-sky-200">Insight Alert</p>
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-indigo-300">Insight Alert</p>
                 <button
                   onClick={() => {
                     setLoadingInsightAlert(true);
@@ -1079,7 +1063,7 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
                       })
                       .finally(() => setLoadingInsightAlert(false));
                   }}
-                  className="inline-flex items-center gap-1 rounded-xl border border-white/10 bg-white/[0.03] px-2.5 py-1 text-[11px] text-zinc-200 hover:bg-white/[0.07] transition-colors"
+                  className="inline-flex items-center gap-1 rounded-lg border border-zinc-700 px-2 py-1 text-[11px] text-zinc-300 hover:bg-zinc-800/60 transition-colors"
                 >
                   <RefreshCw size={12} className={cn(loadingInsightAlert && 'animate-spin')} />
                   Refresh
@@ -1113,9 +1097,9 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
                         onClick={() => {
                           setInput(`Let's execute this insight alert idea: ${idea}`);
                         }}
-                        className="text-left rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs text-zinc-300 hover:border-sky-300/40 hover:bg-white/[0.08] transition-colors"
+                        className="text-left rounded-xl border border-zinc-700/70 bg-zinc-950/70 px-3 py-2 text-xs text-zinc-300 hover:border-indigo-400/60 hover:bg-zinc-900 transition-colors"
                       >
-                        <span className="text-sky-200 font-semibold">Idea {index + 1}:</span> {idea}
+                        <span className="text-indigo-300 font-semibold">Idea {index + 1}:</span> {idea}
                       </button>
                     ))}
                   </div>
@@ -1132,27 +1116,27 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
         </div>
       )}
 
-      <div className="flex-1 min-h-[34rem] overflow-hidden rounded-[30px] border border-white/8 bg-[linear-gradient(180deg,rgba(15,20,30,0.96),rgba(8,10,18,0.98))] shadow-[0_30px_100px_rgba(0,0,0,0.5)] sm:min-h-[40rem] lg:min-h-[46rem]">
+      <div className="flex-1 min-h-[34rem] sm:min-h-[40rem] lg:min-h-[46rem] bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden flex flex-col shadow-2xl">
         {/* Chat Header */}
-        <div className="flex items-center gap-2 border-b border-white/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.01))] px-4 py-4 md:gap-3 md:px-6">
-          <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-2xl border border-cyan-300/20 bg-cyan-400/10 text-cyan-200 md:h-10 md:w-10">
+        <div className="px-4 md:px-6 py-3 md:py-4 border-b border-zinc-800 bg-zinc-900/50 flex items-center gap-2 md:gap-3">
+          <div className="w-8 md:w-10 h-8 md:h-10 rounded-full bg-indigo-500/20 flex items-center justify-center text-indigo-400 flex-shrink-0">
             <Bot size={20} />
           </div>
           <div className="min-w-0">
-            <h2 className="truncate text-sm font-semibold tracking-[-0.02em] text-zinc-50">{activeConversation?.title || 'Janso'}</h2>
-            <div className="flex items-center gap-2">
-              <div className="h-1.5 w-1.5 flex-shrink-0 rounded-full bg-emerald-500 animate-pulse"></div>
-              <span className="text-[10px] font-medium uppercase tracking-[0.24em] text-zinc-500">Live strategist</span>
+            <h2 className="text-xs md:text-sm font-bold text-zinc-100 truncate">{activeConversation?.title || 'Janso'}</h2>
+            <div className="flex items-center gap-1.5">
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse flex-shrink-0"></div>
+              <span className="text-[9px] md:text-[10px] font-medium text-zinc-500 uppercase tracking-wider">Online</span>
             </div>
           </div>
-          <div className="ml-2 hidden rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-[11px] text-zinc-300 sm:block">
+          <div className="ml-2 hidden rounded-full border border-zinc-800 bg-zinc-950 px-3 py-1 text-[11px] text-zinc-400 sm:block">
             Speaking with {userDisplayName}
           </div>
           <div className="ml-auto flex items-center gap-1 md:gap-2 flex-shrink-0">
             <button
               onClick={startNewConversation}
               title="New Chat"
-              className="inline-flex items-center gap-1 rounded-xl border border-white/10 bg-white/[0.04] px-2.5 py-1.5 text-[10px] font-medium text-zinc-200 transition-colors hover:bg-white/[0.08] md:gap-1.5 md:px-3"
+              className="inline-flex items-center gap-1 md:gap-1.5 px-2 md:px-3 py-1.5 text-[10px] md:text-xs font-medium text-zinc-300 bg-zinc-800 hover:bg-zinc-700 rounded-lg transition-colors"
             >
               <Plus size={12} className="md:hidden" />
               <Plus size={14} className="hidden md:block" />
@@ -1164,8 +1148,8 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
               className={cn(
                 'inline-flex items-center gap-1 md:gap-1.5 px-2 md:px-3 py-1.5 text-[10px] md:text-xs font-medium rounded-lg transition-colors',
                 historyOpen
-                  ? 'border border-cyan-300/30 bg-cyan-400/15 text-cyan-100'
-                  : 'border border-white/10 bg-white/[0.04] text-zinc-200 hover:bg-white/[0.08]',
+                  ? 'bg-indigo-600 text-white'
+                  : 'text-zinc-300 bg-zinc-800 hover:bg-zinc-700',
               )}
             >
               <History size={12} className="md:hidden" />
@@ -1176,19 +1160,19 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
         </div>
 
         {historyOpen && (
-          <div className="max-h-48 overflow-y-auto border-b border-white/8 bg-black/20 px-3 py-3 md:max-h-56 md:px-4">
+          <div className="px-3 md:px-4 py-2 md:py-3 border-b border-zinc-800 bg-zinc-950/60 max-h-48 md:max-h-56 overflow-y-auto">
             {conversations.length === 0 ? (
               <p className="text-xs text-zinc-500">No saved conversations yet.</p>
             ) : (
-              <div className="space-y-2">
+              <div className="space-y-1 md:space-y-2">
                 {conversations.map((conversation) => (
                   <div
                     key={conversation.id}
                     className={cn(
-                      'flex items-start gap-2 rounded-2xl border px-3 py-2',
+                      'flex items-start gap-2 rounded-lg border px-2 py-1.5 md:py-2',
                       conversation.id === activeConversationId
-                        ? 'border-cyan-300/30 bg-cyan-400/10 shadow-[0_0_0_1px_rgba(103,232,249,0.08)]'
-                        : 'border-white/8 bg-white/[0.03]',
+                        ? 'border-indigo-500/60 bg-indigo-500/10'
+                        : 'border-zinc-800 bg-zinc-900/60',
                     )}
                   >
                     <button
@@ -1218,7 +1202,7 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
         {/* Messages */}
         <div
           ref={scrollRef}
-          className="flex-1 min-h-[22rem] space-y-5 overflow-y-auto bg-[radial-gradient(circle_at_top,rgba(94,234,212,0.06),transparent_24%),linear-gradient(180deg,rgba(255,255,255,0.015),transparent)] p-3 scroll-smooth sm:min-h-[28rem] md:p-6 lg:min-h-[34rem]"
+          className="flex-1 min-h-[22rem] sm:min-h-[28rem] lg:min-h-[34rem] overflow-y-auto p-3 md:p-6 space-y-4 md:space-y-6 scroll-smooth"
         >
           {messages.map((msg, i) => (
             <div 
@@ -1249,14 +1233,14 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
                 </div>
               )}
               <div className={cn(
-                "relative overflow-hidden rounded-[22px] px-3 py-2.5 text-xs leading-relaxed shadow-[0_18px_45px_rgba(0,0,0,0.18)] md:px-4 md:py-3 md:text-sm",
+                "relative rounded-2xl px-3 md:px-4 py-2 md:py-3 text-xs md:text-sm leading-relaxed",
                 msg.role === 'user'
-                  ? "rounded-tr-md border border-white/8 bg-[linear-gradient(135deg,rgba(37,45,67,0.96),rgba(26,30,45,0.98))] text-zinc-100"
-                  : "rounded-tl-md border border-cyan-300/10 bg-[linear-gradient(135deg,rgba(11,15,24,0.96),rgba(16,25,35,0.98))] text-zinc-200 markdown-body"
+                  ? "bg-zinc-800 text-zinc-100 rounded-tr-none"
+                  : "bg-zinc-950 border border-zinc-800 text-zinc-300 rounded-tl-none markdown-body"
               )}>
                 {msg.role === 'model' && (
-                  <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-cyan-300/10 bg-cyan-400/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-cyan-100">
-                    <span className="h-1.5 w-1.5 rounded-full bg-cyan-300" />
+                  <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-indigo-500/20 bg-indigo-500/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-indigo-300">
+                    <span className="h-1.5 w-1.5 rounded-full bg-indigo-400" />
                     Janso
                   </div>
                 )}
@@ -1274,7 +1258,7 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
                 <Bot size={12} className="md:hidden" />
                 <Bot size={16} className="hidden md:block" />
               </div>
-              <div className="flex items-center gap-2 rounded-[22px] rounded-tl-md border border-cyan-300/10 bg-[linear-gradient(135deg,rgba(11,15,24,0.96),rgba(16,25,35,0.98))] px-3 py-2 md:px-4 md:py-3">
+              <div className="bg-zinc-950 border border-zinc-800 rounded-2xl rounded-tl-none px-3 md:px-4 py-2 md:py-3 flex items-center gap-2">
                 <Loader2 size={14} className="animate-spin text-indigo-400 md:hidden" />
                 <Loader2 size={16} className="animate-spin text-indigo-400 hidden md:block" />
                 <span className="text-[10px] font-medium italic text-zinc-500 md:text-xs">Janso is thinking...</span>
@@ -1285,14 +1269,14 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
 
         {/* Quick Prompts */}
         {messages.length === 1 && (
-          <div className="flex flex-wrap gap-2 px-3 pb-4 md:px-6">
+          <div className="px-3 md:px-6 pb-3 md:pb-4 flex flex-wrap gap-1.5 md:gap-2">
             {quickPrompts.map((p, i) => (
               <button
                 key={i}
                 onClick={() => {
                   setInput(p.label);
                 }}
-                className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1.5 text-[10px] font-medium text-zinc-200 transition-colors hover:border-cyan-300/30 hover:bg-cyan-400/10 md:px-3 md:text-xs"
+                className="flex items-center gap-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-2 md:px-3 py-1 md:py-1.5 rounded-full text-[10px] md:text-xs font-medium transition-colors"
               >
                 <p.icon size={12} className="text-indigo-400 md:hidden" />
                 <p.icon size={14} className="text-indigo-400 hidden md:block" />
@@ -1303,30 +1287,29 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
         )}
 
         {/* Input */}
-        <div className="border-t border-white/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01))] p-3 md:p-4">
+        <div className="p-3 md:p-4 bg-zinc-900/50 border-t border-zinc-800">
           <div className="relative flex items-center gap-2 md:gap-0">
             <input
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-              placeholder="Ask for hooks, titles, strategy, angles..."
-              className="w-full rounded-2xl border border-white/10 bg-black/30 pl-4 pr-11 py-3 text-xs text-zinc-100 backdrop-blur-sm transition-all focus:border-cyan-300/30 focus:outline-none focus:ring-2 focus:ring-cyan-300/20 md:pr-12 md:text-sm"
+              placeholder="Ask Janso..."
+              className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-3 md:pl-4 pr-10 md:pr-12 py-2 md:py-3 text-xs md:text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all"
             />
             <button
               onClick={handleSend}
               disabled={!input.trim() || loading}
-              className="absolute right-2 flex h-8 w-8 items-center justify-center rounded-xl bg-[linear-gradient(135deg,#22d3ee,#3b82f6)] text-white shadow-[0_10px_30px_rgba(37,99,235,0.45)] transition-all hover:scale-[1.03] disabled:cursor-not-allowed disabled:opacity-50 md:h-9 md:w-9"
+              className="absolute right-2 p-1.5 md:p-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-colors flex-shrink-0"
               title="Send message"
             >
               <Send size={14} className="md:hidden" />
               <Send size={18} className="hidden md:block" />
             </button>
           </div>
-          <div className="mt-2 flex items-center justify-between px-1 text-[10px] text-zinc-500">
-            <span>Powered by Gemini 2.5 Flash</span>
-            <span>Shift the conversation into hooks, titles, retention, or positioning</span>
-          </div>
+          <p className="text-[8px] md:text-[10px] text-zinc-500 mt-1.5 md:mt-2 text-center">
+            Powered by Gemini 2.5 Flash • YouTube Growth Coach
+          </p>
         </div>
       </div>
     </div>
