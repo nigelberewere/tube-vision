@@ -104,11 +104,12 @@ const CONFIGS = {
 type UseCasePageProps = {
   slug: UseCaseSlug;
   isDark: boolean;
+  isAuthenticated: boolean;
   onBack: () => void;
   onConnect?: () => void;
 };
 
-export function UseCasePage({ slug, isDark, onBack, onConnect }: UseCasePageProps) {
+export function UseCasePage({ slug, isDark, isAuthenticated, onBack, onConnect }: UseCasePageProps) {
   const config = CONFIGS[slug];
   const BadgeIcon = config.badgeIcon;
 
@@ -255,7 +256,7 @@ export function UseCasePage({ slug, isDark, onBack, onConnect }: UseCasePageProp
                 className="inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-xl bg-indigo-600 px-8 py-4 text-sm font-bold text-white transition hover:bg-indigo-500 shadow-md shadow-indigo-500/20"
               >
                 <YouTubeLogoIcon className="h-5 w-5" />
-                Connect YouTube Channel
+                {isAuthenticated ? "Continue to Dashboard" : "Connect YouTube Channel"}
               </button>
             </div>
             

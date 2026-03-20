@@ -135,10 +135,12 @@ const CONFIGS: Record<GuideSlug, GuidePageConfig> = {
 type GuidePageProps = {
   slug: GuideSlug;
   isDark: boolean;
+  isAuthenticated: boolean;
   onBack: () => void;
+  onConnect: () => void;
 };
 
-export function GuidePage({ slug, isDark, onBack }: GuidePageProps) {
+export function GuidePage({ slug, isDark, isAuthenticated, onBack, onConnect }: GuidePageProps) {
   const config = CONFIGS[slug];
 
   useEffect(() => {
@@ -313,10 +315,11 @@ export function GuidePage({ slug, isDark, onBack }: GuidePageProps) {
           </p>
           <button
             type="button"
+            onClick={onConnect}
             className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-8 py-3.5 text-sm font-bold text-white transition hover:bg-indigo-500 shadow-md shadow-indigo-500/20"
           >
             <YouTubeLogoIcon className="h-5 w-5" />
-            Sign In with Google
+            {isAuthenticated ? "Continue to Dashboard" : "Sign In with Google"}
           </button>
         </motion.div>
       </section>

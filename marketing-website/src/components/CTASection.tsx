@@ -5,6 +5,7 @@ import { cn } from "@/src/lib/utils";
 
 type CTASectionProps = {
   isDark: boolean;
+  isAuthenticated: boolean;
   onConnect: () => void;
 };
 
@@ -29,7 +30,7 @@ const steps = [
   }
 ];
 
-export function CTASection({ isDark, onConnect }: CTASectionProps) {
+export function CTASection({ isDark, isAuthenticated, onConnect }: CTASectionProps) {
   return (
     <section id="about" className="px-4 py-18 md:px-8 md:py-24">
       <div className="mx-auto w-full max-w-6xl space-y-6">
@@ -102,7 +103,7 @@ export function CTASection({ isDark, onConnect }: CTASectionProps) {
             onClick={onConnect}
             className="mt-6 rounded-xl bg-white px-7 py-3 text-sm font-bold text-black transition hover:bg-slate-200"
           >
-            Sign in with Google
+            {isAuthenticated ? "Continue to Dashboard" : "Sign in with Google"}
           </button>
         </motion.div>
       </div>

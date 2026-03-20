@@ -6,10 +6,11 @@ import YouTubeLogoIcon from "@/src/components/icons/YouTubeLogoIcon";
 
 type HeroProps = {
   isDark: boolean;
+  isAuthenticated: boolean;
   onConnect: () => void;
 };
 
-export function Hero({ isDark, onConnect }: HeroProps) {
+export function Hero({ isDark, isAuthenticated, onConnect }: HeroProps) {
   return (
     <section className="relative overflow-hidden px-4 pb-16 pt-10 md:px-8 md:pb-20 md:pt-14">
       <div aria-hidden="true" className="hero-grid pointer-events-none absolute inset-0" />
@@ -49,7 +50,7 @@ export function Hero({ isDark, onConnect }: HeroProps) {
               className="inline-flex items-center gap-2 rounded-xl bg-white px-6 py-3 text-sm font-bold text-black transition hover:bg-slate-200"
             >
               <YouTubeLogoIcon size={16} />
-              Connect YouTube
+              {isAuthenticated ? "Continue to Dashboard" : "Connect YouTube"}
             </button>
             <button
               type="button"

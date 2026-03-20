@@ -343,11 +343,12 @@ const CONFIGS: Record<FeatureSlug, FeaturePageConfig> = {
 type FeaturePageProps = {
   slug: FeatureSlug;
   isDark: boolean;
+  isAuthenticated: boolean;
   onBack: () => void;
   onConnect: () => void;
 };
 
-export function FeaturePage({ slug, isDark, onBack, onConnect }: FeaturePageProps) {
+export function FeaturePage({ slug, isDark, isAuthenticated, onBack, onConnect }: FeaturePageProps) {
   const config = CONFIGS[slug];
 
   useEffect(() => {
@@ -430,7 +431,7 @@ export function FeaturePage({ slug, isDark, onBack, onConnect }: FeaturePageProp
                 className="inline-flex items-center gap-2 rounded-xl bg-white px-6 py-3 text-sm font-bold text-black transition hover:bg-slate-200"
               >
                 <YouTubeLogoIcon size={16} />
-                Try it free
+                {isAuthenticated ? "Continue to Dashboard" : "Try it free"}
               </button>
               <button
                 type="button"
@@ -621,7 +622,7 @@ export function FeaturePage({ slug, isDark, onBack, onConnect }: FeaturePageProp
             className="inline-flex items-center gap-2 rounded-xl bg-white px-7 py-3 text-sm font-bold text-black transition hover:bg-slate-200"
           >
             <YouTubeLogoIcon size={16} />
-            Connect and get started free
+            {isAuthenticated ? "Continue to Dashboard" : "Connect and get started free"}
           </button>
         </motion.div>
       </section>

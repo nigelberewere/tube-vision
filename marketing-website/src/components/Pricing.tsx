@@ -5,13 +5,14 @@ import { cn } from "@/src/lib/utils";
 
 type PricingProps = {
   isDark: boolean;
+  isAuthenticated: boolean;
   onConnect: () => void;
 };
 
 const creatorItems = ["Bring your own Gemini API key", "All AI creator tools included", "Multi-account YouTube support"];
 const teamItems = ["Workspace collaboration", "Priority support", "Advanced analytics exports"];
 
-export function Pricing({ isDark, onConnect }: PricingProps) {
+export function Pricing({ isDark, isAuthenticated, onConnect }: PricingProps) {
   return (
     <section id="pricing" className="px-4 py-18 md:px-8 md:py-24">
       <div className="mx-auto w-full max-w-6xl">
@@ -51,7 +52,7 @@ export function Pricing({ isDark, onConnect }: PricingProps) {
               onClick={onConnect}
               className="mt-6 rounded-xl bg-white px-5 py-2.5 text-sm font-semibold text-black transition hover:bg-slate-200"
             >
-              Sign in with Google
+              {isAuthenticated ? "Continue to Dashboard" : "Sign in with Google"}
             </button>
           </article>
 

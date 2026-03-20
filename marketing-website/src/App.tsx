@@ -84,6 +84,7 @@ function getPageFromPath(pathname: string): Page {
 }
 
 export default function App() {
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => readSharedAuthCookie());
   const [page, setPage] = useState<Page>(() => getPageFromPath(window.location.pathname));
   const [currentFeatureSlug, setCurrentFeatureSlug] = useState<FeatureSlug | null>(
     () => getFeatureSlugFromPath(window.location.pathname),
@@ -109,16 +110,19 @@ export default function App() {
   }, [theme]);
 
   useEffect(() => {
-    if (page === "privacy" || page === "terms") {
-      return;
-    }
+    const refreshAuthState = () => {
+      setIsAuthenticated(readSharedAuthCookie());
+    };
 
-    if (!readSharedAuthCookie()) {
-      return;
-    }
+    refreshAuthState();
+    window.addEventListener("focus", refreshAuthState);
+    document.addEventListener("visibilitychange", refreshAuthState);
 
-    window.location.replace(getDashboardUrl());
-  }, [page]);
+    return () => {
+      window.removeEventListener("focus", refreshAuthState);
+      document.removeEventListener("visibilitychange", refreshAuthState);
+    };
+  }, []);
 
   useEffect(() => {
     const onPopState = () => {
@@ -136,6 +140,11 @@ export default function App() {
   const isDark = theme === "dark";
 
   const openDashboardAuth = () => {
+    if (isAuthenticated) {
+      window.location.assign(getDashboardUrl());
+      return;
+    }
+
     window.location.assign(getAuthUrl("youtube", "/"));
   };
 
@@ -247,13 +256,13 @@ export default function App() {
   let mainContent: React.ReactNode = null;
 
   if (page === "feature" && currentFeatureSlug) {
-    mainContent = <FeaturePage slug={currentFeatureSlug} isDark={isDark} onBack={goHome} onConnect={openDashboardAuth} />;
+    mainContent = <FeaturePage slug={currentFeatureSlug} isDark={isDark} isAuthenticated={isAuthenticated} onBack={goHome} onConnect={openDashboardAuth} />;
   } else if (page === "guide" && currentGuideSlug) {
-    mainContent = <GuidePage slug={currentGuideSlug} isDark={isDark} onBack={goHome} />;
+    mainContent = <GuidePage slug={currentGuideSlug} isDark={isDark} isAuthenticated={isAuthenticated} onBack={goHome} onConnect={openDashboardAuth} />;
   } else if (page === "about") {
     mainContent = <AboutPage isDark={isDark} onBack={goHome} />;
   } else if (page === "usecase" && currentUseCaseSlug) {
-    mainContent = <UseCasePage slug={currentUseCaseSlug} isDark={isDark} onBack={goHome} onConnect={openDashboardAuth} />;
+    mainContent = <UseCasePage slug={currentUseCaseSlug} isDark={isDark} isAuthenticated={isAuthenticated} onBack={goHome} onConnect={openDashboardAuth} />;
   } else if (page === "contact") {
     mainContent = <ContactPage isDark={isDark} onBack={goHome} />;
   } else if (page === "faq") {
@@ -261,15 +270,15 @@ export default function App() {
   } else if (page === "blog") {
     mainContent = <BlogHub isDark={isDark} onBack={goHome} onNavigateToPost={goToBlogPost} />;
   } else if (page === "blog_post" && currentBlogPostSlug) {
-    mainContent = <BlogPost slug={currentBlogPostSlug} isDark={isDark} onBack={goToBlog} onConnect={openDashboardAuth} />;
+    mainContent = <BlogPost slug={currentBlogPostSlug} isDark={isDark} isAuthenticated={isAuthenticated} onBack={goToBlog} onConnect={openDashboardAuth} />;
   } else {
     mainContent = (
       <>
-        <Hero isDark={isDark} onConnect={openDashboardAuth} />
+        <Hero isDark={isDark} isAuthenticated={isAuthenticated} onConnect={openDashboardAuth} />
         <Features isDark={isDark} onNavigateToFeature={goToFeature} />
-        <Pricing isDark={isDark} onConnect={openDashboardAuth} />
+        <Pricing isDark={isDark} isAuthenticated={isAuthenticated} onConnect={openDashboardAuth} />
         <FAQ isDark={isDark} />
-        <CTASection isDark={isDark} onConnect={openDashboardAuth} />
+        <CTASection isDark={isDark} isAuthenticated={isAuthenticated} onConnect={openDashboardAuth} />
       </>
     );
   }
@@ -296,6 +305,7 @@ export default function App() {
         theme={theme}
         isDark={isDark}
         onToggleTheme={() => setTheme((prev) => (prev === "dark" ? "light" : "dark"))}
+        isAuthenticated={isAuthenticated}
         onPrimaryAction={openDashboardAuth}
         onNavigateToFeature={goToFeature}
         onNavigateToGuide={goToGuide}

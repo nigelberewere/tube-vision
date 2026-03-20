@@ -28,6 +28,7 @@ function GoogleLogo({ className }: { className?: string }) {
 type NavigationProps = {
   theme: "dark" | "light";
   isDark: boolean;
+  isAuthenticated: boolean;
   onToggleTheme: () => void;
   onPrimaryAction: () => void;
   onNavigateToFeature: (slug: FeatureSlug) => void;
@@ -57,6 +58,7 @@ const navLinks = [
 export function Navigation({
   theme,
   isDark,
+  isAuthenticated,
   onToggleTheme,
   onPrimaryAction,
   onNavigateToFeature,
@@ -249,7 +251,7 @@ export function Navigation({
             className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-sm font-semibold text-black transition hover:bg-slate-200"
           >
             <GoogleLogo className="h-4 w-4" />
-            Sign in with Google
+            {isAuthenticated ? "Dashboard" : "Sign in with Google"}
           </button>
         </div>
       </motion.nav>

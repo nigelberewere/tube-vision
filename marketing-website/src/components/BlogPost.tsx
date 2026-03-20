@@ -9,6 +9,7 @@ import { cn } from "@/src/lib/utils";
 type BlogPostProps = {
   slug: string;
   isDark: boolean;
+  isAuthenticated: boolean;
   onBack: () => void;
   onConnect: () => void;
 };
@@ -111,7 +112,7 @@ const MOCK_CONTENT: Record<string, React.ReactNode> = {
   )
 };
 
-export function BlogPost({ slug, isDark, onBack, onConnect }: BlogPostProps) {
+export function BlogPost({ slug, isDark, isAuthenticated, onBack, onConnect }: BlogPostProps) {
   const post = BLOG_POSTS.find((p) => p.slug === slug);
   const content = MOCK_CONTENT[slug] || <p>Article content not found.</p>;
 
@@ -241,7 +242,7 @@ export function BlogPost({ slug, isDark, onBack, onConnect }: BlogPostProps) {
               className="inline-flex items-center justify-center w-full sm:w-auto gap-2 rounded-xl bg-indigo-600 px-8 py-3.5 text-sm font-bold text-white transition hover:bg-indigo-500 shadow-md shadow-indigo-500/20"
             >
               <YouTubeLogoIcon className="h-5 w-5" />
-              Sign in with Google
+              {isAuthenticated ? "Continue to Dashboard" : "Sign in with Google"}
             </button>
           </motion.div>
         </div>
