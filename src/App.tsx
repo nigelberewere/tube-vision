@@ -834,6 +834,7 @@ export default function App() {
       const authHeaders = getSupabaseAuthHeaders();
       const response = await fetch('/api/user/switch', {
         method: 'POST',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
           ...authHeaders,
@@ -844,9 +845,15 @@ export default function App() {
       if (response.ok) {
         await fetchUser();
         setIsProfileMenuOpen(false);
+        return;
       }
+
+      const errorPayload = await response.json().catch(() => null);
+      console.error('Switch account failed:', response.status, errorPayload);
+      alert(errorPayload?.error || 'Failed to switch account.');
     } catch (error) {
       console.error('Switch account error:', error);
+      alert('Unable to switch account right now.');
     }
   };
 

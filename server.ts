@@ -1183,7 +1183,10 @@ For every video provided, evaluate segments based on:
             return res.status(500).json({ error: "Failed to switch account" });
           }
 
-          return res.json({ success: true, activeIndex: index });
+          const unifiedState = await getUnifiedAccountsAndActiveIndex(req);
+          setSessionAccountsAndActiveIndex(req, unifiedState.accounts, unifiedState.activeIndex);
+
+          return res.json({ success: true, activeIndex: unifiedState.activeIndex });
         }
       } catch (error) {
         console.error("Supabase switch error:", error);
