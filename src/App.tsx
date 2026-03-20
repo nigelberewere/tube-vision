@@ -433,6 +433,7 @@ export default function App() {
             method: 'POST',
             headers: authHeaders,
             credentials: 'include',
+            cache: 'no-store',
           });
         } catch (finalizeError) {
           console.error('Finalize YouTube account refresh error:', finalizeError);
@@ -443,6 +444,7 @@ export default function App() {
       const accountsResponse = await fetch('/api/user/accounts', {
         headers: authHeaders,
         credentials: 'include',
+        cache: 'no-store',
       });
       if (accountsResponse.ok) {
         const accountsData = await accountsResponse.json();
@@ -456,6 +458,7 @@ export default function App() {
           const channelResponse = await fetch('/api/user/channel', {
             headers: authHeaders,
             credentials: 'include',
+            cache: 'no-store',
           });
           if (channelResponse.ok) {
             const channelData = await channelResponse.json();
@@ -843,6 +846,8 @@ export default function App() {
       });
       
       if (response.ok) {
+        setActiveAccountIndex(index);
+        setUser(accounts[index] || null);
         await fetchUser();
         setIsProfileMenuOpen(false);
         return;
