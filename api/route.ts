@@ -1019,6 +1019,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const url = oauth2Client.generateAuthUrl({
       access_type: 'offline',
+      include_granted_scopes: true,
       scope: [
         'https://www.googleapis.com/auth/youtube.readonly',
         // 'https://www.googleapis.com/auth/youtube.force-ssl', // TODO: re-enable once Google re-approves with edit/delete scopes
@@ -1081,6 +1082,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Using our redirect_uri means the consent screen shows app.janso.studio.
     const url = oauth2Client.generateAuthUrl({
       access_type: 'offline',
+      include_granted_scopes: true,
       scope: [
         'https://www.googleapis.com/auth/userinfo.email',
         'https://www.googleapis.com/auth/userinfo.profile',
