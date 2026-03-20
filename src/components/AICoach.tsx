@@ -172,6 +172,14 @@ function pickPreferredConversationSet(
     : cloudConversations;
 }
 
+function hasUserMessages(messages: Message[]): boolean {
+  return messages.some((message) => message.role === 'user' && message.text.trim().length > 0);
+}
+
+function hasMeaningfulConversations(conversations: ConversationRecord[]): boolean {
+  return conversations.some((conversation) => hasUserMessages(conversation.messages));
+}
+
 function persistConversations(conversations: ConversationRecord[], storageKey: string): void {
   if (typeof window === 'undefined') return;
   try {
@@ -400,7 +408,7 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
 
   // Debounced sync to Supabase — keeps chat history alive across storage clears
   useEffect(() => {
-    if (!isHistoryHydrated || conversations.length === 0) {
+    if (!isHistoryHydrated || conversations.length === 0 || !hasMeaningfulConversations(conversations)) {
       console.log('[AICoach sync effect] Skipped: userProfile?.id or conversations.length === 0', {
         isHistoryHydrated,
         persistentUserId,
@@ -510,7 +518,6 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
       setConversations([initialConversation]);
       setActiveConversationId(initialConversation.id);
       setMessages(initialConversation.messages);
-      persistConversationsToKeys([initialConversation], historyStorageKeys);
       hydratedHistoryKeyRef.current = primaryHistoryStorageKey;
     };
 
@@ -701,7 +708,9 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
       }
 
       const sorted = sortConversationsByLatest(updated).slice(0, MAX_SAVED_CONVERSATIONS);
-      persistConversationsToKeys(sorted, historyStorageKeys);
+      if (hasMeaningfulConversations(sorted)) {
+        persistConversationsToKeys(sorted, historyStorageKeys);
+      }
       return sorted;
     });
   }, [messages, activeConversationId, channelContext?.title, historyStorageKeys]);
@@ -721,7 +730,9 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
 
     setConversations((previous) => {
       const sorted = sortConversationsByLatest([nextConversation, ...previous]).slice(0, MAX_SAVED_CONVERSATIONS);
-      persistConversationsToKeys(sorted, historyStorageKeys);
+      if (hasMeaningfulConversations(sorted)) {
+        persistConversationsToKeys(sorted, historyStorageKeys);
+      }
       return sorted;
     });
   };
@@ -754,7 +765,9 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
       }
 
       const sorted = sortConversationsByLatest(remaining);
-      persistConversationsToKeys(sorted, historyStorageKeys);
+      if (hasMeaningfulConversations(sorted)) {
+        persistConversationsToKeys(sorted, historyStorageKeys);
+      }
       return sorted;
     });
 
