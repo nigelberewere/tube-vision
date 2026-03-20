@@ -1235,7 +1235,7 @@ export default function App() {
   return (
     <div
       className={cn(
-        'theme-root flex h-screen font-sans transition-colors',
+        'theme-root flex h-screen overflow-x-hidden font-sans transition-colors',
         theme === 'light'
           ? 'theme-light bg-slate-100 text-slate-900 selection:bg-slate-300 selection:text-slate-900'
           : 'theme-dark bg-[#050505] text-slate-200 selection:bg-white/20 selection:text-white'
@@ -1243,7 +1243,7 @@ export default function App() {
     >
       <button
         className={cn(
-          'lg:hidden fixed top-4 left-4 z-50 p-2 rounded-md border',
+          'lg:hidden fixed left-3 top-[max(0.75rem,env(safe-area-inset-top))] z-50 rounded-xl border p-2.5 shadow-sm backdrop-blur',
           theme === 'light'
             ? 'bg-white border-slate-300 text-slate-700'
             : 'bg-[#0a0a0a] border-white/10'
@@ -1625,13 +1625,13 @@ export default function App() {
       </aside>
 
       <main className={cn('flex-1 overflow-y-auto transition-colors', theme === 'light' ? 'bg-slate-100' : 'bg-[#050505]')}>
-        <div className="max-w-6xl mx-auto p-3 sm:p-6 lg:p-10">
-          <div className="mb-6 sm:mb-8 rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl p-4 sm:p-6">
+        <div className="mx-auto max-w-6xl px-3 pb-6 pt-20 sm:px-6 sm:pb-8 sm:pt-6 lg:p-10">
+          <div className="mb-5 rounded-2xl border border-white/10 bg-white/[0.03] p-4 backdrop-blur-xl sm:mb-8 sm:p-6">
             <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
               <div className="min-w-0">
                 <p className="text-[10px] sm:text-xs uppercase tracking-[0.2em] text-slate-500">Active Workspace</p>
-                <h1 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight text-white mt-1">{activeTabConfig.label}</h1>
-                <p className="text-xs sm:text-sm text-slate-400 mt-1 md:mt-2 max-w-3xl">{activeTabConfig.summary}</p>
+                <h1 className="mt-1 pr-8 text-xl font-bold tracking-tight text-white sm:text-2xl md:text-3xl lg:pr-0">{activeTabConfig.label}</h1>
+                <p className="mt-1 max-w-3xl pr-4 text-sm text-slate-400 md:mt-2 md:pr-0">{activeTabConfig.summary}</p>
               </div>
             </div>
           </div>

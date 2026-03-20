@@ -221,29 +221,34 @@ export default function GrowthMomentum({ isConnected, className, theme = 'dark' 
       </div>
 
       {/* Period Selector */}
-      <div className="flex gap-2">
+      <div className="grid grid-cols-3 gap-2">
         {(['week', 'month', 'quarter'] as const).map((period) => (
           <button
             key={period}
             onClick={() => setSelectedPeriod(period)}
             className={cn(
-              'rounded-lg px-4 py-2 text-sm font-medium transition-colors',
+              'rounded-lg px-3 py-2 text-center text-sm font-medium transition-colors sm:px-4',
               selectedPeriod === period
                 ? 'bg-blue-600 text-white'
                 : inactivePeriodClass
             )}
           >
-            Last {period === 'week' ? '7' : period === 'month' ? '30' : '90'} days
+            <span className="sm:hidden">
+              {period === 'week' ? 'Last 7' : period === 'month' ? 'Last 30' : 'Last 90'}
+            </span>
+            <span className="hidden sm:inline">
+              Last {period === 'week' ? '7' : period === 'month' ? '30' : '90'} days
+            </span>
           </button>
         ))}
       </div>
 
       {/* Growth Chart */}
       {chartData.length > 0 ? (
-        <div className={cn('rounded-lg border p-6', cardClass)}>
+        <div className={cn('rounded-lg border p-4 sm:p-6', cardClass)}>
           <h3 className={cn('mb-4 text-lg font-semibold', headingClass)}>Growth Trend</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <ComposedChart data={chartData} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
+          <ResponsiveContainer width="100%" height={280}>
+            <ComposedChart data={chartData} margin={{ top: 5, right: 12, left: -18, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
               <XAxis 
                 dataKey="date" 

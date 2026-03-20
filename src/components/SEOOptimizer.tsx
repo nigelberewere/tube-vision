@@ -261,27 +261,27 @@ Ensure variants are MAXIMALLY different from each other to represent true A/B te
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight text-zinc-100">SEO Optimizer</h1>
-        <p className="text-zinc-400 mt-2">Generate high-CTR titles, descriptions, tags, and A/B test predictions.</p>
+        <h1 className="text-3xl font-bold tracking-tight text-zinc-100 sm:text-4xl">SEO Optimizer</h1>
+        <p className="mt-2 max-w-3xl text-zinc-400">Generate high-CTR titles, descriptions, tags, and A/B test predictions.</p>
       </div>
 
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6">
+      <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4 sm:p-6">
         <label className="block text-sm font-medium text-zinc-300 mb-2">
           Video Topic or Working Title
         </label>
-        <div className="flex gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
           <input
             type="text"
             value={topic}
             onChange={(e) => setTopic(e.target.value)}
             placeholder="e.g., How to build a SaaS in 2024"
-            className="flex-1 bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2.5 text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+            className="min-w-0 flex-1 rounded-lg border border-zinc-800 bg-zinc-950 px-4 py-3 text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 sm:min-w-[240px]"
             onKeyDown={(e) => e.key === 'Enter' && handleGenerate()}
           />
           <button
             onClick={handleGenerate}
             disabled={loading || !topic}
-            className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-6 py-2.5 rounded-lg font-medium flex items-center gap-2 transition-colors"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-indigo-600 px-6 py-3 font-medium text-white transition-colors hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
           >
             {loading && !showABTest ? <Loader2 size={18} className="animate-spin" /> : <Sparkles size={18} />}
             Optimize
@@ -289,7 +289,7 @@ Ensure variants are MAXIMALLY different from each other to represent true A/B te
           <button
             onClick={handleABTest}
             disabled={loading || !topic}
-            className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-6 py-2.5 rounded-lg font-medium flex items-center gap-2 transition-colors"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-600 px-6 py-3 font-medium text-white transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
           >
             {loading && showABTest ? <Loader2 size={18} className="animate-spin" /> : <Target size={18} />}
             A/B Test
@@ -304,7 +304,7 @@ Ensure variants are MAXIMALLY different from each other to represent true A/B te
       <div className="bg-gradient-to-br from-indigo-900/20 to-zinc-900 border border-indigo-500/30 rounded-xl overflow-hidden">
         <button
           onClick={() => setShowSnippets(!showSnippets)}
-          className="w-full px-6 py-4 flex items-center justify-between hover:bg-indigo-500/5 transition-colors"
+          className="flex w-full flex-col items-start gap-3 px-4 py-4 text-left transition-colors hover:bg-indigo-500/5 sm:flex-row sm:items-center sm:justify-between sm:px-6"
         >
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-indigo-500/20">
@@ -315,7 +315,7 @@ Ensure variants are MAXIMALLY different from each other to represent true A/B te
               <p className="text-sm text-zinc-400">Save social links, gear lists, and more. AI will auto-include them in descriptions.</p>
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex w-full items-center justify-between gap-3 sm:w-auto sm:justify-end">
             <span className="text-xs text-indigo-400 bg-indigo-500/10 px-3 py-1 rounded-full">
               {snippets.filter(s => s.enabled).length} active
             </span>
@@ -324,7 +324,7 @@ Ensure variants are MAXIMALLY different from each other to represent true A/B te
         </button>
 
         {showSnippets && (
-          <div className="border-t border-indigo-500/30 p-6 space-y-4">
+          <div className="space-y-4 border-t border-indigo-500/30 p-4 sm:p-6">
             {/* Existing Snippets */}
             {snippets.map(snippet => (
               <div
@@ -370,8 +370,8 @@ Ensure variants are MAXIMALLY different from each other to represent true A/B te
                   </div>
                 ) : (
                   <div>
-                    <div className="flex items-start justify-between mb-2">
-                      <div className="flex items-center gap-3">
+                    <div className="mb-2 flex items-start justify-between gap-3">
+                      <div className="flex min-w-0 items-center gap-3">
                         <button
                           onClick={() => toggleSnippet(snippet.id)}
                           className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
@@ -382,7 +382,7 @@ Ensure variants are MAXIMALLY different from each other to represent true A/B te
                         >
                           {snippet.enabled && <Check size={14} className="text-white" />}
                         </button>
-                        <h3 className="font-medium text-zinc-100">{snippet.name}</h3>
+                        <h3 className="min-w-0 truncate font-medium text-zinc-100">{snippet.name}</h3>
                       </div>
                       <div className="flex items-center gap-2">
                         <button
@@ -424,7 +424,7 @@ Ensure variants are MAXIMALLY different from each other to represent true A/B te
                   className="w-full bg-zinc-950 border border-zinc-700 rounded-lg px-3 py-2 text-zinc-100 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 font-mono"
                   placeholder="Snippet content (e.g., links, disclaimers, gear info...)"
                 />
-                <div className="flex gap-2">
+                <div className="flex flex-col gap-2 sm:flex-row">
                   <button
                     onClick={addSnippet}
                     disabled={!newSnippetName.trim() || !newSnippetContent.trim()}
@@ -456,7 +456,7 @@ Ensure variants are MAXIMALLY different from each other to represent true A/B te
               </button>
             )}
 
-            <div className="mt-4 p-3 bg-indigo-500/10 border border-indigo-500/20 rounded-lg">
+            <div className="mt-4 rounded-lg border border-indigo-500/20 bg-indigo-500/10 p-3">
               <p className="text-xs text-indigo-200">
                 💡 <strong>Tip:</strong> Enable/disable snippets using the checkboxes. Only enabled snippets will be included in AI-generated descriptions.
               </p>

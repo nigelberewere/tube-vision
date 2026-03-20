@@ -253,17 +253,17 @@ export default function VideoIdeaGenerator({ channelContext, onNavigateToScript 
 
   return (
     <div className="space-y-10 animate-in fade-in duration-500">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-zinc-100">Video Idea Generator</h1>
-          <p className="text-zinc-400 mt-2">Personalized daily ideas with AI-powered scores and trending insights.</p>
+          <h1 className="text-3xl font-bold tracking-tight text-zinc-100 sm:text-4xl">Video Idea Generator</h1>
+          <p className="mt-2 max-w-3xl text-zinc-400">Personalized daily ideas with AI-powered scores and trending insights.</p>
         </div>
-        <div className="flex flex-wrap gap-3">
-          <div className="flex items-center gap-2 bg-zinc-900 border border-zinc-800 rounded-xl p-1">
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+          <div className="flex w-full items-center gap-2 rounded-xl border border-zinc-800 bg-zinc-900 p-1 sm:w-auto">
             <button
               onClick={() => setViewMode('generated')}
               className={cn(
-                "px-4 py-2 rounded-lg text-sm font-semibold transition-all",
+                "flex-1 rounded-lg px-4 py-2 text-sm font-semibold transition-all sm:flex-none",
                 viewMode === 'generated' 
                   ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/20" 
                   : "text-zinc-400 hover:text-zinc-300"
@@ -277,7 +277,7 @@ export default function VideoIdeaGenerator({ channelContext, onNavigateToScript 
             <button
               onClick={() => setViewMode('saved')}
               className={cn(
-                "px-4 py-2 rounded-lg text-sm font-semibold transition-all relative",
+                "relative flex-1 rounded-lg px-4 py-2 text-sm font-semibold transition-all sm:flex-none",
                 viewMode === 'saved' 
                   ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/20" 
                   : "text-zinc-400 hover:text-zinc-300"
@@ -297,7 +297,7 @@ export default function VideoIdeaGenerator({ channelContext, onNavigateToScript 
           <button
             onClick={generateIdeas}
             disabled={loadingIdeas}
-            className="bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-100 px-4 py-2 rounded-xl text-sm font-semibold flex items-center gap-2 transition-all"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-zinc-800 bg-zinc-900 px-4 py-2 text-sm font-semibold text-zinc-100 transition-all hover:bg-zinc-800 sm:w-auto"
           >
             {loadingIdeas ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} className="text-indigo-400" />}
             Refresh Ideas
@@ -305,7 +305,7 @@ export default function VideoIdeaGenerator({ channelContext, onNavigateToScript 
           <button
             onClick={findTrends}
             disabled={loadingTrends}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-sm font-semibold flex items-center gap-2 transition-all shadow-lg shadow-indigo-500/20"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-indigo-500/20 transition-all hover:bg-indigo-700 sm:w-auto"
           >
             {loadingTrends ? <Loader2 size={16} className="animate-spin" /> : <Globe size={16} />}
             Scan Trends
@@ -389,7 +389,7 @@ export default function VideoIdeaGenerator({ channelContext, onNavigateToScript 
                         </div>
                         
                         {/* Score Breakdown */}
-                        <div className="grid grid-cols-3 gap-3 mb-4">
+                        <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
                           <div className="bg-zinc-800/50 border border-zinc-700 rounded-lg p-2">
                             <p className="text-[9px] font-bold uppercase tracking-widest text-zinc-500 mb-1">Viral</p>
                             <div className="flex items-center gap-2">
@@ -535,7 +535,7 @@ export default function VideoIdeaGenerator({ channelContext, onNavigateToScript 
                         </div>
                       </div>
                       
-                      <div className="grid grid-cols-3 gap-3 mb-4">
+                      <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
                         <div className="bg-zinc-800/50 border border-zinc-700 rounded-lg p-2">
                           <p className="text-[9px] font-bold uppercase tracking-widest text-zinc-500 mb-1">Viral</p>
                           <div className="flex items-center gap-2">

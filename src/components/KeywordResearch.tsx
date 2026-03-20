@@ -130,27 +130,27 @@ Focus on giving creators a competitive advantage by spotting trends BEFORE they 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight text-zinc-100">Keyword Research</h1>
-        <p className="text-zinc-400 mt-2">Find low-competition, high-demand niches and catch trending topics early.</p>
+        <h1 className="text-3xl font-bold tracking-tight text-zinc-100 sm:text-4xl">Keyword Research</h1>
+        <p className="mt-2 max-w-3xl text-zinc-400">Find low-competition, high-demand niches and catch trending topics early.</p>
       </div>
 
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6">
+      <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4 sm:p-6">
         <label className="block text-sm font-medium text-zinc-300 mb-2">
           Niche or Broad Topic
         </label>
-        <div className="flex gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row">
           <input
             type="text"
             value={niche}
             onChange={(e) => setNiche(e.target.value)}
             placeholder="e.g., Personal Finance for Beginners"
-            className="flex-1 bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2.5 text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+            className="min-w-0 flex-1 rounded-lg border border-zinc-800 bg-zinc-950 px-4 py-3 text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
             onKeyDown={(e) => e.key === 'Enter' && handleResearch()}
           />
           <button
             onClick={handleResearch}
             disabled={loading || !niche}
-            className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-6 py-2.5 rounded-lg font-medium flex items-center gap-2 transition-colors"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-indigo-600 px-6 py-3 font-medium text-white transition-colors hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto sm:flex-none"
           >
             {loading ? <Loader2 size={18} className="animate-spin" /> : <Search size={18} />}
             Analyze
@@ -166,20 +166,20 @@ Focus on giving creators a competitive advantage by spotting trends BEFORE they 
           {/* Trending Now Section */}
           {result.trendingNow && result.trendingNow.length > 0 && (
             <div className="bg-gradient-to-br from-orange-900/20 to-zinc-900 border border-orange-500/30 rounded-xl overflow-hidden">
-              <div className="px-6 py-4 border-b border-orange-500/30 bg-orange-900/20">
+              <div className="border-b border-orange-500/30 bg-orange-900/20 px-4 py-4 sm:px-6">
                 <div className="flex items-center gap-2">
                   <Flame className="text-orange-400" size={20} />
                   <h2 className="text-lg font-semibold text-zinc-100">Trending Now - First Mover Opportunities</h2>
                 </div>
                 <p className="text-sm text-zinc-400 mt-1">{result.trendInsight}</p>
               </div>
-              <div className="p-6 space-y-4">
+              <div className="space-y-4 p-4 sm:p-6">
                 {result.trendingNow.map((trend: any, i: number) => (
                   <div 
                     key={i} 
-                    className="border border-zinc-700 bg-zinc-900/50 rounded-lg p-5 hover:border-orange-500/50 transition-all"
+                    className="rounded-lg border border-zinc-700 bg-zinc-900/50 p-4 transition-all hover:border-orange-500/50 sm:p-5"
                   >
-                    <div className="flex items-start justify-between gap-4 mb-4">
+                    <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-2">
                           {getVelocityIcon(trend.growthVelocity)}
@@ -188,7 +188,7 @@ Focus on giving creators a competitive advantage by spotting trends BEFORE they 
                         <p className="text-sm text-zinc-400 mb-3">{trend.trendReason}</p>
                       </div>
                       
-                      <div className="flex flex-col gap-2">
+                      <div className="flex w-full flex-col gap-2 sm:w-auto">
                         <div className="bg-orange-500/10 border border-orange-500/30 rounded-lg px-3 py-1.5 text-center">
                           <div className="text-xs text-orange-400 mb-0.5">First Mover</div>
                           <div className="text-lg font-bold text-orange-300">{trend.firstMoverScore}</div>
@@ -253,7 +253,7 @@ Focus on giving creators a competitive advantage by spotting trends BEFORE they 
             </div>
           )}
           {/* Main Analysis */}
-          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6">
+          <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4 sm:p-6">
             <h2 className="text-xl font-semibold text-zinc-100 mb-6">Main Topic Analysis</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 md:gap-6 mb-6">
               <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-4 flex flex-col items-center justify-center text-center">

@@ -996,13 +996,13 @@ Return valid JSON only.`;
       {/* Daily Video Ideas Section */}
       <div
         className={cn(
-          'rounded-2xl border p-6',
+          'rounded-2xl border p-4 sm:p-6',
           isLightTheme
             ? 'border-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-cyan-50 shadow-sm'
             : 'border-emerald-400/30 bg-gradient-to-br from-emerald-500/10 via-teal-500/10 to-cyan-500/10'
         )}
       >
-        <div className="flex items-start gap-4">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
           <div className={cn('flex h-12 w-12 shrink-0 items-center justify-center rounded-xl', isLightTheme ? 'bg-emerald-100' : 'bg-emerald-500/20')}>
             <Lightbulb size={24} className={isLightTheme ? 'text-emerald-700' : 'text-emerald-300'} />
           </div>
@@ -1020,7 +1020,7 @@ Return valid JSON only.`;
               <button
                 onClick={() => generateDailyIdeas(true)}
                 disabled={loadingIdeas}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 transition-all whitespace-nowrap"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition-all hover:bg-emerald-700 sm:w-auto whitespace-nowrap"
               >
                 {loadingIdeas ? (
                   <Loader2 size={16} className="animate-spin" />
@@ -1104,18 +1104,18 @@ Return valid JSON only.`;
       {bestPostingTime && bestPostingTime.bestHour !== null && (
         <div
           className={cn(
-            'rounded-2xl border p-6',
+            'rounded-2xl border p-4 sm:p-6',
             isLightTheme
               ? 'border-indigo-200 bg-gradient-to-br from-indigo-50 via-white to-pink-50 shadow-sm'
               : 'border-indigo-400/30 bg-gradient-to-br from-indigo-500/10 via-purple-500/10 to-pink-500/10'
           )}
         >
-          <div className="flex items-start gap-4">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
             <div className={cn('flex h-12 w-12 shrink-0 items-center justify-center rounded-xl', isLightTheme ? 'bg-indigo-100' : 'bg-indigo-500/20')}>
               <Lightbulb size={24} className={isLightTheme ? 'text-indigo-700' : 'text-indigo-300'} />
             </div>
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-2">
+              <div className="mb-2 flex flex-col items-start gap-2 sm:flex-row sm:items-center">
                 <h3 className={cn('text-lg font-bold', strongTextClass)}>AI-Powered Posting Recommendation</h3>
                 <span className={cn('rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider',
                   bestPostingTime.confidence === 'high' 
@@ -1182,8 +1182,8 @@ Return valid JSON only.`;
         </div>
       )}
 
-      <div className={cn('rounded-2xl border p-5', surfaceCardClass)}>
-        <div className="flex items-center justify-between mb-4">
+      <div className={cn('rounded-2xl border p-4 sm:p-5', surfaceCardClass)}>
+        <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h3 className={cn('text-lg font-semibold', strongTextClass)}>Recent Upload Snapshot</h3>
             <p className={cn('mt-1 text-sm', mutedTextClass)}>Latest videos from your channel with current view counts.</p>
