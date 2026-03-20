@@ -194,6 +194,8 @@ export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [accounts, setAccounts] = useState<User[]>([]);
   const [activeAccountIndex, setActiveAccountIndex] = useState(0);
+  const [switchingAccountIndex, setSwitchingAccountIndex] = useState<number | null>(null);
+  const [recentlyActivatedAccountIndex, setRecentlyActivatedAccountIndex] = useState<number | null>(null);
   const [loadingUser, setLoadingUser] = useState(true);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
@@ -207,6 +209,7 @@ export default function App() {
   const youtubeConnectIntentRef = useRef<string | null>(null);
   const logoutCleanupRef = useRef<Promise<void> | null>(null);
   const fetchUserRequestIdRef = useRef(0);
+  const recentAccountHighlightTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Handle URL-based routing for legal pages
   useEffect(() => {
@@ -247,6 +250,14 @@ export default function App() {
     return () => {
       window.removeEventListener('popstate', handleRouteChange);
       document.removeEventListener('click', handleLinkClick, true);
+    };
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (recentAccountHighlightTimeoutRef.current) {
+        clearTimeout(recentAccountHighlightTimeoutRef.current);
+      }
     };
   }, []);
 
@@ -854,6 +865,12 @@ export default function App() {
   };
 
   const handleSwitchAccount = async (index: number) => {
+    if (index === activeAccountIndex || switchingAccountIndex !== null) {
+      return;
+    }
+
+    setSwitchingAccountIndex(index);
+
     try {
       const authHeaders = getSupabaseAuthHeaders();
       const response = await fetch('/api/user/switch', {
@@ -869,6 +886,14 @@ export default function App() {
       if (response.ok) {
         setActiveAccountIndex(index);
         setUser(accounts[index] || null);
+        setRecentlyActivatedAccountIndex(index);
+        if (recentAccountHighlightTimeoutRef.current) {
+          clearTimeout(recentAccountHighlightTimeoutRef.current);
+        }
+        recentAccountHighlightTimeoutRef.current = setTimeout(() => {
+          setRecentlyActivatedAccountIndex((current) => (current === index ? null : current));
+          recentAccountHighlightTimeoutRef.current = null;
+        }, 1400);
         await fetchUser();
         setIsProfileMenuOpen(false);
         return;
@@ -880,6 +905,8 @@ export default function App() {
     } catch (error) {
       console.error('Switch account error:', error);
       alert('Unable to switch account right now.');
+    } finally {
+      setSwitchingAccountIndex(null);
     }
   };
 
@@ -1344,21 +1371,35 @@ export default function App() {
                       <div className={cn('border-b', theme === 'light' ? 'border-slate-200' : 'border-white/10')}>
                         <p className="px-4 pt-3 pb-1.5 text-[10px] uppercase tracking-wider text-slate-500">Switch Account</p>
                         <div className="py-1">
-                          {accounts.map((account, index) => (
+                          {accounts.map((account, index) => {
+                            const isActive = index === activeAccountIndex;
+                            const isSwitching = index === switchingAccountIndex;
+                            const isRecentlyActivated = index === recentlyActivatedAccountIndex;
+
+                            return (
                             <div key={account.id} className="relative group">
                               <button
                                 onClick={() => {
-                                  if (index !== activeAccountIndex) {
+                                  if (!isActive) {
                                     handleSwitchAccount(index);
                                   }
                                 }}
-                                disabled={index === activeAccountIndex}
+                                disabled={isActive || switchingAccountIndex !== null}
+                                aria-busy={isSwitching}
                                 className={cn(
-                                  'w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors',
-                                  index === activeAccountIndex
+                                  'w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-all duration-200',
+                                  isActive
                                     ? theme === 'light'
-                                      ? 'bg-blue-50 text-blue-700 cursor-default'
-                                      : 'bg-blue-500/10 text-blue-400 cursor-default'
+                                      ? isRecentlyActivated
+                                        ? 'bg-blue-100 text-blue-800 cursor-default shadow-[0_0_0_1px_rgba(59,130,246,0.25)]'
+                                        : 'bg-blue-50 text-blue-700 cursor-default'
+                                      : isRecentlyActivated
+                                        ? 'bg-blue-500/18 text-blue-300 cursor-default shadow-[0_0_20px_rgba(59,130,246,0.18)]'
+                                        : 'bg-blue-500/10 text-blue-400 cursor-default'
+                                    : isSwitching
+                                      ? theme === 'light'
+                                        ? 'bg-slate-100 text-slate-900 scale-[0.985] shadow-inner'
+                                        : 'bg-white/12 text-white scale-[0.985] shadow-inner'
                                     : theme === 'light'
                                       ? 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'
                                       : 'text-slate-300 hover:bg-white/10 hover:text-white'
@@ -1378,19 +1419,40 @@ export default function App() {
                                     {account.channel?.title || account.name}
                                   </p>
                                   <p className={cn('text-[10px] truncate', theme === 'light' ? 'text-slate-600' : 'text-slate-400')}>
-                                    {account.channel ? `${Number(account.channel.statistics.subscriberCount).toLocaleString()} subs` : 'No channel'}
+                                    {isSwitching
+                                      ? 'Switching account...'
+                                      : isRecentlyActivated
+                                        ? 'Active now'
+                                      : account.channel
+                                        ? `${Number(account.channel.statistics.subscriberCount).toLocaleString()} subs`
+                                        : 'No channel'}
                                   </p>
                                 </div>
-                                {index === activeAccountIndex && (
-                                  <ShieldCheck size={14} className={theme === 'light' ? 'text-blue-700' : 'text-blue-400'} />
-                                )}
+                                {isSwitching ? (
+                                  <span
+                                    className={cn(
+                                      'inline-block h-4 w-4 rounded-full border-2 border-current border-t-transparent animate-spin',
+                                      theme === 'light' ? 'text-slate-700' : 'text-slate-200'
+                                    )}
+                                    aria-hidden="true"
+                                  />
+                                ) : isActive ? (
+                                  <ShieldCheck
+                                    size={14}
+                                    className={cn(
+                                      theme === 'light' ? 'text-blue-700' : 'text-blue-400',
+                                      isRecentlyActivated && 'scale-110'
+                                    )}
+                                  />
+                                ) : null}
                               </button>
-                              {index !== activeAccountIndex && (
+                              {!isActive && (
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     handleRemoveAccount(index);
                                   }}
+                                  disabled={switchingAccountIndex !== null}
                                   className={cn(
                                     'absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 p-1 rounded transition-opacity',
                                     theme === 'light' ? 'hover:bg-red-100' : 'hover:bg-red-500/20'
@@ -1401,7 +1463,8 @@ export default function App() {
                                 </button>
                               )}
                             </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       </div>
                     )}
