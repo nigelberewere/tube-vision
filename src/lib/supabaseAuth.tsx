@@ -71,11 +71,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
+      setLoading(false);
       
       if (session?.user) {
-        loadUserData(session.user.id);
-      } else {
-        setLoading(false);
+        void loadUserData(session.user.id);
       }
     });
 
@@ -86,14 +85,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
         
         setSession(session);
         setUser(session?.user ?? null);
+        setLoading(false);
 
         if (session?.user) {
-          await loadUserData(session.user.id);
+          void loadUserData(session.user.id);
         } else {
           setProfile(null);
           setYouTubeAccounts([]);
           setActiveChannelState(null);
-          setLoading(false);
         }
       }
     );
@@ -106,8 +105,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
   // Load user profile and YouTube accounts
   async function loadUserData(userId: string) {
     try {
-      setLoading(true);
-
       // Fetch profile
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
@@ -145,8 +142,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
       }
     } catch (error) {
       console.error('Error loading user data:', error);
-    } finally {
-      setLoading(false);
     }
   }
 
