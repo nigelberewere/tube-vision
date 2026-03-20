@@ -315,13 +315,6 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
       }
     }
 
-    if (stored.length > 0) {
-      setConversations(stored);
-      setActiveConversationId(stored[0].id);
-      setMessages(stored[0].messages);
-      return;
-    }
-
     const setInitialConversation = () => {
       const initialConversation = createConversationRecord(
         [createWelcomeMessage(channelContext)],
@@ -333,21 +326,32 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
       persistConversations([initialConversation], historyStorageKey);
     };
 
-    // localStorage is empty — try restoring from Supabase (survives cookie/storage clears)
+    const loadStoredConversationSet = (nextConversations: ConversationRecord[]) => {
+      persistConversations(nextConversations, historyStorageKey);
+      setConversations(nextConversations);
+      setActiveConversationId(nextConversations[0].id);
+      setMessages(nextConversations[0].messages);
+    };
+
+    // Prefer Supabase for authenticated users so history stays in sync across devices.
     if (userProfile?.id) {
       fetchSingletonContent('coach_history').then((row) => {
         const fromCloud = parseStoredConversations(
           row?.data?.conversations ? JSON.stringify(row.data.conversations) : null,
         );
         if (fromCloud.length > 0) {
-          persistConversations(fromCloud, historyStorageKey);
-          setConversations(fromCloud);
-          setActiveConversationId(fromCloud[0].id);
-          setMessages(fromCloud[0].messages);
+          loadStoredConversationSet(fromCloud);
+        } else if (stored.length > 0) {
+          loadStoredConversationSet(stored);
         } else {
           setInitialConversation();
         }
       }).catch(() => setInitialConversation());
+      return;
+    }
+
+    if (stored.length > 0) {
+      loadStoredConversationSet(stored);
       return;
     }
 

@@ -251,14 +251,16 @@ export async function fetchSingletonContent(
     .eq('user_id', user.id)
     .eq('content_type', contentType)
     .eq('title', title)
-    .maybeSingle();
+    .order('updated_at', { ascending: false })
+    .order('created_at', { ascending: false })
+    .limit(1);
 
   if (error) {
     console.error('Error fetching singleton content:', error);
     return null;
   }
 
-  return data as SavedContent | null;
+  return ((Array.isArray(data) ? data[0] : null) ?? null) as SavedContent | null;
 }
 
 /**
@@ -271,37 +273,54 @@ export async function upsertSingletonContent(
   data: Record<string, any>,
   title: string = SINGLETON_TITLE,
 ): Promise<void> {
-
-  console.log('[upsertSingletonContent] Function entered', { contentType, data, title });
   const user = await getCurrentUser();
   if (!user) {
-    console.warn('[upsertSingletonContent] No authenticated user. Skipping upsert.', { contentType, data, title });
+    console.warn('[upsertSingletonContent] No authenticated user. Skipping upsert.', { contentType, title });
     return;
   }
 
-  console.log('[upsertSingletonContent] Called with:', { userId: user.id, contentType, data, title });
-
   try {
-    const existing = await fetchSingletonContent(contentType, title);
+    const { data: existingRows, error: existingRowsError } = await supabase
+      .from('saved_content')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('content_type', contentType)
+      .eq('title', title)
+      .order('updated_at', { ascending: false })
+      .order('created_at', { ascending: false });
 
-    if (existing) {
+    if (existingRowsError) {
+      console.error('[upsertSingletonContent] Error fetching existing singleton rows:', existingRowsError);
+      return;
+    }
+
+    const [primaryRow, ...duplicateRows] = (existingRows || []) as Array<{ id: string }>;
+
+    if (primaryRow) {
       const { error } = await supabase
         .from('saved_content')
         .update({ data, updated_at: new Date().toISOString() })
-        .eq('id', existing.id);
+        .eq('id', primaryRow.id);
       if (error) {
         console.error('[upsertSingletonContent] Error updating saved_content:', error);
-      } else {
-        console.log('[upsertSingletonContent] Updated existing saved_content row:', existing.id);
+        return;
+      }
+
+      if (duplicateRows.length > 0) {
+        const { error: deleteError } = await supabase
+          .from('saved_content')
+          .delete()
+          .in('id', duplicateRows.map((row) => row.id));
+        if (deleteError) {
+          console.error('[upsertSingletonContent] Error removing duplicate singleton rows:', deleteError);
+        }
       }
     } else {
-      const { error, data: insertData } = await supabase
+      const { error } = await supabase
         .from('saved_content')
         .insert({ user_id: user.id, content_type: contentType, title, data });
       if (error) {
         console.error('[upsertSingletonContent] Error inserting into saved_content:', error);
-      } else {
-        console.log('[upsertSingletonContent] Inserted new saved_content row:', insertData);
       }
     }
   } catch (err) {
