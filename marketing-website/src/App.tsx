@@ -17,7 +17,8 @@ import { LegalViewer } from "@/src/components/LegalViewer";
 import { Navigation } from "@/src/components/Navigation";
 import { Pricing } from "@/src/components/Pricing";
 import { UseCasePage, type UseCaseSlug } from "@/src/components/UseCasePage";
-import { getAuthUrl } from "@/src/lib/config";
+import { getAuthUrl, getDashboardUrl } from "@/src/lib/config";
+import { readSharedAuthCookie } from "@/src/lib/sharedAuthCookie";
 import { cn } from "@/src/lib/utils";
 
 const THEME_STORAGE_KEY = "tube_vision_theme";
@@ -106,6 +107,18 @@ export default function App() {
     document.documentElement.classList.add(theme);
     window.localStorage.setItem(THEME_STORAGE_KEY, theme);
   }, [theme]);
+
+  useEffect(() => {
+    if (page === "privacy" || page === "terms") {
+      return;
+    }
+
+    if (!readSharedAuthCookie()) {
+      return;
+    }
+
+    window.location.replace(getDashboardUrl());
+  }, [page]);
 
   useEffect(() => {
     const onPopState = () => {

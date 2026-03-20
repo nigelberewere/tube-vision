@@ -47,6 +47,7 @@ import YouTubeLogoIcon from './components/icons/YouTubeLogoIcon';
 import YouTubeMyVideosIcon from './components/icons/YouTubeMyVideosIcon';
 import YouTubeLogoBlackIcon from './components/icons/YouTubeLogoBlackIcon';
 import { GEMINI_USER_ERROR_EVENT, type GeminiUserErrorDetail } from './lib/geminiErrorEvents';
+import { setSharedAuthCookie } from './lib/sharedAuthCookie';
 import { useAuth } from './lib/supabaseAuth';
 
 type Tab =
@@ -557,6 +558,14 @@ export default function App() {
   }, [loadingUser, isSupabaseGateOpen, isAppAuthenticated, currentPage]);
 
   useEffect(() => {
+    if (isAuthCheckPending) {
+      return;
+    }
+
+    setSharedAuthCookie(isAppAuthenticated);
+  }, [isAppAuthenticated, isAuthCheckPending]);
+
+  useEffect(() => {
     if (typeof window === 'undefined') {
       return;
     }
@@ -749,6 +758,8 @@ export default function App() {
   };
 
   const handleLogout = () => {
+    setSharedAuthCookie(false);
+
     // Remove persisted Supabase session tokens before any async work.
     if (typeof window !== 'undefined') {
       const clearSupabaseTokens = (storage: Storage) => {
