@@ -20,6 +20,7 @@ import {
 import { cn } from '../lib/utils';
 import Markdown from 'react-markdown';
 import { fetchSingletonContent, upsertSingletonContent } from '../lib/supabase';
+import { useAuth } from '../lib/supabaseAuth';
 
 interface Message {
   role: 'user' | 'model';
@@ -175,6 +176,11 @@ function persistConversations(conversations: ConversationRecord[], storageKey: s
   }
 }
 
+function persistConversationsToKeys(conversations: ConversationRecord[], storageKeys: string[]): void {
+  const uniqueKeys = [...new Set(storageKeys.filter((key) => typeof key === 'string' && key.trim()))];
+  uniqueKeys.forEach((storageKey) => persistConversations(conversations, storageKey));
+}
+
 function parseStoredConversations(raw: string | null): ConversationRecord[] {
   if (!raw) return [];
 
@@ -259,6 +265,7 @@ function toGeminiHistory(messages: Message[]) {
 
 console.log('[AICoach] Component file loaded (should appear in browser console)');
 export default function AICoach({ channelContext, userProfile }: AICoachProps) {
+  const { user: authUser } = useAuth();
   const [messages, setMessages] = useState<Message[]>([createWelcomeMessage(channelContext)]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -277,10 +284,17 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
   const activeConversationIdRef = useRef('');
   const messagesRef = useRef<Message[]>(messages);
 
-  const historyStorageKey = useMemo(
-    () => buildScopedStorageKey(JANSO_HISTORY_STORAGE_KEY, userProfile?.id),
-    [userProfile?.id],
+  const historyStorageUserIds = useMemo(
+    () => [...new Set([authUser?.id, userProfile?.id].filter((value): value is string => Boolean(value && value.trim())))],
+    [authUser?.id, userProfile?.id],
   );
+
+  const historyStorageKeys = useMemo(() => {
+    const scopedKeys = historyStorageUserIds.map((userId) => buildScopedStorageKey(JANSO_HISTORY_STORAGE_KEY, userId));
+    return [...new Set([...scopedKeys, JANSO_HISTORY_STORAGE_KEY])];
+  }, [historyStorageUserIds]);
+
+  const primaryHistoryStorageKey = historyStorageKeys[0] || JANSO_HISTORY_STORAGE_KEY;
 
   useEffect(() => {
     console.log('[AICoach sync effect] useEffect triggered', { userProfile, conversations });
@@ -331,20 +345,27 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
   }, [conversations, userProfile?.id]);
 
   useEffect(() => {
-    if (initializedHistoryKeyRef.current === historyStorageKey) {
+    if (initializedHistoryKeyRef.current === primaryHistoryStorageKey) {
       return;
     }
 
-    initializedHistoryKeyRef.current = historyStorageKey;
+    initializedHistoryKeyRef.current = primaryHistoryStorageKey;
 
-    let stored = parseStoredConversations(window.localStorage.getItem(historyStorageKey));
+    const localCandidates = historyStorageKeys
+      .map((storageKey) => parseStoredConversations(window.localStorage.getItem(storageKey)))
+      .filter((candidate) => candidate.length > 0);
+
+    let stored = localCandidates.reduce<ConversationRecord[]>(
+      (latest, candidate) => pickPreferredConversationSet(latest, candidate),
+      [],
+    );
 
     // One-time migration path from legacy unscoped history key to user-scoped key.
-    if (stored.length === 0 && userProfile?.id) {
+    if (stored.length === 0 && historyStorageUserIds.length > 0) {
       const legacy = parseStoredConversations(window.localStorage.getItem(JANSO_HISTORY_STORAGE_KEY));
       if (legacy.length > 0) {
         stored = legacy;
-        persistConversations(legacy, historyStorageKey);
+        persistConversationsToKeys(legacy, historyStorageKeys);
       }
     }
 
@@ -356,11 +377,11 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
       setConversations([initialConversation]);
       setActiveConversationId(initialConversation.id);
       setMessages(initialConversation.messages);
-      persistConversations([initialConversation], historyStorageKey);
+      persistConversationsToKeys([initialConversation], historyStorageKeys);
     };
 
     const loadStoredConversationSet = (nextConversations: ConversationRecord[]) => {
-      persistConversations(nextConversations, historyStorageKey);
+      persistConversationsToKeys(nextConversations, historyStorageKeys);
       setConversations(nextConversations);
       setActiveConversationId(nextConversations[0].id);
       setMessages(nextConversations[0].messages);
@@ -388,7 +409,7 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
     }
 
     setInitialConversation();
-  }, [historyStorageKey, userProfile?.id, channelContext]);
+  }, [primaryHistoryStorageKey, historyStorageKeys, historyStorageUserIds.length, authUser?.id, userProfile?.id, channelContext]);
 
   useEffect(() => {
     if (!channelContext?.id) {
@@ -482,10 +503,10 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
       }
 
       const sorted = sortConversationsByLatest(updated).slice(0, MAX_SAVED_CONVERSATIONS);
-      persistConversations(sorted, historyStorageKey);
+      persistConversationsToKeys(sorted, historyStorageKeys);
       return sorted;
     });
-  }, [messages, activeConversationId, channelContext?.title, historyStorageKey]);
+  }, [messages, activeConversationId, channelContext?.title, historyStorageKeys]);
 
   const startNewConversation = () => {
     const nextConversation = createConversationRecord(
@@ -502,7 +523,7 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
 
     setConversations((previous) => {
       const sorted = sortConversationsByLatest([nextConversation, ...previous]).slice(0, MAX_SAVED_CONVERSATIONS);
-      persistConversations(sorted, historyStorageKey);
+      persistConversationsToKeys(sorted, historyStorageKeys);
       return sorted;
     });
   };
@@ -535,7 +556,7 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
       }
 
       const sorted = sortConversationsByLatest(remaining);
-      persistConversations(sorted, historyStorageKey);
+      persistConversationsToKeys(sorted, historyStorageKeys);
       return sorted;
     });
 
@@ -579,7 +600,7 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
     }
 
     const sorted = sortConversationsByLatest(updated).slice(0, MAX_SAVED_CONVERSATIONS);
-    persistConversations(sorted, historyStorageKey);
+    persistConversationsToKeys(sorted, historyStorageKeys);
     conversationsRef.current = sorted;
     setConversations(sorted);
 
