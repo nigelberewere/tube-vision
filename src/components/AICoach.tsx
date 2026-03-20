@@ -288,9 +288,11 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
   const chatRef = useRef<any>(null);
   const initializedHistoryKeyRef = useRef<string | null>(null);
   const supabaseSyncRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const latestConversationsRef = useRef<ConversationRecord[]>([]);
   const conversationsRef = useRef<ConversationRecord[]>([]);
   const activeConversationIdRef = useRef('');
   const messagesRef = useRef<Message[]>(messages);
+  const persistentUserId = authUser?.id?.trim() || userProfile?.id?.trim() || '';
 
   const historyStorageUserIds = useMemo(
     () => [...new Set([authUser?.id, userProfile?.id].filter((value): value is string => Boolean(value && value.trim())))],
@@ -313,6 +315,7 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
 
   useEffect(() => {
     conversationsRef.current = conversations;
+    latestConversationsRef.current = conversations;
     if (!primaryHistoryStorageKey) return;
     coachConversationCache.set(primaryHistoryStorageKey, {
       conversations,
@@ -345,34 +348,75 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
     }
   }, [messages, primaryHistoryStorageKey]);
 
+  const syncConversationsToCloud = useMemo(
+    () => (nextConversations: ConversationRecord[]) => {
+      if (!persistentUserId || nextConversations.length === 0) {
+        return;
+      }
+
+      upsertSingletonContent('coach_history', { conversations: nextConversations }).catch((err) => {
+        console.error('[AICoach sync effect] Error in upsertSingletonContent:', err);
+      });
+    },
+    [persistentUserId],
+  );
+
   // Debounced sync to Supabase — keeps chat history alive across storage clears
   useEffect(() => {
-    if (!userProfile?.id || conversations.length === 0) {
+    if (!persistentUserId || conversations.length === 0) {
       console.log('[AICoach sync effect] Skipped: userProfile?.id or conversations.length === 0', {
-        userProfile,
+        persistentUserId,
         conversationsLength: conversations.length
       });
       return;
     }
     console.log('[AICoach sync effect] Scheduling Supabase sync', {
-      userId: userProfile.id,
+      userId: persistentUserId,
       conversationsCount: conversations.length,
       conversations
     });
     if (supabaseSyncRef.current) clearTimeout(supabaseSyncRef.current);
     supabaseSyncRef.current = setTimeout(() => {
       console.log('[AICoach sync effect] Calling upsertSingletonContent for coach_history', {
-        userId: userProfile.id,
+        userId: persistentUserId,
         conversations
       });
-      upsertSingletonContent('coach_history', { conversations }).catch((err) => {
-        console.error('[AICoach sync effect] Error in upsertSingletonContent:', err);
-      });
-    }, 2000);
+      syncConversationsToCloud(conversations);
+    }, 500);
     return () => {
       if (supabaseSyncRef.current) clearTimeout(supabaseSyncRef.current);
     };
-  }, [conversations, userProfile?.id]);
+  }, [conversations, persistentUserId, syncConversationsToCloud]);
+
+  useEffect(() => {
+    if (!persistentUserId) return;
+
+    const flushCloudSync = () => {
+      if (document.visibilityState === 'hidden') {
+        if (supabaseSyncRef.current) {
+          clearTimeout(supabaseSyncRef.current);
+          supabaseSyncRef.current = null;
+        }
+        syncConversationsToCloud(latestConversationsRef.current);
+      }
+    };
+
+    const flushOnUnload = () => {
+      if (supabaseSyncRef.current) {
+        clearTimeout(supabaseSyncRef.current);
+        supabaseSyncRef.current = null;
+      }
+      syncConversationsToCloud(latestConversationsRef.current);
+    };
+
+    document.addEventListener('visibilitychange', flushCloudSync);
+    window.addEventListener('beforeunload', flushOnUnload);
+
+    return () => {
+      document.removeEventListener('visibilitychange', flushCloudSync);
+      window.removeEventListener('beforeunload', flushOnUnload);
+    };
+  }, [persistentUserId, syncConversationsToCloud]);
 
   useEffect(() => {
     if (initializedHistoryKeyRef.current === primaryHistoryStorageKey) {
@@ -431,7 +475,7 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
     };
 
     // Prefer Supabase for authenticated users so history stays in sync across devices.
-    if (userProfile?.id) {
+    if (persistentUserId) {
       fetchSingletonContent('coach_history').then((row) => {
         const fromCloud = parseStoredConversations(
           row?.data?.conversations ? JSON.stringify(row.data.conversations) : null,
@@ -452,7 +496,7 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
     }
 
     setInitialConversation();
-  }, [primaryHistoryStorageKey, historyStorageKeys, historyStorageUserIds.length, authUser?.id, userProfile?.id, channelContext]);
+  }, [primaryHistoryStorageKey, historyStorageKeys, historyStorageUserIds.length, authUser?.id, persistentUserId, channelContext]);
 
   useEffect(() => {
     if (!channelContext?.id) {
