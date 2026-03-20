@@ -145,6 +145,24 @@ function sortConversationsByLatest(conversations: ConversationRecord[]): Convers
   );
 }
 
+function getLatestConversationTimestamp(conversations: ConversationRecord[]): number {
+  if (conversations.length === 0) return 0;
+  const sorted = sortConversationsByLatest(conversations);
+  return new Date(sorted[0].updatedAt).getTime() || 0;
+}
+
+function pickPreferredConversationSet(
+  localConversations: ConversationRecord[],
+  cloudConversations: ConversationRecord[],
+): ConversationRecord[] {
+  if (localConversations.length === 0) return cloudConversations;
+  if (cloudConversations.length === 0) return localConversations;
+
+  return getLatestConversationTimestamp(localConversations) >= getLatestConversationTimestamp(cloudConversations)
+    ? localConversations
+    : cloudConversations;
+}
+
 function persistConversations(conversations: ConversationRecord[], storageKey: string): void {
   if (typeof window === 'undefined') return;
   try {
@@ -339,10 +357,9 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
         const fromCloud = parseStoredConversations(
           row?.data?.conversations ? JSON.stringify(row.data.conversations) : null,
         );
-        if (fromCloud.length > 0) {
-          loadStoredConversationSet(fromCloud);
-        } else if (stored.length > 0) {
-          loadStoredConversationSet(stored);
+        const preferredConversations = pickPreferredConversationSet(stored, fromCloud);
+        if (preferredConversations.length > 0) {
+          loadStoredConversationSet(preferredConversations);
         } else {
           setInitialConversation();
         }
