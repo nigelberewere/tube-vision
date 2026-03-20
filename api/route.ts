@@ -491,6 +491,45 @@ async function getActiveYouTubeUser(req: VercelRequest) {
   return accounts[activeIndex] || null;
 }
 
+async function resolveCoachHistoryUserId(req: VercelRequest): Promise<string | null> {
+  const authUser = await verifySupabaseUser(req);
+  if (authUser?.id) {
+    return authUser.id;
+  }
+
+  if (!supabaseServer) {
+    return null;
+  }
+
+  try {
+    const cookieState = readAccountsFromCookies(req);
+    const activeAccount = cookieState.accounts[cookieState.activeIndex] || cookieState.accounts[0] || null;
+    const channelId = String(activeAccount?.channel?.id || '').trim();
+
+    if (!channelId) {
+      return null;
+    }
+
+    const { data, error } = await supabaseServer
+      .from('youtube_accounts')
+      .select('user_id')
+      .eq('channel_id', channelId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error) {
+      console.error('Coach history user_id lookup error:', error);
+      return null;
+    }
+
+    return data?.user_id ? String(data.user_id) : null;
+  } catch (error) {
+    console.error('Coach history user_id lookup exception:', error);
+    return null;
+  }
+}
+
 async function persistYouTubeAccountToSupabase(
   supabaseUserId: string | null,
   userInfo: any,
@@ -1270,6 +1309,113 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.json(safeUser);
     } catch (error) {
       return res.status(401).json({ error: 'Invalid session' });
+    }
+  }
+
+  if (path === 'api/user/coach-history' && req.method === 'GET') {
+    const coachHistoryUserId = await resolveCoachHistoryUserId(req);
+    if (!coachHistoryUserId || !supabaseServer) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    try {
+      const { data, error } = await supabaseServer
+        .from('saved_content')
+        .select('data, updated_at')
+        .eq('user_id', coachHistoryUserId)
+        .eq('content_type', 'coach_history')
+        .eq('title', '__singleton__')
+        .order('updated_at', { ascending: false })
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (error) {
+        console.error('Coach history fetch error:', error);
+        return res.status(500).json({ error: 'Failed to load coach history' });
+      }
+
+      const row = Array.isArray(data) ? data[0] : null;
+      return res.json({
+        conversations: Array.isArray(row?.data?.conversations) ? row.data.conversations : [],
+        updatedAt: row?.updated_at || null,
+      });
+    } catch (error) {
+      console.error('Coach history fetch exception:', error);
+      return res.status(500).json({ error: 'Failed to load coach history' });
+    }
+  }
+
+  if (path === 'api/user/coach-history' && req.method === 'PUT') {
+    const coachHistoryUserId = await resolveCoachHistoryUserId(req);
+    if (!coachHistoryUserId || !supabaseServer) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const body = readJsonBody(req);
+    const conversations = Array.isArray(body?.conversations) ? body.conversations : null;
+    if (!conversations) {
+      return res.status(400).json({ error: 'conversations array is required' });
+    }
+
+    try {
+      const { data: existingRows, error: fetchError } = await supabaseServer
+        .from('saved_content')
+        .select('id')
+        .eq('user_id', coachHistoryUserId)
+        .eq('content_type', 'coach_history')
+        .eq('title', '__singleton__')
+        .order('updated_at', { ascending: false })
+        .order('created_at', { ascending: false });
+
+      if (fetchError) {
+        console.error('Coach history existing-row fetch error:', fetchError);
+        return res.status(500).json({ error: 'Failed to save coach history' });
+      }
+
+      const [primaryRow, ...duplicateRows] = (existingRows || []) as Array<{ id: string }>;
+      const updatedAt = new Date().toISOString();
+
+      if (primaryRow) {
+        const { error: updateError } = await supabaseServer
+          .from('saved_content')
+          .update({ data: { conversations }, updated_at: updatedAt })
+          .eq('id', primaryRow.id);
+
+        if (updateError) {
+          console.error('Coach history update error:', updateError);
+          return res.status(500).json({ error: 'Failed to save coach history' });
+        }
+
+        if (duplicateRows.length > 0) {
+          const { error: deleteError } = await supabaseServer
+            .from('saved_content')
+            .delete()
+            .in('id', duplicateRows.map((row) => row.id));
+
+          if (deleteError) {
+            console.error('Coach history duplicate cleanup error:', deleteError);
+          }
+        }
+      } else {
+        const { error: insertError } = await supabaseServer
+          .from('saved_content')
+          .insert({
+            user_id: coachHistoryUserId,
+            content_type: 'coach_history',
+            title: '__singleton__',
+            data: { conversations },
+          });
+
+        if (insertError) {
+          console.error('Coach history insert error:', insertError);
+          return res.status(500).json({ error: 'Failed to save coach history' });
+        }
+      }
+
+      return res.json({ success: true });
+    } catch (error) {
+      console.error('Coach history save exception:', error);
+      return res.status(500).json({ error: 'Failed to save coach history' });
     }
   }
 
