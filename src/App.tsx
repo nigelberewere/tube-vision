@@ -1086,7 +1086,13 @@ export default function App() {
       case 'coach':
         return <AICoach 
           channelContext={user?.channel} 
-          userProfile={user ? { id: user.id, name: user.name, picture: user.picture } : undefined}
+          userProfile={(supabaseUser?.id || user)
+            ? {
+                id: supabaseUser?.id || user?.id || '',
+                name: user?.name || supabaseUser?.email || 'Creator',
+                picture: user?.picture || '',
+              }
+            : undefined}
         />;
       case 'ideas':
         return <VideoIdeaGenerator 
