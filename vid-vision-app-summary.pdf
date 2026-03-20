@@ -1,0 +1,117 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Count 1 /Kids [3 0 R] >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /Font << /F1 4 0 R /F2 5 0 R >> >> /Contents 6 0 R >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>
+endobj
+6 0 obj
+<< /Length 6174 >>
+stream
+0.18 w
+0.10 0.12 0.18 RG
+38 737.89 m 557.28 737.89 l S
+0.95 0.97 1 rg
+38 755.89 519.28 56 re f
+0 0 0 rg
+BT /F2 20 Tf 1 0 0 1 38.00 767.89 Tm (Vid Vision App Summary) Tj ET
+BT /F1 9.2 Tf 1 0 0 1 38.00 751.89 Tm (Evidence-based repo overview) Tj ET
+BT /F2 11.5 Tf 1 0 0 1 38.00 711.89 Tm (What It Is) Tj ET
+BT /F1 8.9 Tf 1 0 0 1 38.00 697.89 Tm (Vid Vision, branded in the repo as Janso Studio, is a React) Tj ET
+BT /F1 8.9 Tf 1 0 0 1 38.00 687.09 Tm (+ Express app for YouTube creators with AI-assisted) Tj ET
+BT /F1 8.9 Tf 1 0 0 1 38.00 676.29 Tm (creation, optimization, and channel analysis tools.) Tj ET
+BT /F1 8.9 Tf 1 0 0 1 38.00 663.49 Tm (The codebase presents it as a unified YouTube creator) Tj ET
+BT /F1 8.9 Tf 1 0 0 1 38.00 652.69 Tm (platform and a next-generation VidIQ-style competitor.) Tj ET
+BT /F2 11.5 Tf 1 0 0 1 38.00 627.89 Tm (Who It Is For) Tj ET
+BT /F1 8.9 Tf 1 0 0 1 38.00 613.89 Tm (Primary persona: YouTube creators and channel) Tj ET
+BT /F1 8.9 Tf 1 0 0 1 38.00 603.09 Tm (operators who want analytics, idea generation, SEO help,) Tj ET
+BT /F1 8.9 Tf 1 0 0 1 38.00 592.29 Tm (scripting, thumbnails, Shorts, and coaching in one) Tj ET
+BT /F1 8.9 Tf 1 0 0 1 38.00 581.49 Tm (workspace.) Tj ET
+BT /F2 11.5 Tf 1 0 0 1 38.00 556.69 Tm (What It Does) Tj ET
+BT /F2 8.7 Tf 1 0 0 1 38.00 542.69 Tm (-) Tj ET
+BT /F1 8.7 Tf 1 0 0 1 48.00 542.69 Tm (Optimizes titles, descriptions, tags, and metadata with) Tj ET
+BT /F1 8.7 Tf 1 0 0 1 48.00 531.89 Tm (the SEO workspace.) Tj ET
+BT /F2 8.7 Tf 1 0 0 1 38.00 519.59 Tm (-) Tj ET
+BT /F1 8.7 Tf 1 0 0 1 48.00 519.59 Tm (Supports content strategy, keyword research, and) Tj ET
+BT /F1 8.7 Tf 1 0 0 1 48.00 508.79 Tm (script drafting for new videos.) Tj ET
+BT /F2 8.7 Tf 1 0 0 1 38.00 496.49 Tm (-) Tj ET
+BT /F1 8.7 Tf 1 0 0 1 48.00 496.49 Tm (Provides Thumbnail Studio tools including concepting,) Tj ET
+BT /F1 8.7 Tf 1 0 0 1 48.00 485.69 Tm (heatmaps, authorizations, and A/B-style optimization) Tj ET
+BT /F1 8.7 Tf 1 0 0 1 48.00 474.89 Tm (flows.) Tj ET
+BT /F2 8.7 Tf 1 0 0 1 38.00 462.59 Tm (-) Tj ET
+BT /F1 8.7 Tf 1 0 0 1 48.00 462.59 Tm (Generates AI voiceovers in Neural Voice Studio using) Tj ET
+BT /F1 8.7 Tf 1 0 0 1 48.00 451.79 Tm (Gemini-based text-to-speech.) Tj ET
+BT /F2 8.7 Tf 1 0 0 1 38.00 439.49 Tm (-) Tj ET
+BT /F1 8.7 Tf 1 0 0 1 48.00 439.49 Tm (Finds and cuts short-form clips, analyzes remix) Tj ET
+BT /F1 8.7 Tf 1 0 0 1 48.00 428.69 Tm (opportunities, and supports Shorts workflows.) Tj ET
+BT /F2 8.7 Tf 1 0 0 1 38.00 416.39 Tm (-) Tj ET
+BT /F1 8.7 Tf 1 0 0 1 48.00 416.39 Tm (Shows channel analytics, video lists, comment insights,) Tj ET
+BT /F1 8.7 Tf 1 0 0 1 48.00 405.59 Tm (competitor research, and collaboration search.) Tj ET
+BT /F2 11.5 Tf 1 0 0 1 309.64 711.89 Tm (How It Works) Tj ET
+BT /F2 8.7 Tf 1 0 0 1 309.64 697.89 Tm (-) Tj ET
+BT /F1 8.7 Tf 1 0 0 1 319.64 697.89 Tm (Frontend: React 19 + TypeScript SPA in src/App.tsx) Tj ET
+BT /F1 8.7 Tf 1 0 0 1 319.64 687.09 Tm (switches between creator workspaces and settings;) Tj ET
+BT /F1 8.7 Tf 1 0 0 1 319.64 676.29 Tm (Vite handles the frontend build.) Tj ET
+BT /F2 8.7 Tf 1 0 0 1 309.64 663.99 Tm (-) Tj ET
+BT /F1 8.7 Tf 1 0 0 1 319.64 663.99 Tm (Backend: server.ts runs an Express server that serves) Tj ET
+BT /F1 8.7 Tf 1 0 0 1 319.64 653.19 Tm (the app and exposes REST endpoints for auth, analytics,) Tj ET
+BT /F1 8.7 Tf 1 0 0 1 319.64 642.39 Tm (videos, comments, thumbnails, Shorts, snapshots, and) Tj ET
+BT /F1 8.7 Tf 1 0 0 1 319.64 631.59 Tm (Gemini key validation.) Tj ET
+BT /F2 8.7 Tf 1 0 0 1 309.64 619.29 Tm (-) Tj ET
+BT /F1 8.7 Tf 1 0 0 1 319.64 619.29 Tm (Auth/data: Google OAuth handles YouTube connection;) Tj ET
+BT /F1 8.7 Tf 1 0 0 1 319.64 608.49 Tm (Supabase clients/helpers support authenticated account) Tj ET
+BT /F1 8.7 Tf 1 0 0 1 319.64 597.69 Tm (storage and multi-account flows; Express) Tj ET
+BT /F1 8.7 Tf 1 0 0 1 319.64 586.89 Tm (sessions/cookies are also used.) Tj ET
+BT /F2 8.7 Tf 1 0 0 1 309.64 574.59 Tm (-) Tj ET
+BT /F1 8.7 Tf 1 0 0 1 319.64 574.59 Tm (AI: Gemini powers insight generation, voiceover,) Tj ET
+BT /F1 8.7 Tf 1 0 0 1 319.64 563.79 Tm (thumbnail/image prompts, script placeholders, coaching,) Tj ET
+BT /F1 8.7 Tf 1 0 0 1 319.64 552.99 Tm (and viral clip analysis via src/services/geminiService.ts) Tj ET
+BT /F1 8.7 Tf 1 0 0 1 319.64 542.19 Tm (and src/services/viralClipService.ts.) Tj ET
+BT /F2 8.7 Tf 1 0 0 1 309.64 529.89 Tm (-) Tj ET
+BT /F1 8.7 Tf 1 0 0 1 319.64 529.89 Tm (Media processing: FFmpeg.wasm cuts video clips) Tj ET
+BT /F1 8.7 Tf 1 0 0 1 319.64 519.09 Tm (client-side in src/services/ffmpegService.ts; multer) Tj ET
+BT /F1 8.7 Tf 1 0 0 1 319.64 508.29 Tm (handles uploads and youtube-dl-exec is used server-side) Tj ET
+BT /F1 8.7 Tf 1 0 0 1 319.64 497.49 Tm (for some video ingestion.) Tj ET
+BT /F2 8.7 Tf 1 0 0 1 309.64 485.19 Tm (-) Tj ET
+BT /F1 8.7 Tf 1 0 0 1 319.64 485.19 Tm (Persistence: better-sqlite3 stores channel snapshot) Tj ET
+BT /F1 8.7 Tf 1 0 0 1 319.64 474.39 Tm (history in channel_snapshots.db, while Supabase is used) Tj ET
+BT /F1 8.7 Tf 1 0 0 1 319.64 463.59 Tm (for server-side user and YouTube account records.) Tj ET
+BT /F2 11.5 Tf 1 0 0 1 309.64 439.29 Tm (How To Run) Tj ET
+BT /F2 8.7 Tf 1 0 0 1 309.64 425.29 Tm (-) Tj ET
+BT /F1 8.7 Tf 1 0 0 1 319.64 425.29 Tm (Install dependencies: npm install) Tj ET
+BT /F2 8.7 Tf 1 0 0 1 309.64 412.99 Tm (-) Tj ET
+BT /F1 8.7 Tf 1 0 0 1 319.64 412.99 Tm (Create .env.local and set GOOGLE_CLIENT_ID,) Tj ET
+BT /F1 8.7 Tf 1 0 0 1 319.64 402.19 Tm (GOOGLE_CLIENT_SECRET, and SESSION_SECRET.) Tj ET
+BT /F2 8.7 Tf 1 0 0 1 309.64 389.89 Tm (-) Tj ET
+BT /F1 8.7 Tf 1 0 0 1 319.64 389.89 Tm (Start the app: npm run dev) Tj ET
+BT /F2 8.7 Tf 1 0 0 1 309.64 377.59 Tm (-) Tj ET
+BT /F1 8.7 Tf 1 0 0 1 319.64 377.59 Tm (Open http://localhost:3000) Tj ET
+BT /F2 8.7 Tf 1 0 0 1 309.64 365.29 Tm (-) Tj ET
+BT /F1 8.7 Tf 1 0 0 1 319.64 365.29 Tm (For AI features, add a Gemini API key in Settings > API) Tj ET
+BT /F1 8.7 Tf 1 0 0 1 319.64 354.49 Tm (Keys after launch.) Tj ET
+BT /F1 7.5 Tf 1 0 0 1 38.00 28.00 Tm (Sources: README.md, SETUP.md, package.json, src/App.tsx, server.ts, src/services/*.ts, supabaseServer.ts) Tj ET
+endstream
+endobj
+xref
+0 7
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000257 00000 n 
+0000000327 00000 n 
+0000000402 00000 n 
+trailer
+<< /Size 7 /Root 1 0 R >>
+startxref
+6628
+%%EOF
