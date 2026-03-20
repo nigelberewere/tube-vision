@@ -62,6 +62,7 @@ interface InsightAlert {
 }
 
 const JANSO_HISTORY_STORAGE_KEY = 'janso_chat_history_v1';
+const JANSO_HISTORY_FALLBACK_STORAGE_KEY = 'janso_chat_history_persistent_v1';
 const JANSO_DISMISSED_ALERTS_STORAGE_KEY = 'janso_dismissed_alerts_v1';
 const MAX_SAVED_CONVERSATIONS = 20;
 const coachConversationCache = new Map<
@@ -193,7 +194,10 @@ function persistConversations(conversations: ConversationRecord[], storageKey: s
 }
 
 function persistConversationsToKeys(conversations: ConversationRecord[], storageKeys: string[]): void {
-  const uniqueKeys = [...new Set(storageKeys.filter((key) => typeof key === 'string' && key.trim()))];
+  const uniqueKeys = [...new Set([
+    ...storageKeys.filter((key) => typeof key === 'string' && key.trim()),
+    JANSO_HISTORY_FALLBACK_STORAGE_KEY,
+  ])];
   uniqueKeys.forEach((storageKey) => persistConversations(conversations, storageKey));
 }
 
@@ -484,6 +488,11 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
     const localCandidates = historyStorageKeys
       .map((storageKey) => parseStoredConversations(window.localStorage.getItem(storageKey)))
       .filter((candidate) => candidate.length > 0);
+
+    const fallbackStored = parseStoredConversations(window.localStorage.getItem(JANSO_HISTORY_FALLBACK_STORAGE_KEY));
+    if (fallbackStored.length > 0) {
+      localCandidates.push(fallbackStored);
+    }
 
     let stored = localCandidates.reduce<ConversationRecord[]>(
       (latest, candidate) => pickPreferredConversationSet(latest, candidate),
