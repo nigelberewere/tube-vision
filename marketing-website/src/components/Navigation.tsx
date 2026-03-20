@@ -4,6 +4,7 @@ import { motion } from "motion/react";
 import { type FeatureSlug } from "@/src/components/FeaturePage";
 import { ThemeToggle } from "@/src/components/ThemeToggle";
 import { getDashboardAssetUrl } from "@/src/lib/config";
+import { type SharedAuthProfile } from "@/src/lib/sharedAuthCookie";
 import { cn } from "@/src/lib/utils";
 
 function GoogleLogo({ className }: { className?: string }) {
@@ -29,6 +30,7 @@ type NavigationProps = {
   theme: "dark" | "light";
   isDark: boolean;
   isAuthenticated: boolean;
+  authProfile: SharedAuthProfile | null;
   onToggleTheme: () => void;
   onPrimaryAction: () => void;
   onNavigateToFeature: (slug: FeatureSlug) => void;
@@ -59,6 +61,7 @@ export function Navigation({
   theme,
   isDark,
   isAuthenticated,
+  authProfile,
   onToggleTheme,
   onPrimaryAction,
   onNavigateToFeature,
@@ -69,7 +72,14 @@ export function Navigation({
   onNavigateToFAQ,
   onNavigateToBlog,
 }: NavigationProps) {
-  const logoSrc = getDashboardAssetUrl("/favicon.svg")
+  const logoSrc = getDashboardAssetUrl("/favicon.svg");
+  const identityLabel = authProfile?.activeChannelTitle || authProfile?.displayName || "Janso user";
+  const channelSummary =
+    authProfile && authProfile.totalChannels > 1
+      ? `${authProfile.totalChannels} channels connected`
+      : authProfile?.totalChannels === 1
+        ? "1 channel connected"
+        : "Signed in";
 
   return (
     <header className="sticky top-0 z-50 px-4 py-4 md:px-8">
@@ -244,6 +254,44 @@ export function Navigation({
         </div>
 
         <div className="flex items-center gap-2 md:gap-3">
+          {isAuthenticated && (
+            <button
+              type="button"
+              onClick={onPrimaryAction}
+              className={cn(
+                "hidden items-center gap-3 rounded-2xl border px-3 py-2 text-left transition md:inline-flex",
+                isDark
+                  ? "border-white/10 bg-white/[0.04] hover:bg-white/[0.08]"
+                  : "border-slate-200 bg-white/90 hover:bg-slate-50"
+              )}
+            >
+              {authProfile?.avatarUrl ? (
+                <img
+                  src={authProfile.avatarUrl}
+                  alt={identityLabel}
+                  className="h-9 w-9 rounded-full object-cover"
+                  referrerPolicy="no-referrer"
+                />
+              ) : (
+                <div
+                  className={cn(
+                    "flex h-9 w-9 items-center justify-center rounded-full text-xs font-semibold",
+                    isDark ? "bg-white/10 text-slate-200" : "bg-slate-100 text-slate-700"
+                  )}
+                >
+                  {identityLabel.charAt(0).toUpperCase()}
+                </div>
+              )}
+              <div className="min-w-0">
+                <p className={cn("truncate text-sm font-semibold", isDark ? "text-white" : "text-slate-900")}>
+                  {identityLabel}
+                </p>
+                <p className={cn("truncate text-xs", isDark ? "text-slate-400" : "text-slate-500")}>
+                  {channelSummary}
+                </p>
+              </div>
+            </button>
+          )}
           <ThemeToggle theme={theme} onToggle={onToggleTheme} />
           <button
             type="button"

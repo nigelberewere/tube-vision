@@ -47,7 +47,7 @@ import YouTubeLogoIcon from './components/icons/YouTubeLogoIcon';
 import YouTubeMyVideosIcon from './components/icons/YouTubeMyVideosIcon';
 import YouTubeLogoBlackIcon from './components/icons/YouTubeLogoBlackIcon';
 import { GEMINI_USER_ERROR_EVENT, type GeminiUserErrorDetail } from './lib/geminiErrorEvents';
-import { setSharedAuthCookie } from './lib/sharedAuthCookie';
+import { setSharedAuthState } from './lib/sharedAuthCookie';
 import { useAuth } from './lib/supabaseAuth';
 
 type Tab =
@@ -562,8 +562,22 @@ export default function App() {
       return;
     }
 
-    setSharedAuthCookie(isAppAuthenticated);
-  }, [isAppAuthenticated, isAuthCheckPending]);
+    if (!isAppAuthenticated) {
+      setSharedAuthState({ isAuthenticated: false, profile: null });
+      return;
+    }
+
+    const activeAccount = accounts[activeAccountIndex] || user;
+    setSharedAuthState({
+      isAuthenticated: true,
+      profile: {
+        displayName: activeAccount?.name || supabaseUser?.email || null,
+        avatarUrl: activeAccount?.channel?.thumbnails?.default?.url || activeAccount?.picture || null,
+        activeChannelTitle: activeAccount?.channel?.title || null,
+        totalChannels: accounts.length,
+      },
+    });
+  }, [accounts, activeAccountIndex, isAppAuthenticated, isAuthCheckPending, supabaseUser?.email, user]);
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -758,7 +772,7 @@ export default function App() {
   };
 
   const handleLogout = () => {
-    setSharedAuthCookie(false);
+    setSharedAuthState({ isAuthenticated: false, profile: null });
 
     // Remove persisted Supabase session tokens before any async work.
     if (typeof window !== 'undefined') {

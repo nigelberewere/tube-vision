@@ -18,7 +18,7 @@ import { Navigation } from "@/src/components/Navigation";
 import { Pricing } from "@/src/components/Pricing";
 import { UseCasePage, type UseCaseSlug } from "@/src/components/UseCasePage";
 import { getAuthUrl, getDashboardUrl } from "@/src/lib/config";
-import { readSharedAuthCookie } from "@/src/lib/sharedAuthCookie";
+import { readSharedAuthState, type SharedAuthState } from "@/src/lib/sharedAuthCookie";
 import { cn } from "@/src/lib/utils";
 
 const THEME_STORAGE_KEY = "tube_vision_theme";
@@ -84,7 +84,7 @@ function getPageFromPath(pathname: string): Page {
 }
 
 export default function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => readSharedAuthCookie());
+  const [authState, setAuthState] = useState<SharedAuthState>(() => readSharedAuthState());
   const [page, setPage] = useState<Page>(() => getPageFromPath(window.location.pathname));
   const [currentFeatureSlug, setCurrentFeatureSlug] = useState<FeatureSlug | null>(
     () => getFeatureSlugFromPath(window.location.pathname),
@@ -111,7 +111,7 @@ export default function App() {
 
   useEffect(() => {
     const refreshAuthState = () => {
-      setIsAuthenticated(readSharedAuthCookie());
+      setAuthState(readSharedAuthState());
     };
 
     refreshAuthState();
@@ -138,6 +138,7 @@ export default function App() {
   }, []);
 
   const isDark = theme === "dark";
+  const isAuthenticated = authState.isAuthenticated;
 
   const openDashboardAuth = () => {
     if (isAuthenticated) {
@@ -306,6 +307,7 @@ export default function App() {
         isDark={isDark}
         onToggleTheme={() => setTheme((prev) => (prev === "dark" ? "light" : "dark"))}
         isAuthenticated={isAuthenticated}
+        authProfile={authState.profile}
         onPrimaryAction={openDashboardAuth}
         onNavigateToFeature={goToFeature}
         onNavigateToGuide={goToGuide}
