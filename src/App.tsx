@@ -206,6 +206,7 @@ export default function App() {
   const [supabaseGateTimedOut, setSupabaseGateTimedOut] = useState(false);
   const youtubeConnectIntentRef = useRef<string | null>(null);
   const logoutCleanupRef = useRef<Promise<void> | null>(null);
+  const fetchUserRequestIdRef = useRef(0);
 
   // Handle URL-based routing for legal pages
   useEffect(() => {
@@ -423,6 +424,8 @@ export default function App() {
   };
 
   const fetchUser = async () => {
+    const requestId = ++fetchUserRequestIdRef.current;
+
     try {
       const authHeaders = getSupabaseAuthHeaders();
 
@@ -450,6 +453,9 @@ export default function App() {
         const accountsData = await accountsResponse.json();
         const nextAccounts = Array.isArray(accountsData.accounts) ? accountsData.accounts : [];
         const nextActiveIndex = Number.isInteger(accountsData.activeIndex) ? accountsData.activeIndex : 0;
+        if (requestId !== fetchUserRequestIdRef.current) {
+          return;
+        }
         setAccounts(nextAccounts);
         setActiveAccountIndex(nextActiveIndex);
         
@@ -460,8 +466,14 @@ export default function App() {
             credentials: 'include',
             cache: 'no-store',
           });
+          if (requestId !== fetchUserRequestIdRef.current) {
+            return;
+          }
           if (channelResponse.ok) {
             const channelData = await channelResponse.json();
+            if (requestId !== fetchUserRequestIdRef.current) {
+              return;
+            }
             setUser(channelData);
           } else {
             const fallbackIndex = Math.min(Math.max(nextActiveIndex, 0), nextAccounts.length - 1);
@@ -471,15 +483,23 @@ export default function App() {
           setUser(null);
         }
       } else {
+        if (requestId !== fetchUserRequestIdRef.current) {
+          return;
+        }
         setUser(null);
         setAccounts([]);
       }
     } catch (error) {
       console.error('Failed to fetch user:', error);
+      if (requestId !== fetchUserRequestIdRef.current) {
+        return;
+      }
       setUser(null);
       setAccounts([]);
     } finally {
-      setLoadingUser(false);
+      if (requestId === fetchUserRequestIdRef.current) {
+        setLoadingUser(false);
+      }
     }
   };
 
