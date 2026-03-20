@@ -273,7 +273,7 @@ function toGeminiHistory(messages: Message[]) {
 
 console.log('[AICoach] Component file loaded (should appear in browser console)');
 export default function AICoach({ channelContext, userProfile }: AICoachProps) {
-  const { user: authUser } = useAuth();
+  const { user: authUser, session: authSession } = useAuth();
   const [messages, setMessages] = useState<Message[]>([createWelcomeMessage(channelContext)]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -308,6 +308,17 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
   const primaryHistoryStorageKey = historyStorageKeys[0] || JANSO_HISTORY_STORAGE_KEY;
   const isHistoryHydrated = hydratedHistoryKeyRef.current === primaryHistoryStorageKey;
   const canAttemptServerHistory = Boolean(channelContext?.id || persistentUserId || userProfile?.id);
+  const serverHistoryHeaders = useMemo(() => {
+    const token = authSession?.access_token?.trim();
+    if (!token) {
+      return undefined;
+    }
+
+    return {
+      Authorization: `Bearer ${token}`,
+      'X-Supabase-Auth': token,
+    };
+  }, [authSession?.access_token]);
 
   useEffect(() => {
     console.log('[AICoach sync effect] useEffect triggered', { userProfile, conversations });
@@ -363,6 +374,7 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
           credentials: 'include',
           headers: {
             'Content-Type': 'application/json',
+            ...(serverHistoryHeaders || {}),
           },
           body: JSON.stringify({ conversations: nextConversations }),
         });
@@ -382,7 +394,7 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
         console.error('[AICoach sync effect] Error in upsertSingletonContent:', err);
       });
     },
-    [persistentUserId],
+    [persistentUserId, serverHistoryHeaders],
   );
 
   // Debounced sync to Supabase — keeps chat history alive across storage clears
@@ -505,6 +517,7 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
     if (canAttemptServerHistory) {
       fetch('/api/user/coach-history', {
         credentials: 'include',
+        headers: serverHistoryHeaders,
       })
         .then(async (response) => {
           if (!response.ok) {
@@ -581,7 +594,7 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
     }
 
     setInitialConversation();
-  }, [canAttemptServerHistory, primaryHistoryStorageKey, historyStorageKeys, historyStorageUserIds.length, authUser?.id, persistentUserId, channelContext, userProfile?.id]);
+  }, [canAttemptServerHistory, primaryHistoryStorageKey, historyStorageKeys, historyStorageUserIds.length, authUser?.id, persistentUserId, channelContext, serverHistoryHeaders, userProfile?.id]);
 
   useEffect(() => {
     if (!channelContext?.id) {
