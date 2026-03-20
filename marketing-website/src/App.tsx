@@ -275,7 +275,7 @@ export default function App() {
   } else {
     mainContent = (
       <>
-        <Hero isDark={isDark} isAuthenticated={isAuthenticated} onConnect={openDashboardAuth} />
+        <Hero isDark={isDark} isAuthenticated={isAuthenticated} authProfile={authState.profile} onConnect={openDashboardAuth} />
         <Features isDark={isDark} onNavigateToFeature={goToFeature} />
         <Pricing isDark={isDark} isAuthenticated={isAuthenticated} onConnect={openDashboardAuth} />
         <FAQ isDark={isDark} />

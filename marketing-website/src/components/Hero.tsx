@@ -1,16 +1,26 @@
 import { ArrowRight, CirclePlay, Sparkles, TrendingUp } from "lucide-react";
 import { motion } from "motion/react";
 
+import { type SharedAuthProfile } from "@/src/lib/sharedAuthCookie";
 import { cn } from "@/src/lib/utils";
 import YouTubeLogoIcon from "@/src/components/icons/YouTubeLogoIcon";
 
 type HeroProps = {
   isDark: boolean;
   isAuthenticated: boolean;
+  authProfile: SharedAuthProfile | null;
   onConnect: () => void;
 };
 
-export function Hero({ isDark, isAuthenticated, onConnect }: HeroProps) {
+export function Hero({ isDark, isAuthenticated, authProfile, onConnect }: HeroProps) {
+  const identityLabel = authProfile?.activeChannelTitle || authProfile?.displayName || "Signed in";
+  const channelSummary =
+    authProfile && authProfile.totalChannels > 1
+      ? `${authProfile.totalChannels} channels connected`
+      : authProfile?.totalChannels === 1
+        ? "1 channel connected"
+        : "Dashboard ready";
+
   return (
     <section className="relative overflow-hidden px-4 pb-16 pt-10 md:px-8 md:pb-20 md:pt-14">
       <div aria-hidden="true" className="hero-grid pointer-events-none absolute inset-0" />
@@ -41,6 +51,40 @@ export function Hero({ isDark, isAuthenticated, onConnect }: HeroProps) {
             <p className={cn("max-w-2xl text-base md:text-lg", isDark ? "text-slate-300" : "text-slate-700")}> 
               AI YouTube script generator, viral clip extractor, and SEO optimizer built for content creators who want to grow faster.
             </p>
+            {isAuthenticated && (
+              <div
+                className={cn(
+                  "inline-flex max-w-full items-center gap-3 rounded-2xl border px-3 py-2",
+                  isDark ? "border-white/10 bg-white/[0.04]" : "border-slate-200 bg-white/85"
+                )}
+              >
+                {authProfile?.avatarUrl ? (
+                  <img
+                    src={authProfile.avatarUrl}
+                    alt={identityLabel}
+                    className="h-10 w-10 rounded-full object-cover"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <div
+                    className={cn(
+                      "flex h-10 w-10 items-center justify-center rounded-full text-sm font-semibold",
+                      isDark ? "bg-white/10 text-slate-100" : "bg-slate-100 text-slate-700"
+                    )}
+                  >
+                    {identityLabel.charAt(0).toUpperCase()}
+                  </div>
+                )}
+                <div className="min-w-0">
+                  <p className={cn("truncate text-sm font-semibold", isDark ? "text-white" : "text-slate-900")}>
+                    Signed in as {identityLabel}
+                  </p>
+                  <p className={cn("truncate text-xs", isDark ? "text-slate-400" : "text-slate-600")}>
+                    {channelSummary}
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
