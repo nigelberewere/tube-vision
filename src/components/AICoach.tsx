@@ -64,6 +64,14 @@ interface InsightAlert {
 const JANSO_HISTORY_STORAGE_KEY = 'janso_chat_history_v1';
 const JANSO_DISMISSED_ALERTS_STORAGE_KEY = 'janso_dismissed_alerts_v1';
 const MAX_SAVED_CONVERSATIONS = 20;
+const coachConversationCache = new Map<
+  string,
+  {
+    conversations: ConversationRecord[];
+    activeConversationId: string;
+    messages: Message[];
+  }
+>();
 
 function buildScopedStorageKey(baseKey: string, userId?: string): string {
   const normalizedUserId = typeof userId === 'string' ? userId.trim() : '';
@@ -305,15 +313,37 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
 
   useEffect(() => {
     conversationsRef.current = conversations;
-  }, [conversations]);
+    if (!primaryHistoryStorageKey) return;
+    coachConversationCache.set(primaryHistoryStorageKey, {
+      conversations,
+      activeConversationId: activeConversationIdRef.current,
+      messages: messagesRef.current,
+    });
+  }, [conversations, primaryHistoryStorageKey]);
 
   useEffect(() => {
     activeConversationIdRef.current = activeConversationId;
-  }, [activeConversationId]);
+    if (!primaryHistoryStorageKey) return;
+    const cached = coachConversationCache.get(primaryHistoryStorageKey);
+    if (cached) {
+      coachConversationCache.set(primaryHistoryStorageKey, {
+        ...cached,
+        activeConversationId,
+      });
+    }
+  }, [activeConversationId, primaryHistoryStorageKey]);
 
   useEffect(() => {
     messagesRef.current = messages;
-  }, [messages]);
+    if (!primaryHistoryStorageKey) return;
+    const cached = coachConversationCache.get(primaryHistoryStorageKey);
+    if (cached) {
+      coachConversationCache.set(primaryHistoryStorageKey, {
+        ...cached,
+        messages,
+      });
+    }
+  }, [messages, primaryHistoryStorageKey]);
 
   // Debounced sync to Supabase — keeps chat history alive across storage clears
   useEffect(() => {
@@ -351,6 +381,14 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
 
     initializedHistoryKeyRef.current = primaryHistoryStorageKey;
 
+    const cached = coachConversationCache.get(primaryHistoryStorageKey);
+    if (cached && cached.conversations.length > 0) {
+      setConversations(cached.conversations);
+      setActiveConversationId(cached.activeConversationId || cached.conversations[0].id);
+      setMessages(cached.messages.length > 0 ? cached.messages : cached.conversations[0].messages);
+      return;
+    }
+
     const localCandidates = historyStorageKeys
       .map((storageKey) => parseStoredConversations(window.localStorage.getItem(storageKey)))
       .filter((candidate) => candidate.length > 0);
@@ -385,6 +423,11 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
       setConversations(nextConversations);
       setActiveConversationId(nextConversations[0].id);
       setMessages(nextConversations[0].messages);
+      coachConversationCache.set(primaryHistoryStorageKey, {
+        conversations: nextConversations,
+        activeConversationId: nextConversations[0].id,
+        messages: nextConversations[0].messages,
+      });
     };
 
     // Prefer Supabase for authenticated users so history stays in sync across devices.
@@ -605,6 +648,11 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
     setConversations(sorted);
 
     const resolvedActiveConversationId = sorted[0]?.id || conversationId;
+    coachConversationCache.set(primaryHistoryStorageKey, {
+      conversations: sorted,
+      activeConversationId: resolvedActiveConversationId || '',
+      messages: nextMessages,
+    });
     if (resolvedActiveConversationId && resolvedActiveConversationId !== activeConversationIdRef.current) {
       activeConversationIdRef.current = resolvedActiveConversationId;
       setActiveConversationId(resolvedActiveConversationId);
