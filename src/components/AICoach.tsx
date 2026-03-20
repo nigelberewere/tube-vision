@@ -273,6 +273,9 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
   const chatRef = useRef<any>(null);
   const initializedHistoryKeyRef = useRef<string | null>(null);
   const supabaseSyncRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const conversationsRef = useRef<ConversationRecord[]>([]);
+  const activeConversationIdRef = useRef('');
+  const messagesRef = useRef<Message[]>(messages);
 
   const historyStorageKey = useMemo(
     () => buildScopedStorageKey(JANSO_HISTORY_STORAGE_KEY, userProfile?.id),
@@ -284,6 +287,18 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
+  }, [messages]);
+
+  useEffect(() => {
+    conversationsRef.current = conversations;
+  }, [conversations]);
+
+  useEffect(() => {
+    activeConversationIdRef.current = activeConversationId;
+  }, [activeConversationId]);
+
+  useEffect(() => {
+    messagesRef.current = messages;
   }, [messages]);
 
   // Debounced sync to Supabase — keeps chat history alive across storage clears
@@ -537,43 +552,54 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
     });
   };
 
+  const saveConversationSnapshot = (nextMessages: Message[], conversationId = activeConversationIdRef.current) => {
+    const now = new Date().toISOString();
+    const previous = conversationsRef.current;
+    const index = previous.findIndex((conversation) => conversation.id === conversationId);
+    let updated = [...previous];
+
+    if (index >= 0) {
+      updated[index] = {
+        ...updated[index],
+        title: buildConversationTitle(nextMessages, channelContext?.title),
+        updatedAt: now,
+        messages: nextMessages,
+      };
+    } else {
+      updated = [
+        {
+          id: conversationId || createConversationId(),
+          title: buildConversationTitle(nextMessages, channelContext?.title),
+          createdAt: now,
+          updatedAt: now,
+          messages: nextMessages,
+        },
+        ...updated,
+      ];
+    }
+
+    const sorted = sortConversationsByLatest(updated).slice(0, MAX_SAVED_CONVERSATIONS);
+    persistConversations(sorted, historyStorageKey);
+    conversationsRef.current = sorted;
+    setConversations(sorted);
+
+    const resolvedActiveConversationId = sorted[0]?.id || conversationId;
+    if (resolvedActiveConversationId && resolvedActiveConversationId !== activeConversationIdRef.current) {
+      activeConversationIdRef.current = resolvedActiveConversationId;
+      setActiveConversationId(resolvedActiveConversationId);
+    }
+  };
+
   const handleSend = async () => {
     if (!input.trim() || loading) return;
 
     const userMessage = input.trim();
+    const nextUserMessage: Message = { role: 'user', text: userMessage };
+    const updatedMessages: Message[] = [...messagesRef.current, nextUserMessage];
     setInput('');
-    setMessages(prev => {
-      const newMessage: Message = { role: 'user', text: userMessage };
-      const updated = [...prev, newMessage];
-      setConversations((previous) => {
-        const now = new Date().toISOString();
-        const index = previous.findIndex((conversation) => conversation.id === activeConversationId);
-        let updatedConvs = [...previous];
-        if (index >= 0) {
-          updatedConvs[index] = {
-            ...updatedConvs[index],
-            title: buildConversationTitle(updated, channelContext?.title),
-            updatedAt: now,
-            messages: updated as Message[],
-          };
-        } else {
-          updatedConvs = [
-            {
-              id: activeConversationId,
-              title: buildConversationTitle(updated, channelContext?.title),
-              createdAt: now,
-              updatedAt: now,
-              messages: updated as Message[],
-            },
-            ...updatedConvs,
-          ];
-        }
-        const sorted = sortConversationsByLatest(updatedConvs).slice(0, MAX_SAVED_CONVERSATIONS);
-        persistConversations(sorted, historyStorageKey);
-        return sorted;
-      });
-      return updated;
-    });
+    messagesRef.current = updatedMessages;
+    setMessages(updatedMessages);
+    saveConversationSnapshot(updatedMessages);
     setLoading(true);
 
     // Import BYOK utilities dynamically to avoid circular dependencies
@@ -622,7 +648,11 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
       // Record successful API request
       recordAPIRequest();
       
-      setMessages(prev => [...prev, { role: 'model', text: text || "I'm sorry, I couldn't process that request." }]);
+      const modelMessage: Message = { role: 'model', text: text || "I'm sorry, I couldn't process that request." };
+      const nextMessages: Message[] = [...messagesRef.current, modelMessage];
+      messagesRef.current = nextMessages;
+      setMessages(nextMessages);
+      saveConversationSnapshot(nextMessages);
     } catch (error) {
       // Classify error for user-friendly messaging
       const classified = classifyGeminiError(error);
@@ -633,7 +663,11 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
       }
       
       console.error('Chat error:', error);
-      setMessages(prev => [...prev, { role: 'model', text: classified.userMessage }]);
+      const modelMessage: Message = { role: 'model', text: classified.userMessage };
+      const nextMessages: Message[] = [...messagesRef.current, modelMessage];
+      messagesRef.current = nextMessages;
+      setMessages(nextMessages);
+      saveConversationSnapshot(nextMessages);
     } finally {
       setLoading(false);
     }
