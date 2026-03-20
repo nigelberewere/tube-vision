@@ -16,6 +16,8 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 
+const AUTH_HANDOFF_STORAGE_KEY = 'janso_auth_handoff_pending';
+
 type VerifyOtpType = 'signup' | 'invite' | 'magiclink' | 'recovery' | 'email' | 'email_change';
 
 function parseVerifyOtpType(rawType: string | null): VerifyOtpType | null {
@@ -40,11 +42,13 @@ function parseVerifyOtpType(rawType: string | null): VerifyOtpType | null {
 
 export function AuthCallback() {
   const [error, setError] = useState<string | null>(null);
+  const [showStatus, setShowStatus] = useState(false);
 
   useEffect(() => {
     let mounted = true;
     let subscription: { unsubscribe: () => void } | null = null;
     let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    let statusDelayId: ReturnType<typeof setTimeout> | null = null;
     let completed = false;
 
     const sleep = (ms: number) =>
@@ -102,6 +106,12 @@ export function AuthCallback() {
       completed = true;
       if (timeoutId) {
         clearTimeout(timeoutId);
+      }
+
+      try {
+        window.sessionStorage.setItem(AUTH_HANDOFF_STORAGE_KEY, '1');
+      } catch (storageError) {
+        console.warn('Unable to persist auth handoff marker:', storageError);
       }
 
       const searchParams = new URLSearchParams(window.location.search);
@@ -166,6 +176,12 @@ export function AuthCallback() {
       try {
         let accessTokenFromEvent: string | null = null;
         let accessTokenFromResult: string | null = null;
+
+        statusDelayId = setTimeout(() => {
+          if (mounted && !completed) {
+            setShowStatus(true);
+          }
+        }, 700);
 
         timeoutId = setTimeout(() => {
           if (mounted && !completed) {
@@ -277,6 +293,9 @@ export function AuthCallback() {
       if (timeoutId) {
         clearTimeout(timeoutId);
       }
+      if (statusDelayId) {
+        clearTimeout(statusDelayId);
+      }
     };
   }, []);
 
@@ -304,13 +323,16 @@ export function AuthCallback() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-      <div className="text-center">
-        <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-        <p className="mt-4 text-lg text-gray-600 dark:text-gray-400">
-          Completing authentication...
-        </p>
-      </div>
+    <div className="min-h-screen bg-[#050505]">
+      {showStatus ? (
+        <div className="min-h-screen flex items-center justify-center px-6">
+          <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-8 py-7 text-center backdrop-blur-xl">
+            <div className="inline-block h-10 w-10 animate-spin rounded-full border-2 border-blue-400/40 border-t-blue-400" />
+            <p className="mt-4 text-base font-medium text-slate-100">Completing authentication...</p>
+            <p className="mt-1 text-sm text-slate-400">Taking you to your dashboard.</p>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -104,6 +104,7 @@ interface TabConfig {
 const CHANNEL_REQUIRED_TABS: Tab[] = ['channel', 'competitors', 'videos'];
 const ONBOARDING_STORAGE_KEY = 'tube_vision_onboarding_completed_v2';
 const YOUTUBE_CONNECT_QUERY_KEY = 'connect_youtube';
+const AUTH_HANDOFF_STORAGE_KEY = 'janso_auth_handoff_pending';
 const ONBOARDING_STEPS: TourStep[] = [
   {
     targetId: 'tour-home-tab',
@@ -207,6 +208,17 @@ export default function App() {
   const [currentPage, setCurrentPage] = useState<'app' | 'privacy' | 'terms' | 'authCallback' | 'login'>('app');
   const [isLogoutPending, setIsLogoutPending] = useState(false);
   const [supabaseGateTimedOut, setSupabaseGateTimedOut] = useState(false);
+  const [isReturningFromAuth, setIsReturningFromAuth] = useState(() => {
+    if (typeof window === 'undefined') {
+      return false;
+    }
+
+    try {
+      return window.sessionStorage.getItem(AUTH_HANDOFF_STORAGE_KEY) === '1';
+    } catch {
+      return false;
+    }
+  });
   const youtubeConnectIntentRef = useRef<string | null>(null);
   const logoutCleanupRef = useRef<Promise<void> | null>(null);
   const fetchUserRequestIdRef = useRef(0);
@@ -374,6 +386,7 @@ export default function App() {
   const isAppAuthenticated = isSupabaseAuthenticated || isCookieAuthenticated;
   const isSupabaseGateOpen = !supabaseLoading || supabaseGateTimedOut || isCookieAuthenticated;
   const isAuthCheckPending = loadingUser || !isSupabaseGateOpen;
+  const shouldUseInlineAuthHandoff = currentPage === 'app' && isAuthCheckPending && isReturningFromAuth;
 
   useEffect(() => {
     if (!supabaseLoading) {
@@ -616,6 +629,26 @@ export default function App() {
       },
     });
   }, [accounts, activeAccountIndex, isAppAuthenticated, isAuthCheckPending, supabaseUser?.email, user]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    if (currentPage === 'app' && isAuthCheckPending && isReturningFromAuth) {
+      return;
+    }
+
+    try {
+      window.sessionStorage.removeItem(AUTH_HANDOFF_STORAGE_KEY);
+    } catch (storageError) {
+      console.warn('Unable to clear auth handoff marker:', storageError);
+    }
+
+    if (isReturningFromAuth) {
+      setIsReturningFromAuth(false);
+    }
+  }, [currentPage, isAuthCheckPending, isReturningFromAuth]);
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -1153,7 +1186,7 @@ export default function App() {
     return <AuthCallback />;
   }
 
-  if (currentPage === 'app' && isAuthCheckPending) {
+  if (currentPage === 'app' && isAuthCheckPending && !shouldUseInlineAuthHandoff) {
     return (
       <>
         <div
@@ -1603,41 +1636,76 @@ export default function App() {
             </div>
           </div>
 
-          {renderSectionHelper()}
-
-          {shouldMountCoach && (
-            <div className={cn(activeTab === 'coach' ? 'block' : 'hidden')} aria-hidden={activeTab !== 'coach'}>
-              <AICoach
-                channelContext={user?.channel}
-                userProfile={coachUserProfile}
-              />
-            </div>
-          )}
-
-          {!user && !loadingUser && !requiresChannelConnection && activeTab !== 'home' && activeTab !== 'settings' && (
-            <div className="mb-6 sm:mb-8 bg-white/[0.04] border border-white/15 rounded-2xl p-4 sm:p-6 flex flex-col md:flex-row items-start sm:items-center gap-4 sm:gap-6">
-              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white/10 flex items-center justify-center text-slate-200 flex-shrink-0">
-                <ShieldCheck size={20} className="sm:hidden" />
-                <ShieldCheck size={24} className="hidden sm:block" />
+          {shouldUseInlineAuthHandoff ? (
+            <div className="space-y-6">
+              <div className="rounded-2xl border border-blue-400/20 bg-blue-500/[0.08] px-5 py-4 backdrop-blur-xl">
+                <div className="flex items-center gap-3">
+                  <span className="inline-block h-4 w-4 rounded-full border-2 border-blue-300/60 border-t-transparent animate-spin" />
+                  <div>
+                    <p className="text-sm font-semibold text-slate-100">Opening your dashboard</p>
+                    <p className="text-xs text-slate-400">Your workspace is loading in the background.</p>
+                  </div>
+                </div>
               </div>
-              <div className="flex-1 text-left">
-                <h3 className="text-base sm:text-lg font-bold text-white">Connect your channel for better insights</h3>
-                <p className="text-xs sm:text-sm text-slate-400 mt-1">
-                  Janso Studio works best when it can analyze your real channel data. Connect your YouTube account to unlock personalized growth strategies.
-                </p>
-              </div>
-              <button
-                onClick={handleConnect}
-                className="whitespace-nowrap bg-white hover:bg-slate-200 text-black px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all inline-flex items-center gap-2 flex-shrink-0"
-              >
-                <YouTubeLogoIcon size={14} className="sm:hidden" />
-                <YouTubeLogoIcon size={16} className="hidden sm:block" />
-                <span>Get Started</span>
-              </button>
-            </div>
-          )}
 
-          {activeTab !== 'coach' && renderContent()}
+              <div className="grid gap-4 lg:grid-cols-[1.4fr_0.9fr]">
+                <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 backdrop-blur-xl">
+                  <div className="h-4 w-32 rounded bg-white/10 animate-pulse" />
+                  <div className="mt-4 space-y-3">
+                    <div className="h-24 rounded-2xl bg-white/[0.04] animate-pulse" />
+                    <div className="h-24 rounded-2xl bg-white/[0.04] animate-pulse" />
+                    <div className="h-40 rounded-2xl bg-white/[0.04] animate-pulse" />
+                  </div>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 backdrop-blur-xl">
+                  <div className="h-4 w-24 rounded bg-white/10 animate-pulse" />
+                  <div className="mt-4 space-y-3">
+                    <div className="h-20 rounded-2xl bg-white/[0.04] animate-pulse" />
+                    <div className="h-20 rounded-2xl bg-white/[0.04] animate-pulse" />
+                    <div className="h-20 rounded-2xl bg-white/[0.04] animate-pulse" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <>
+              {renderSectionHelper()}
+
+              {shouldMountCoach && (
+                <div className={cn(activeTab === 'coach' ? 'block' : 'hidden')} aria-hidden={activeTab !== 'coach'}>
+                  <AICoach
+                    channelContext={user?.channel}
+                    userProfile={coachUserProfile}
+                  />
+                </div>
+              )}
+
+              {!user && !loadingUser && !requiresChannelConnection && activeTab !== 'home' && activeTab !== 'settings' && (
+                <div className="mb-6 sm:mb-8 bg-white/[0.04] border border-white/15 rounded-2xl p-4 sm:p-6 flex flex-col md:flex-row items-start sm:items-center gap-4 sm:gap-6">
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white/10 flex items-center justify-center text-slate-200 flex-shrink-0">
+                    <ShieldCheck size={20} className="sm:hidden" />
+                    <ShieldCheck size={24} className="hidden sm:block" />
+                  </div>
+                  <div className="flex-1 text-left">
+                    <h3 className="text-base sm:text-lg font-bold text-white">Connect your channel for better insights</h3>
+                    <p className="text-xs sm:text-sm text-slate-400 mt-1">
+                      Janso Studio works best when it can analyze your real channel data. Connect your YouTube account to unlock personalized growth strategies.
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleConnect}
+                    className="whitespace-nowrap bg-white hover:bg-slate-200 text-black px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all inline-flex items-center gap-2 flex-shrink-0"
+                  >
+                    <YouTubeLogoIcon size={14} className="sm:hidden" />
+                    <YouTubeLogoIcon size={16} className="hidden sm:block" />
+                    <span>Get Started</span>
+                  </button>
+                </div>
+              )}
+
+              {activeTab !== 'coach' && renderContent()}
+            </>
+          )}
         </div>
       </main>
 
