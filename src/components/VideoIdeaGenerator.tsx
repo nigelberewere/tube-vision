@@ -18,7 +18,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { fetchSingletonContent, upsertSingletonContent } from '../lib/supabase';
+import { useAuth } from '../lib/supabaseAuth';
 
 interface VideoIdea {
   id: string;
@@ -47,9 +47,8 @@ interface VideoIdeaGeneratorProps {
 }
 
 const SAVED_IDEAS_KEY = 'vid_vision_saved_ideas';
-const SAVED_IDEAS_SUPABASE_TITLE = '__saved_ideas__';
-
 export default function VideoIdeaGenerator({ channelContext, onNavigateToScript }: VideoIdeaGeneratorProps) {
+  const { session: authSession } = useAuth();
   const [ideas, setIdeas] = useState<VideoIdea[]>([]);
   const [trends, setTrends] = useState<ViralTrend[]>([]);
   const [ideasError, setIdeasError] = useState<string | null>(null);
@@ -58,41 +57,69 @@ export default function VideoIdeaGenerator({ channelContext, onNavigateToScript 
   const [loadingTrends, setLoadingTrends] = useState(false);
   const [savedIdeas, setSavedIdeas] = useState<VideoIdea[]>([]);
   const [viewMode, setViewMode] = useState<'generated' | 'saved'>('generated');
+  const savedIdeasHeaders = authSession?.access_token
+    ? {
+        Authorization: `Bearer ${authSession.access_token}`,
+        'X-Supabase-Auth': authSession.access_token,
+      }
+    : undefined;
 
-  // Load saved ideas from localStorage, falling back to Supabase after storage clears
+  // Load saved ideas from localStorage first, then refresh from the backend.
   useEffect(() => {
     const stored = localStorage.getItem(SAVED_IDEAS_KEY);
     if (stored) {
       try {
         setSavedIdeas(JSON.parse(stored));
-        return;
       } catch (e) {
         console.error('Failed to parse saved ideas:', e);
       }
     }
-    // localStorage empty — try Supabase
-    fetchSingletonContent('script', SAVED_IDEAS_SUPABASE_TITLE).then((row) => {
-      const ideas = row?.data?.savedIdeas;
-      if (Array.isArray(ideas) && ideas.length > 0) {
-        setSavedIdeas(ideas);
-        localStorage.setItem(SAVED_IDEAS_KEY, JSON.stringify(ideas));
-      }
-    }).catch(() => {});
-  }, []);
+
+    fetch('/api/user/saved-ideas', {
+      credentials: 'include',
+      headers: savedIdeasHeaders,
+    })
+      .then(async (response) => {
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        return response.json();
+      })
+      .then((payload) => {
+        const nextSavedIdeas = Array.isArray(payload?.savedIdeas) ? payload.savedIdeas : [];
+        setSavedIdeas(nextSavedIdeas);
+        localStorage.setItem(SAVED_IDEAS_KEY, JSON.stringify(nextSavedIdeas));
+      })
+      .catch((error) => {
+        console.error('Failed to load saved ideas from backend:', error);
+      });
+  }, [savedIdeasHeaders]);
+
+  const persistSavedIdeas = (nextSavedIdeas: VideoIdea[]) => {
+    setSavedIdeas(nextSavedIdeas);
+    localStorage.setItem(SAVED_IDEAS_KEY, JSON.stringify(nextSavedIdeas));
+    fetch('/api/user/saved-ideas', {
+      method: 'PUT',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(savedIdeasHeaders || {}),
+      },
+      body: JSON.stringify({ savedIdeas: nextSavedIdeas }),
+    }).catch((error) => {
+      console.error('Failed to save ideas to backend:', error);
+    });
+  };
 
   const saveIdea = (idea: VideoIdea) => {
     const ideaWithTimestamp = { ...idea, savedAt: new Date().toISOString() };
     const updated = [...savedIdeas, ideaWithTimestamp];
-    setSavedIdeas(updated);
-    localStorage.setItem(SAVED_IDEAS_KEY, JSON.stringify(updated));
-    upsertSingletonContent('script', { savedIdeas: updated }, SAVED_IDEAS_SUPABASE_TITLE).catch(() => {});
+    persistSavedIdeas(updated);
   };
 
   const removeSavedIdea = (ideaId: string) => {
     const updated = savedIdeas.filter(i => i.id !== ideaId);
-    setSavedIdeas(updated);
-    localStorage.setItem(SAVED_IDEAS_KEY, JSON.stringify(updated));
-    upsertSingletonContent('script', { savedIdeas: updated }, SAVED_IDEAS_SUPABASE_TITLE).catch(() => {});
+    persistSavedIdeas(updated);
   };
 
   const isIdeaSaved = (ideaId: string) => {
@@ -436,9 +463,7 @@ export default function VideoIdeaGenerator({ channelContext, onNavigateToScript 
                   <button
                     onClick={() => {
                       if (confirm('Clear all saved ideas?')) {
-                        setSavedIdeas([]);
-                        localStorage.removeItem(SAVED_IDEAS_KEY);
-                        upsertSingletonContent('script', { savedIdeas: [] }, SAVED_IDEAS_SUPABASE_TITLE).catch(() => {});
+                        persistSavedIdeas([]);
                       }
                     }}
                     className="text-xs text-red-400 hover:text-red-300 font-semibold transition-colors"

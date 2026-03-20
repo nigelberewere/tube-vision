@@ -34,7 +34,7 @@ import {
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { ShimmerCard, ShimmerVideoCard } from './Shimmer';
-import { fetchSingletonContent, upsertSingletonContent } from '../lib/supabase';
+import { useAuth } from '../lib/supabaseAuth';
 
 interface CompetitorChannel {
   id: string;
@@ -92,6 +92,7 @@ interface ContentGapAnalysis {
 const STORAGE_KEY = 'vid_vision_tracked_competitors';
 
 export default function CompetitorAnalysis() {
+  const { session: authSession } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [searching, setSearching] = useState(false);
@@ -112,33 +113,58 @@ export default function CompetitorAnalysis() {
   const [gapAnalysis, setGapAnalysis] = useState<ContentGapAnalysis | null>(null);
   const [gapAnalysisError, setGapAnalysisError] = useState<string | null>(null);
   const [loadingGapAnalysis, setLoadingGapAnalysis] = useState(false);
+  const trackedCompetitorHeaders = authSession?.access_token
+    ? {
+        Authorization: `Bearer ${authSession.access_token}`,
+        'X-Supabase-Auth': authSession.access_token,
+      }
+    : undefined;
 
-  // Load tracked competitors from localStorage, falling back to Supabase after storage clears
+  // Load tracked competitors from localStorage first, then refresh from the backend.
   useEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
       try {
         setTrackedCompetitors(JSON.parse(stored));
-        return;
       } catch (e) {
         console.error('Failed to parse tracked competitors:', e);
       }
     }
-    // localStorage empty — try Supabase
-    fetchSingletonContent('competitor_analysis').then((row) => {
-      const competitors = row?.data?.competitors;
-      if (Array.isArray(competitors) && competitors.length > 0) {
+
+    fetch('/api/user/tracked-competitors', {
+      credentials: 'include',
+      headers: trackedCompetitorHeaders,
+    })
+      .then(async (response) => {
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        return response.json();
+      })
+      .then((payload) => {
+        const competitors = Array.isArray(payload?.competitors) ? payload.competitors : [];
         setTrackedCompetitors(competitors);
         localStorage.setItem(STORAGE_KEY, JSON.stringify(competitors));
-      }
-    }).catch(() => {});
-  }, []);
+      })
+      .catch((error) => {
+        console.error('Failed to load tracked competitors from backend:', error);
+      });
+  }, [trackedCompetitorHeaders]);
 
-  // Save tracked competitors to localStorage and Supabase
   const saveTrackedCompetitors = (competitors: CompetitorChannel[]) => {
     setTrackedCompetitors(competitors);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(competitors));
-    upsertSingletonContent('competitor_analysis', { competitors }).catch(() => {});
+    fetch('/api/user/tracked-competitors', {
+      method: 'PUT',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(trackedCompetitorHeaders || {}),
+      },
+      body: JSON.stringify({ competitors }),
+    }).catch((error) => {
+      console.error('Failed to save tracked competitors to backend:', error);
+    });
   };
 
   // Toggle tracking for a competitor

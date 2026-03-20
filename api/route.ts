@@ -1419,6 +1419,220 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   }
 
+  if (path === 'api/user/tracked-competitors' && req.method === 'GET') {
+    const coachHistoryUserId = await resolveCoachHistoryUserId(req);
+    if (!coachHistoryUserId || !supabaseServer) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    try {
+      const { data, error } = await supabaseServer
+        .from('saved_content')
+        .select('data, updated_at')
+        .eq('user_id', coachHistoryUserId)
+        .eq('content_type', 'competitor_analysis')
+        .eq('title', '__singleton__')
+        .order('updated_at', { ascending: false })
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (error) {
+        console.error('Tracked competitors fetch error:', error);
+        return res.status(500).json({ error: 'Failed to load tracked competitors' });
+      }
+
+      const row = Array.isArray(data) ? data[0] : null;
+      return res.json({
+        competitors: Array.isArray(row?.data?.competitors) ? row.data.competitors : [],
+        updatedAt: row?.updated_at || null,
+      });
+    } catch (error) {
+      console.error('Tracked competitors fetch exception:', error);
+      return res.status(500).json({ error: 'Failed to load tracked competitors' });
+    }
+  }
+
+  if (path === 'api/user/tracked-competitors' && req.method === 'PUT') {
+    const coachHistoryUserId = await resolveCoachHistoryUserId(req);
+    if (!coachHistoryUserId || !supabaseServer) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const body = readJsonBody(req);
+    const competitors = Array.isArray(body?.competitors) ? body.competitors : null;
+    if (!competitors) {
+      return res.status(400).json({ error: 'competitors array is required' });
+    }
+
+    try {
+      const { data: existingRows, error: fetchError } = await supabaseServer
+        .from('saved_content')
+        .select('id')
+        .eq('user_id', coachHistoryUserId)
+        .eq('content_type', 'competitor_analysis')
+        .eq('title', '__singleton__')
+        .order('updated_at', { ascending: false })
+        .order('created_at', { ascending: false });
+
+      if (fetchError) {
+        console.error('Tracked competitors existing-row fetch error:', fetchError);
+        return res.status(500).json({ error: 'Failed to save tracked competitors' });
+      }
+
+      const [primaryRow, ...duplicateRows] = (existingRows || []) as Array<{ id: string }>;
+      const updatedAt = new Date().toISOString();
+
+      if (primaryRow) {
+        const { error: updateError } = await supabaseServer
+          .from('saved_content')
+          .update({ data: { competitors }, updated_at: updatedAt })
+          .eq('id', primaryRow.id);
+
+        if (updateError) {
+          console.error('Tracked competitors update error:', updateError);
+          return res.status(500).json({ error: 'Failed to save tracked competitors' });
+        }
+
+        if (duplicateRows.length > 0) {
+          const { error: deleteError } = await supabaseServer
+            .from('saved_content')
+            .delete()
+            .in('id', duplicateRows.map((row) => row.id));
+
+          if (deleteError) {
+            console.error('Tracked competitors duplicate cleanup error:', deleteError);
+          }
+        }
+      } else {
+        const { error: insertError } = await supabaseServer
+          .from('saved_content')
+          .insert({
+            user_id: coachHistoryUserId,
+            content_type: 'competitor_analysis',
+            title: '__singleton__',
+            data: { competitors },
+          });
+
+        if (insertError) {
+          console.error('Tracked competitors insert error:', insertError);
+          return res.status(500).json({ error: 'Failed to save tracked competitors' });
+        }
+      }
+
+      return res.json({ success: true });
+    } catch (error) {
+      console.error('Tracked competitors save exception:', error);
+      return res.status(500).json({ error: 'Failed to save tracked competitors' });
+    }
+  }
+
+  if (path === 'api/user/saved-ideas' && req.method === 'GET') {
+    const savedIdeasUserId = await resolveCoachHistoryUserId(req);
+    if (!savedIdeasUserId || !supabaseServer) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    try {
+      const { data, error } = await supabaseServer
+        .from('saved_content')
+        .select('data, updated_at')
+        .eq('user_id', savedIdeasUserId)
+        .eq('content_type', 'script')
+        .eq('title', '__saved_ideas__')
+        .order('updated_at', { ascending: false })
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (error) {
+        console.error('Saved ideas fetch error:', error);
+        return res.status(500).json({ error: 'Failed to load saved ideas' });
+      }
+
+      const row = Array.isArray(data) ? data[0] : null;
+      return res.json({
+        savedIdeas: Array.isArray(row?.data?.savedIdeas) ? row.data.savedIdeas : [],
+        updatedAt: row?.updated_at || null,
+      });
+    } catch (error) {
+      console.error('Saved ideas fetch exception:', error);
+      return res.status(500).json({ error: 'Failed to load saved ideas' });
+    }
+  }
+
+  if (path === 'api/user/saved-ideas' && req.method === 'PUT') {
+    const savedIdeasUserId = await resolveCoachHistoryUserId(req);
+    if (!savedIdeasUserId || !supabaseServer) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const body = readJsonBody(req);
+    const savedIdeas = Array.isArray(body?.savedIdeas) ? body.savedIdeas : null;
+    if (!savedIdeas) {
+      return res.status(400).json({ error: 'savedIdeas array is required' });
+    }
+
+    try {
+      const { data: existingRows, error: fetchError } = await supabaseServer
+        .from('saved_content')
+        .select('id')
+        .eq('user_id', savedIdeasUserId)
+        .eq('content_type', 'script')
+        .eq('title', '__saved_ideas__')
+        .order('updated_at', { ascending: false })
+        .order('created_at', { ascending: false });
+
+      if (fetchError) {
+        console.error('Saved ideas existing-row fetch error:', fetchError);
+        return res.status(500).json({ error: 'Failed to save ideas' });
+      }
+
+      const [primaryRow, ...duplicateRows] = (existingRows || []) as Array<{ id: string }>;
+      const updatedAt = new Date().toISOString();
+
+      if (primaryRow) {
+        const { error: updateError } = await supabaseServer
+          .from('saved_content')
+          .update({ data: { savedIdeas }, updated_at: updatedAt })
+          .eq('id', primaryRow.id);
+
+        if (updateError) {
+          console.error('Saved ideas update error:', updateError);
+          return res.status(500).json({ error: 'Failed to save ideas' });
+        }
+
+        if (duplicateRows.length > 0) {
+          const { error: deleteError } = await supabaseServer
+            .from('saved_content')
+            .delete()
+            .in('id', duplicateRows.map((row) => row.id));
+
+          if (deleteError) {
+            console.error('Saved ideas duplicate cleanup error:', deleteError);
+          }
+        }
+      } else {
+        const { error: insertError } = await supabaseServer
+          .from('saved_content')
+          .insert({
+            user_id: savedIdeasUserId,
+            content_type: 'script',
+            title: '__saved_ideas__',
+            data: { savedIdeas },
+          });
+
+        if (insertError) {
+          console.error('Saved ideas insert error:', insertError);
+          return res.status(500).json({ error: 'Failed to save ideas' });
+        }
+      }
+
+      return res.json({ success: true });
+    } catch (error) {
+      console.error('Saved ideas save exception:', error);
+      return res.status(500).json({ error: 'Failed to save ideas' });
+    }
+  }
+
   // Daily AI script placeholder
   if (path === 'api/script/daily-placeholder') {
     const userData = await getActiveYouTubeUser(req);
