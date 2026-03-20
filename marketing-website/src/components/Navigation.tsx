@@ -259,6 +259,45 @@ export function Navigation({
               type="button"
               onClick={onPrimaryAction}
               className={cn(
+                "inline-flex items-center gap-2 rounded-xl border px-2.5 py-2 text-left transition md:hidden",
+                isDark
+                  ? "border-white/10 bg-white/[0.04] hover:bg-white/[0.08]"
+                  : "border-slate-200 bg-white/90 hover:bg-slate-50"
+              )}
+              aria-label={`Open dashboard for ${identityLabel}`}
+            >
+              {authProfile?.avatarUrl ? (
+                <img
+                  src={authProfile.avatarUrl}
+                  alt={identityLabel}
+                  className="h-8 w-8 rounded-full object-cover"
+                  referrerPolicy="no-referrer"
+                />
+              ) : (
+                <div
+                  className={cn(
+                    "flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold",
+                    isDark ? "bg-white/10 text-slate-200" : "bg-slate-100 text-slate-700"
+                  )}
+                >
+                  {identityLabel.charAt(0).toUpperCase()}
+                </div>
+              )}
+              <div className="hidden min-w-0 sm:block">
+                <p className={cn("max-w-[7rem] truncate text-xs font-semibold", isDark ? "text-white" : "text-slate-900")}>
+                  {identityLabel}
+                </p>
+                <p className={cn("max-w-[7rem] truncate text-[10px]", isDark ? "text-slate-400" : "text-slate-500")}>
+                  {authProfile?.totalChannels && authProfile.totalChannels > 1 ? `${authProfile.totalChannels} channels` : "Signed in"}
+                </p>
+              </div>
+            </button>
+          )}
+          {isAuthenticated && (
+            <button
+              type="button"
+              onClick={onPrimaryAction}
+              className={cn(
                 "hidden items-center gap-3 rounded-2xl border px-3 py-2 text-left transition md:inline-flex",
                 isDark
                   ? "border-white/10 bg-white/[0.04] hover:bg-white/[0.08]"
