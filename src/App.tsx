@@ -423,14 +423,15 @@ export default function App() {
     return String(data.url);
   };
 
-  const fetchUser = async () => {
+  const fetchUser = async (options?: { finalizePendingYouTubeAccount?: boolean }) => {
     const requestId = ++fetchUserRequestIdRef.current;
 
     try {
       const authHeaders = getSupabaseAuthHeaders();
+      const shouldFinalizePendingYouTubeAccount = Boolean(options?.finalizePendingYouTubeAccount);
 
       // Ensure any pending OAuth popup account is persisted before account list fetch.
-      if (authHeaders.Authorization) {
+      if (shouldFinalizePendingYouTubeAccount && authHeaders.Authorization) {
         try {
           await fetch('/api/auth/finalize-youtube', {
             method: 'POST',
@@ -514,7 +515,7 @@ export default function App() {
       
       if (event.data?.type === 'OAUTH_AUTH_SUCCESS') {
         console.log('OAuth success message received');
-        fetchUser();
+        fetchUser({ finalizePendingYouTubeAccount: true });
       }
     };
 
