@@ -471,6 +471,13 @@ export default function App() {
         }
         setAccounts(nextAccounts);
         setActiveAccountIndex(nextActiveIndex);
+        if (nextAccounts.length > 0) {
+          const fallbackIndex = Math.min(Math.max(nextActiveIndex, 0), nextAccounts.length - 1);
+          setUser(nextAccounts[fallbackIndex] || nextAccounts[0] || null);
+        } else {
+          setUser(null);
+        }
+        setLoadingUser(false);
         
         // Fetch active account details
         if (nextAccounts.length > 0) {
@@ -488,12 +495,7 @@ export default function App() {
               return;
             }
             setUser(channelData);
-          } else {
-            const fallbackIndex = Math.min(Math.max(nextActiveIndex, 0), nextAccounts.length - 1);
-            setUser(nextAccounts[fallbackIndex] || nextAccounts[0] || null);
           }
-        } else {
-          setUser(null);
         }
       } else {
         if (requestId !== fetchUserRequestIdRef.current) {
@@ -510,7 +512,7 @@ export default function App() {
       setUser(null);
       setAccounts([]);
     } finally {
-      if (requestId === fetchUserRequestIdRef.current) {
+      if (requestId === fetchUserRequestIdRef.current && loadingUser) {
         setLoadingUser(false);
       }
     }

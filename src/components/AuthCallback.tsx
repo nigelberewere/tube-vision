@@ -82,6 +82,7 @@ export function AuthCallback() {
               Authorization: `Bearer ${accessToken}`,
             },
             credentials: 'include',
+            keepalive: true,
             signal: controller.signal,
           });
         } finally {
@@ -141,7 +142,7 @@ export function AuthCallback() {
       setError(message);
     };
 
-    const waitForSessionAccessToken = async (maxWaitMs = 12000): Promise<string | null> => {
+    const waitForSessionAccessToken = async (maxWaitMs = 2500): Promise<string | null> => {
       const deadline = Date.now() + maxWaitMs;
 
       while (mounted && !completed && Date.now() < deadline) {
@@ -164,6 +165,7 @@ export function AuthCallback() {
     const run = async () => {
       try {
         let accessTokenFromEvent: string | null = null;
+        let accessTokenFromResult: string | null = null;
 
         timeoutId = setTimeout(() => {
           if (mounted && !completed) {
@@ -213,6 +215,8 @@ export function AuthCallback() {
             setAuthError(`Authentication failed: ${setSessionResult.error.message}`);
             return;
           }
+
+          accessTokenFromResult = setSessionResult?.data?.session?.access_token || accessToken;
         } else if (authCode) {
           // Flow 2: PKCE code exchange.
           const exchangeResult = await withTimeout(
@@ -224,6 +228,8 @@ export function AuthCallback() {
             setAuthError(`Authentication failed: ${exchangeResult.error.message}`);
             return;
           }
+
+          accessTokenFromResult = exchangeResult?.data?.session?.access_token || null;
         } else if (tokenHash && otpType) {
           // Flow 3: token_hash verification links.
           const otpResult = await withTimeout(
@@ -238,15 +244,20 @@ export function AuthCallback() {
             setAuthError(`Authentication failed: ${otpResult.error.message}`);
             return;
           }
+
+          accessTokenFromResult = otpResult?.data?.session?.access_token || null;
         }
 
-        const activeAccessToken = accessTokenFromEvent || await waitForSessionAccessToken();
+        const activeAccessToken =
+          accessTokenFromResult ||
+          accessTokenFromEvent ||
+          await waitForSessionAccessToken();
         if (!activeAccessToken) {
           setAuthError('Authentication timeout - please try again');
           return;
         }
 
-        await finalizeYouTubeAccount(activeAccessToken);
+        void finalizeYouTubeAccount(activeAccessToken);
         finishRedirect();
       } catch (err) {
         console.error('Auth callback exception:', err);
