@@ -1255,7 +1255,7 @@ export default function App() {
 
       <aside
         className={cn(
-          'fixed inset-y-0 left-0 z-40 w-64 sm:w-72 border-r transform transition-transform duration-200 ease-in-out lg:translate-x-0 lg:static lg:h-screen lg:block flex flex-col overflow-hidden min-h-0',
+          'fixed inset-y-0 left-0 z-40 flex h-[100dvh] max-h-[100dvh] w-64 min-h-0 flex-col overflow-hidden border-r transform transition-transform duration-200 ease-in-out sm:w-72 lg:static lg:block lg:h-screen lg:max-h-screen lg:translate-x-0',
           theme === 'light' ? 'bg-slate-50 border-slate-200' : 'bg-[#0a0a0a] border-white/10',
           isSidebarOpen ? 'translate-x-0' : '-translate-x-full',
         )}
@@ -1275,8 +1275,9 @@ export default function App() {
           </div>
         </div>
 
-        <nav className="min-h-0 flex-1 overflow-y-auto p-2 pr-1 sm:p-4 sm:pr-2">
-          <div className="space-y-4 pb-3 sm:space-y-5">
+        <div className="flex min-h-0 flex-1 flex-col">
+          <nav className="min-h-0 flex-1 overflow-y-auto p-2 pr-1 sm:p-4 sm:pr-2">
+            <div className="space-y-4 pb-3 sm:space-y-5">
             <div className="space-y-1">
               <p className="px-2 text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">Overview</p>
               {overviewTabs.map((tab) => {
@@ -1367,19 +1368,19 @@ export default function App() {
               })}
             </div>
 
-          </div>
-        </nav>
+            </div>
+          </nav>
 
-        <div
-          className={cn(
-            'shrink-0 border-t p-4',
-            theme === 'light' ? 'border-slate-200 bg-slate-50' : 'border-white/10 bg-[#0a0a0a]'
-          )}
-        >
-          {loadingUser ? (
-            <div className="h-12 bg-white/5 animate-pulse rounded-lg"></div>
-          ) : user ? (
-            <div className="relative">
+          <div
+            className={cn(
+              'shrink-0 border-t p-4',
+              theme === 'light' ? 'border-slate-200 bg-slate-50' : 'border-white/10 bg-[#0a0a0a]'
+            )}
+          >
+            {loadingUser ? (
+              <div className="h-12 bg-white/5 animate-pulse rounded-lg"></div>
+            ) : user ? (
+              <div className="relative">
               {/* Profile Menu Dropdown */}
               {isProfileMenuOpen && (
                 <>
@@ -1598,30 +1599,31 @@ export default function App() {
                 </div>
                 <Menu size={16} className="text-slate-500 group-hover:text-slate-300 transition-colors flex-shrink-0 sm:ml-auto" />
               </button>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              <button
-                data-tour-id="tour-account-entry"
-                onClick={handleConnect}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-white text-black hover:bg-slate-200 rounded-lg text-sm font-semibold transition-colors"
-              >
-                <YouTubeLogoIcon size={18} />
-                Connect YouTube
-              </button>
-              <button
-                onClick={() => {
-                  setSettingsPanelTab('appearance');
-                  setActiveTab('settings');
-                  setIsSidebarOpen(false);
-                }}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-white/5 hover:bg-white/10 text-slate-200 rounded-lg text-sm font-medium border border-white/15 transition-colors"
-              >
-                <Settings2 size={16} />
-                Open Settings
-              </button>
-            </div>
-          )}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <button
+                  data-tour-id="tour-account-entry"
+                  onClick={handleConnect}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-white text-black hover:bg-slate-200 rounded-lg text-sm font-semibold transition-colors"
+                >
+                  <YouTubeLogoIcon size={18} />
+                  Connect YouTube
+                </button>
+                <button
+                  onClick={() => {
+                    setSettingsPanelTab('appearance');
+                    setActiveTab('settings');
+                    setIsSidebarOpen(false);
+                  }}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-white/5 hover:bg-white/10 text-slate-200 rounded-lg text-sm font-medium border border-white/15 transition-colors"
+                >
+                  <Settings2 size={16} />
+                  Open Settings
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </aside>
 
