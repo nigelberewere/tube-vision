@@ -99,7 +99,7 @@ export const BLOG_POSTS: BlogPostEntry[] = [
     date: "Mar 21, 2026",
     readTime: "7 min read",
     author: "Janso Growth Team",
-    imageUrl: "/images/blog/v2.png",
+    imageUrl: "/images/blog/youtube-shorts.png",
     authorInitialColor: "from-orange-500 to-red-600",
     content: (
       <>
@@ -123,7 +123,7 @@ export const BLOG_POSTS: BlogPostEntry[] = [
     date: "Mar 21, 2026",
     readTime: "5 min read",
     author: "Janso Platform Team",
-    imageUrl: "/images/blog/script.png",
+    imageUrl: "/images/blog/privacy-byok.png",
     authorInitialColor: "from-indigo-500 to-blue-600",
     content: (
       <>
@@ -147,7 +147,7 @@ export const BLOG_POSTS: BlogPostEntry[] = [
     date: "Mar 21, 2026",
     readTime: "6 min read",
     author: "Janso Content Team",
-    imageUrl: "/images/blog/script.png",
+    imageUrl: "/images/blog/script-generator.png",
     authorInitialColor: "from-sky-500 to-indigo-600",
     content: (
       <>
@@ -170,7 +170,7 @@ export const BLOG_POSTS: BlogPostEntry[] = [
     date: "Mar 21, 2026",
     readTime: "6 min read",
     author: "Janso Growth Team",
-    imageUrl: "/images/blog/seo.png",
+    imageUrl: "/images/blog/thumbnail-ctr.png",
     authorInitialColor: "from-pink-500 to-rose-600",
     content: (
       <>
@@ -192,7 +192,7 @@ export const BLOG_POSTS: BlogPostEntry[] = [
     date: "Mar 21, 2026",
     readTime: "7 min read",
     author: "Janso SEO Team",
-    imageUrl: "/images/blog/seo.png",
+    imageUrl: "/images/blog/seo-small-channels.png",
     authorInitialColor: "from-emerald-500 to-cyan-600",
     content: (
       <>
