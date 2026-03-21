@@ -242,7 +242,7 @@ export function FreeToolsPage({ isDark, isAuthenticated, onBack, onConnect }: Fr
             viewport={{ once: true, amount: 0.2 }}
             transition={{ duration: 0.35 }}
             className={cn(
-              "rounded-3xl border p-6",
+              "reveal-stable rounded-3xl border p-6",
               isDark ? "glass-card" : "border-slate-200 bg-white",
             )}
           >
@@ -283,7 +283,7 @@ export function FreeToolsPage({ isDark, isAuthenticated, onBack, onConnect }: Fr
             viewport={{ once: true, amount: 0.2 }}
             transition={{ duration: 0.35, delay: 0.08 }}
             className={cn(
-              "rounded-3xl border p-6",
+              "reveal-stable rounded-3xl border p-6",
               isDark ? "glass-card" : "border-slate-200 bg-white",
             )}
           >

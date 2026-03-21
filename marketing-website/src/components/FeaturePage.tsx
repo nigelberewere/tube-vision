@@ -639,7 +639,7 @@ export function FeaturePage({ slug, isDark, isAuthenticated, onBack, onConnect }
                   viewport={{ once: true, amount: 0.15 }}
                   transition={{ duration: 0.35, delay: idx * 0.05 }}
                   className={cn(
-                    "rounded-2xl border p-5 transition duration-300",
+                    "reveal-stable rounded-2xl border p-5 transition duration-300",
                     isDark
                       ? "glass-card hover:border-white/20 hover:bg-white/[0.06]"
                       : "border-slate-200 bg-white hover:border-slate-300",
@@ -722,7 +722,7 @@ export function FeaturePage({ slug, isDark, isAuthenticated, onBack, onConnect }
           viewport={{ once: true, amount: 0.4 }}
           transition={{ duration: 0.5 }}
           className={cn(
-            "mx-auto w-full max-w-2xl rounded-3xl border px-8 py-14 text-center",
+            "reveal-stable mx-auto w-full max-w-2xl rounded-3xl border px-8 py-14 text-center",
             isDark ? "glass-card" : "border-slate-200 bg-white",
           )}
         >

@@ -40,7 +40,7 @@ export function CTASection({ isDark, isAuthenticated, onConnect }: CTASectionPro
           viewport={{ once: true, amount: 0.3 }}
           transition={{ duration: 0.4 }}
           className={cn(
-            "rounded-3xl border p-6 md:p-8",
+            "reveal-stable rounded-3xl border p-6 md:p-8",
             isDark ? "glass-card" : "border-slate-200 bg-white"
           )}
         >
@@ -68,7 +68,7 @@ export function CTASection({ isDark, isAuthenticated, onConnect }: CTASectionPro
                   viewport={{ once: true, amount: 0.25 }}
                   transition={{ duration: 0.35, delay: idx * 0.05 }}
                   className={cn(
-                    "rounded-2xl border p-4",
+                    "reveal-stable rounded-2xl border p-4",
                     isDark ? "border-white/10 bg-white/5" : "border-slate-200 bg-slate-50"
                   )}
                 >
@@ -87,7 +87,7 @@ export function CTASection({ isDark, isAuthenticated, onConnect }: CTASectionPro
           viewport={{ once: true, amount: 0.35 }}
           transition={{ duration: 0.4 }}
           className={cn(
-            "rounded-3xl border p-8 text-center md:p-12",
+            "reveal-stable rounded-3xl border p-8 text-center md:p-12",
             isDark
               ? "border-indigo-400/30 bg-gradient-to-br from-indigo-500/20 via-blue-500/10 to-green-500/10"
               : "border-indigo-200 bg-gradient-to-br from-indigo-100 via-blue-100 to-green-100"

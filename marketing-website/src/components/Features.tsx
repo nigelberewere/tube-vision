@@ -122,7 +122,7 @@ export function Features({ isDark, onNavigateToFeature }: FeaturesProps) {
                 viewport={{ once: true, amount: 0.2 }}
                 transition={{ duration: 0.35, delay: idx * 0.04 }}
                 className={cn(
-                  "group rounded-2xl border p-5 transition duration-300",
+                  "reveal-stable group rounded-2xl border p-5 transition duration-300",
                   isDark
                     ? "glass-card hover:border-white/20 hover:bg-white/[0.06]"
                     : "border-slate-200 bg-white hover:border-slate-300"

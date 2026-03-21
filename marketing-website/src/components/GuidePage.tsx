@@ -255,7 +255,7 @@ export function GuidePage({ slug, isDark, isAuthenticated, onBack, onConnect }: 
                   viewport={{ once: true, amount: 0.2 }}
                   transition={{ duration: 0.4, delay: idx * 0.05 }}
                   className={cn(
-                    "rounded-2xl border p-6 md:p-8 flex flex-col md:flex-row gap-6",
+                    "reveal-stable rounded-2xl border p-6 md:p-8 flex flex-col md:flex-row gap-6",
                     isDark
                       ? "border-white/10 bg-[#0a0a0a]/50"
                       : "border-slate-200 bg-white",
@@ -290,7 +290,7 @@ export function GuidePage({ slug, isDark, isAuthenticated, onBack, onConnect }: 
           viewport={{ once: true, amount: 0.4 }}
           transition={{ duration: 0.5 }}
           className={cn(
-            "mx-auto w-full max-w-2xl rounded-3xl border px-8 py-14 text-center shadow-sm",
+            "reveal-stable mx-auto w-full max-w-2xl rounded-3xl border px-8 py-14 text-center shadow-sm",
             isDark ? "glass-card" : "border-slate-200 bg-slate-50",
           )}
         >

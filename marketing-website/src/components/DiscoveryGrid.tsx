@@ -77,7 +77,7 @@ export function DiscoveryGrid({
               viewport={{ once: true, amount: 0.15 }}
               transition={{ duration: 0.35, delay: sectionIndex * 0.06 }}
               className={cn(
-                "rounded-3xl border p-6",
+                "reveal-stable rounded-3xl border p-6",
                 isDark ? "glass-card" : "border-slate-200 bg-white",
               )}
             >

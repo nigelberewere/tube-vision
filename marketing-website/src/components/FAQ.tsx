@@ -72,7 +72,7 @@ export function FAQ({ isDark }: FAQProps) {
                 viewport={{ once: true, amount: 0.2 }}
                 transition={{ duration: 0.35, delay: idx * 0.05 }}
                 className={cn(
-                  "overflow-hidden rounded-xl border transition-colors",
+                  "reveal-stable overflow-hidden rounded-xl border transition-colors",
                   isDark
                     ? "glass-card hover:border-white/20"
                     : "border-slate-200 bg-white hover:border-slate-300"

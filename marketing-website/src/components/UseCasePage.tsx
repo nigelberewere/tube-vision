@@ -172,7 +172,7 @@ export function UseCasePage({ slug, isDark, isAuthenticated, onBack, onConnect }
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.3 }}
           className={cn(
-            "grid grid-cols-1 md:grid-cols-3 gap-6 mb-24 rounded-3xl border p-8 shadow-sm",
+            "reveal-stable grid grid-cols-1 md:grid-cols-3 gap-6 mb-24 rounded-3xl border p-8 shadow-sm",
             isDark ? "border-white/10 glass-card bg-black/20" : "border-slate-200 bg-white"
           )}
         >
@@ -206,7 +206,7 @@ export function UseCasePage({ slug, isDark, isAuthenticated, onBack, onConnect }
                   viewport={{ once: true }}
                   transition={{ duration: 0.5, delay: i * 0.1 }}
                   className={cn(
-                    "flex flex-col rounded-3xl border p-8 transition-all hover:-translate-y-1",
+                    "reveal-stable flex flex-col rounded-3xl border p-8 transition-all hover:-translate-y-1",
                     isDark
                       ? "border-white/10 glass-card bg-[#0a0a0a]/50 hover:bg-white/[0.04]"
                       : "border-slate-200 bg-white hover:shadow-lg hover:shadow-slate-200/50"
@@ -235,7 +235,7 @@ export function UseCasePage({ slug, isDark, isAuthenticated, onBack, onConnect }
           viewport={{ once: true, amount: 0.5 }}
           transition={{ duration: 0.5 }}
           className={cn(
-            "rounded-3xl border p-8 text-center md:p-14 shadow-sm relative overflow-hidden",
+            "reveal-stable rounded-3xl border p-8 text-center md:p-14 shadow-sm relative overflow-hidden",
             isDark
               ? "border-white/10 bg-gradient-to-br from-[#111] via-[#0a0a0a] to-[#1a1a1a]"
               : "border-slate-200 bg-gradient-to-br from-slate-50 via-white to-slate-100",

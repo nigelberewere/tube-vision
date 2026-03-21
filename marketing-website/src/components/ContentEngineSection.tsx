@@ -50,7 +50,7 @@ export function ContentEngineSection({ isDark, onNavigateToBlog, onNavigateToPos
             viewport={{ once: true, amount: 0.2 }}
             transition={{ duration: 0.35 }}
             className={cn(
-              "rounded-3xl border p-6",
+              "reveal-stable rounded-3xl border p-6",
               isDark ? "glass-card" : "border-slate-200 bg-white",
             )}
           >
@@ -89,7 +89,7 @@ export function ContentEngineSection({ isDark, onNavigateToBlog, onNavigateToPos
                 viewport={{ once: true, amount: 0.15 }}
                 transition={{ duration: 0.35, delay: index * 0.05 }}
                 className={cn(
-                  "flex w-full items-start justify-between gap-4 rounded-3xl border p-5 text-left transition",
+                  "reveal-stable flex w-full items-start justify-between gap-4 rounded-3xl border p-5 text-left transition",
                   isDark
                     ? "border-white/10 bg-[#0a0a0a]/50 hover:border-white/20 hover:bg-white/[0.04]"
                     : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50",

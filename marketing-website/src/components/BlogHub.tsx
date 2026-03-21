@@ -124,7 +124,7 @@ export function BlogHub({ isDark, onBack, onNavigateToPost }: BlogHubProps) {
               transition={{ duration: 0.4 }}
               onClick={() => onNavigateToPost(featuredPost.slug)}
               className={cn(
-                "group mb-8 grid cursor-pointer overflow-hidden rounded-3xl border lg:grid-cols-[1.05fr_0.95fr]",
+                "reveal-stable group mb-8 grid cursor-pointer overflow-hidden rounded-3xl border lg:grid-cols-[1.05fr_0.95fr]",
                 isDark
                   ? "border-white/10 bg-[#0a0a0a]/50 hover:border-white/20 hover:bg-white/[0.04]"
                   : "border-slate-200 bg-white hover:border-slate-300 hover:shadow-lg hover:shadow-slate-200/50",
@@ -167,7 +167,7 @@ export function BlogHub({ isDark, onBack, onNavigateToPost }: BlogHubProps) {
                 transition={{ duration: 0.4, delay: i * 0.06 }}
                 onClick={() => onNavigateToPost(post.slug)}
                 className={cn(
-                  "group flex cursor-pointer flex-col overflow-hidden rounded-3xl border transition-all duration-300",
+                  "reveal-stable group flex cursor-pointer flex-col overflow-hidden rounded-3xl border transition-all duration-300",
                   isDark
                     ? "border-white/10 bg-[#0a0a0a]/50 hover:border-white/20 hover:bg-white/[0.04]"
                     : "border-slate-200 bg-white hover:border-slate-300 hover:shadow-lg hover:shadow-slate-200/50",

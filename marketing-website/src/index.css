@@ -41,6 +41,15 @@ html.light body {
   @apply bg-white/[0.04] border border-white/10 shadow-sm;
 }
 
+.reveal-stable {
+  will-change: opacity, transform;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  transform-style: preserve-3d;
+  contain: paint;
+  isolation: isolate;
+}
+
 .hero-grid {
   background-image:
     linear-gradient(rgba(148, 163, 184, 0.12) 1px, transparent 1px),
