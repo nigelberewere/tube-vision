@@ -1275,41 +1275,41 @@ export default function App() {
           </div>
         </div>
 
-        <nav className="p-2 sm:p-4 flex-1 min-h-0 flex flex-col gap-4 sm:gap-5">
-          <div className="space-y-1">
-            <p className="px-2 text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">Overview</p>
-            {overviewTabs.map((tab) => {
-              const Icon = tab.icon;
-              return (
-                <button
-                  key={tab.id}
-                  data-tour-id={
-                    tab.id === 'home'
-                      ? 'tour-home-tab'
-                      : tab.id === 'settings'
-                        ? 'tour-settings-tab'
-                        : undefined
-                  }
-                  onClick={() => {
-                    setActiveTab(tab.id);
-                    setIsSidebarOpen(false);
-                  }}
-                  className={cn(
-                    'w-full flex items-center gap-2 sm:gap-3 px-2 sm:px-3 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-colors border',
-                    activeTab === tab.id
-                      ? 'bg-white/10 text-white border-white/20'
-                      : 'text-slate-300 border-transparent hover:bg-white/5 hover:border-white/10',
-                  )}
-                >
-                  <Icon size={16} className="sm:hidden flex-shrink-0" />
-                  <Icon size={18} className="hidden sm:block flex-shrink-0" />
-                  <span className="min-w-0">{tab.label}</span>
-                </button>
-              );
-            })}
-          </div>
+        <nav className="min-h-0 flex-1 overflow-y-auto p-2 pr-1 sm:p-4 sm:pr-2">
+          <div className="space-y-4 pb-3 sm:space-y-5">
+            <div className="space-y-1">
+              <p className="px-2 text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">Overview</p>
+              {overviewTabs.map((tab) => {
+                const Icon = tab.icon;
+                return (
+                  <button
+                    key={tab.id}
+                    data-tour-id={
+                      tab.id === 'home'
+                        ? 'tour-home-tab'
+                        : tab.id === 'settings'
+                          ? 'tour-settings-tab'
+                          : undefined
+                    }
+                    onClick={() => {
+                      setActiveTab(tab.id);
+                      setIsSidebarOpen(false);
+                    }}
+                    className={cn(
+                      'w-full flex items-center gap-2 sm:gap-3 px-2 sm:px-3 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-colors border',
+                      activeTab === tab.id
+                        ? 'bg-white/10 text-white border-white/20'
+                        : 'text-slate-300 border-transparent hover:bg-white/5 hover:border-white/10',
+                    )}
+                  >
+                    <Icon size={16} className="sm:hidden flex-shrink-0" />
+                    <Icon size={18} className="hidden sm:block flex-shrink-0" />
+                    <span className="min-w-0">{tab.label}</span>
+                  </button>
+                );
+              })}
+            </div>
 
-          <div className="min-h-0 flex-1 overflow-y-scroll touch-pan-y space-y-4 sm:space-y-5 pr-1">
             <div className="space-y-1" data-tour-id="tour-studios-section">
               <p className="px-2 text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">Studios</p>
               {studioTabs.map((tab) => {
@@ -1366,12 +1366,13 @@ export default function App() {
                 );
               })}
             </div>
+
           </div>
         </nav>
 
         <div
           className={cn(
-            'p-4 border-t shrink-0 mb-2',
+            'shrink-0 border-t p-4',
             theme === 'light' ? 'border-slate-200 bg-slate-50' : 'border-white/10 bg-[#0a0a0a]'
           )}
         >
