@@ -40,6 +40,7 @@ type NavigationProps = {
   onNavigateToContact?: () => void;
   onNavigateToFAQ?: () => void;
   onNavigateToBlog?: () => void;
+  onNavigateToFreeTools?: () => void;
 };
 
 // const DOCS_URL = "https://docs.janso.studio"; // TODO: Uncomment when docs are available
@@ -49,6 +50,10 @@ const featureLinks: { label: string; slug: FeatureSlug; description: string }[] 
   { label: "Viral Clip Creator", slug: "viral-clip-creator", description: "Long-form to Shorts in minutes" },
   { label: "Voice Over Studio", slug: "voice-over-studio", description: "Studio-quality AI voices" },
   { label: "YouTube SEO & Keywords", slug: "youtube-seo", description: "Rank higher with Gemini AI" },
+  { label: "Thumbnail Studio", slug: "thumbnail-studio", description: "Sharpen CTR before you publish" },
+  { label: "AI YouTube Coach", slug: "ai-youtube-coach", description: "Strategy support on demand" },
+  { label: "Analytics Dashboard", slug: "analytics-dashboard", description: "Growth metrics built for creators" },
+  { label: "Video Idea Generator", slug: "video-idea-generator", description: "Build a stronger content pipeline" },
 ];
 
 const navLinks = [
@@ -71,6 +76,7 @@ export function Navigation({
   onNavigateToContact,
   onNavigateToFAQ,
   onNavigateToBlog,
+  onNavigateToFreeTools,
 }: NavigationProps) {
   const logoSrc = getDashboardAssetUrl("/favicon.svg");
   const identityLabel = authProfile?.activeChannelTitle || authProfile?.displayName || "Janso user";
@@ -116,7 +122,7 @@ export function Navigation({
             <div className="pointer-events-none absolute left-0 top-full z-50 pt-3 opacity-0 transition-all duration-200 group-hover:pointer-events-auto group-hover:opacity-100">
               <div
                 className={cn(
-                  "w-64 rounded-2xl border p-1.5 shadow-xl backdrop-blur-xl",
+                  "w-72 rounded-2xl border p-1.5 shadow-xl backdrop-blur-xl",
                   isDark ? "border-white/10 bg-[#050505]/80" : "border-slate-200 bg-white/80",
                 )}
               >
@@ -134,7 +140,7 @@ export function Navigation({
                     <span className={cn("text-xs", isDark ? "text-slate-400" : "text-slate-500")}>{fl.description}</span>
                   </button>
                 ))}
-                <div className={cn("mt-1 border-t pt-1", isDark ? "border-white/10" : "border-slate-100")}>\
+                <div className={cn("mt-1 border-t pt-1", isDark ? "border-white/10" : "border-slate-100")}>
                   <a
                     href="#features"
                     className={cn(
@@ -179,6 +185,12 @@ export function Navigation({
                 >
                   <span className="text-sm font-medium">Platform Workflow</span>
                   <span className={cn("text-xs", isDark ? "text-slate-400" : "text-slate-500")}>From idea to SEO</span>
+                </button>
+                <button type="button" onClick={() => onNavigateToFreeTools && onNavigateToFreeTools()}
+                  className={cn("flex w-full flex-col items-start rounded-xl px-3 py-2.5 text-left transition-colors", isDark ? "hover:bg-white/[0.07]" : "hover:bg-slate-50")}
+                >
+                  <span className="text-sm font-medium">Free Tools</span>
+                  <span className={cn("text-xs", isDark ? "text-slate-400" : "text-slate-500")}>Ideas and keyword prompts without login</span>
                 </button>
                 <button type="button" onClick={() => onNavigateToAbout && onNavigateToAbout()}
                   className={cn("flex w-full flex-col items-start rounded-xl px-3 py-2.5 text-left transition-colors", isDark ? "hover:bg-white/[0.07]" : "hover:bg-slate-50")}

@@ -1,57 +1,11 @@
+import { useEffect, useMemo, useState } from "react";
 import { motion } from "motion/react";
-import { ArrowLeft, BookOpen, Clock, Calendar, ArrowRight } from "lucide-react";
+import { ArrowLeft, BookOpen, Clock } from "lucide-react";
+
+import { BLOG_POSTS, type BlogCategory } from "@/src/lib/content";
 import { cn } from "@/src/lib/utils";
 
-export type BlogCategory = "Growth" | "Product" | "Strategy";
-
-export type BlogPostOverview = {
-  slug: string;
-  title: string;
-  excerpt: string;
-  category: BlogCategory;
-  date: string;
-  readTime: string;
-  author: string;
-  imageUrl: string;
-  authorInitialColor: string;
-};
-
-// Mock data for the blog hub
-export const BLOG_POSTS: BlogPostOverview[] = [
-  {
-    slug: "youtube-keyword-research-gemini",
-    title: "How to Find Trending YouTube Keywords Before Your Competitors",
-    excerpt: "Stop guessing what your audience wants to watch. Learn how to use Gemini AI and Janso Studio's SEO Optimizer to find high-volume, low-competition semantic keywords.",
-    category: "Growth",
-    date: "Mar 17, 2026",
-    readTime: "6 min read",
-    author: "Janso Growth Team",
-    imageUrl: "/images/blog/seo.png",
-    authorInitialColor: "from-blue-500 to-indigo-600",
-  },
-  {
-    slug: "structuring-scripts-retention",
-    title: "The Anatomy of a High-Retention YouTube Script",
-    excerpt: "Great videos aren't just recorded—they're engineered. Discover the AIDA framework and how to place pattern interrupts every 90 seconds to maximize your average view duration.",
-    category: "Strategy",
-    date: "Mar 17, 2026",
-    readTime: "8 min read",
-    author: "Janso Content Team",
-    imageUrl: "/images/blog/script.png",
-    authorInitialColor: "from-emerald-400 to-teal-600",
-  },
-  {
-    slug: "product-update-v2",
-    title: "Janso Studio v2.0: Unified Dashboard, New AI Voices, and More",
-    excerpt: "Read about our biggest update yet. We've brought Script Architect, Voice Over Studio, and the Viral Clip Creator into a single, seamless workspace for creators.",
-    category: "Product",
-    date: "Mar 17, 2026",
-    readTime: "4 min read",
-    author: "Product Team",
-    imageUrl: "/images/blog/v2.png",
-    authorInitialColor: "from-violet-500 to-fuchsia-600",
-  },
-];
+const categories: Array<BlogCategory | "All"> = ["All", "Growth", "Strategy", "Product"];
 
 type BlogHubProps = {
   isDark: boolean;
@@ -60,6 +14,36 @@ type BlogHubProps = {
 };
 
 export function BlogHub({ isDark, onBack, onNavigateToPost }: BlogHubProps) {
+  const [activeCategory, setActiveCategory] = useState<BlogCategory | "All">("All");
+
+  useEffect(() => {
+    const previousTitle = document.title;
+    document.title = "YouTube Growth Blog for Creators | Janso Studio";
+
+    let metaEl = document.querySelector<HTMLMetaElement>('meta[name="description"]');
+    const previousDescription = metaEl?.content ?? "";
+    if (!metaEl) {
+      metaEl = document.createElement("meta");
+      metaEl.name = "description";
+      document.head.appendChild(metaEl);
+    }
+    metaEl.content =
+      "Read YouTube growth strategies, creator SEO guides, BYOK privacy explainers, packaging tips, and product updates from the Janso Studio team.";
+
+    return () => {
+      document.title = previousTitle;
+      if (metaEl) metaEl.content = previousDescription;
+    };
+  }, []);
+
+  const filteredPosts = useMemo(
+    () => (activeCategory === "All" ? BLOG_POSTS : BLOG_POSTS.filter((post) => post.category === activeCategory)),
+    [activeCategory],
+  );
+
+  const featuredPost = filteredPosts[0];
+  const remainingPosts = filteredPosts.slice(1);
+
   return (
     <>
       <section className="relative px-4 pb-16 pt-10 md:px-8 md:pb-24 md:pt-14">
@@ -96,7 +80,7 @@ export function BlogHub({ isDark, onBack, onNavigateToPost }: BlogHubProps) {
             </span>
 
             <h1 className="text-balance text-4xl font-semibold tracking-tight md:text-5xl lg:text-[3.25rem]">
-              Insights and strategies for modern creators.
+              Search-led content for creators who want more reach, better packaging, and cleaner systems.
             </h1>
 
             <p
@@ -105,7 +89,7 @@ export function BlogHub({ isDark, onBack, onNavigateToPost }: BlogHubProps) {
                 isDark ? "text-slate-300" : "text-slate-700",
               )}
             >
-              Read our latest articles on YouTube growth, algorithm changes, SEO tactics, and new feature releases from the Janso Studio team.
+              Explore YouTube SEO, thumbnails, Shorts repurposing, BYOK strategy, scripting frameworks, and product workflow articles designed to help creators grow.
             </p>
           </motion.div>
         </div>
@@ -113,26 +97,85 @@ export function BlogHub({ isDark, onBack, onNavigateToPost }: BlogHubProps) {
 
       <section className="px-4 pb-20 md:px-8 md:pb-32">
         <div className="mx-auto w-full max-w-6xl">
+          <div className="mb-8 flex flex-wrap gap-2">
+            {categories.map((category) => (
+              <button
+                key={category}
+                type="button"
+                onClick={() => setActiveCategory(category)}
+                className={cn(
+                  "rounded-full border px-4 py-2 text-sm font-medium transition",
+                  activeCategory === category
+                    ? "bg-white text-black border-white"
+                    : isDark
+                      ? "border-white/10 bg-white/[0.03] text-slate-300 hover:bg-white/[0.07]"
+                      : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50",
+                )}
+              >
+                {category}
+              </button>
+            ))}
+          </div>
+
+          {featuredPost && (
+            <motion.article
+              initial={{ opacity: 0, y: 18 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4 }}
+              onClick={() => onNavigateToPost(featuredPost.slug)}
+              className={cn(
+                "group mb-8 grid cursor-pointer overflow-hidden rounded-3xl border lg:grid-cols-[1.05fr_0.95fr]",
+                isDark
+                  ? "border-white/10 bg-[#0a0a0a]/50 hover:border-white/20 hover:bg-white/[0.04]"
+                  : "border-slate-200 bg-white hover:border-slate-300 hover:shadow-lg hover:shadow-slate-200/50",
+              )}
+            >
+              <div className="overflow-hidden">
+                <img src={featuredPost.imageUrl} alt={featuredPost.title} className="h-full min-h-[260px] w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+              </div>
+              <div className="flex flex-col p-6 md:p-8">
+                <div className="mb-4 flex items-center justify-between text-xs">
+                  <span className={cn("rounded-full px-2.5 py-1 font-semibold",
+                    featuredPost.category === "Product" && (isDark ? "bg-fuchsia-500/20 text-fuchsia-300" : "bg-fuchsia-100 text-fuchsia-700"),
+                    featuredPost.category === "Growth" && (isDark ? "bg-blue-500/20 text-blue-300" : "bg-blue-100 text-blue-700"),
+                    featuredPost.category === "Strategy" && (isDark ? "bg-emerald-500/20 text-emerald-300" : "bg-emerald-100 text-emerald-700"),
+                  )}>
+                    {featuredPost.category}
+                  </span>
+                  <span className={cn("flex items-center gap-1.5", isDark ? "text-slate-400" : "text-slate-500")}>
+                    <Clock className="h-3.5 w-3.5" />
+                    {featuredPost.readTime}
+                  </span>
+                </div>
+                <h2 className="text-2xl font-bold tracking-tight group-hover:underline md:text-3xl">{featuredPost.title}</h2>
+                <p className={cn("mt-4 flex-1 text-sm leading-relaxed md:text-base", isDark ? "text-slate-300" : "text-slate-600")}>
+                  {featuredPost.excerpt}
+                </p>
+                <div className={cn("mt-6 border-t pt-4 text-xs", isDark ? "border-white/10 text-slate-400" : "border-slate-100 text-slate-500")}>
+                  {featuredPost.author} • {featuredPost.date}
+                </div>
+              </div>
+            </motion.article>
+          )}
+
           <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
-            {BLOG_POSTS.map((post, i) => (
+            {remainingPosts.map((post, i) => (
               <motion.article
                 key={post.slug}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, delay: i * 0.1 }}
+                transition={{ duration: 0.4, delay: i * 0.06 }}
                 onClick={() => onNavigateToPost(post.slug)}
                 className={cn(
-                  "group cursor-pointer flex flex-col overflow-hidden rounded-3xl border transition-all duration-300",
+                  "group flex cursor-pointer flex-col overflow-hidden rounded-3xl border transition-all duration-300",
                   isDark
                     ? "border-white/10 bg-[#0a0a0a]/50 hover:border-white/20 hover:bg-white/[0.04]"
                     : "border-slate-200 bg-white hover:border-slate-300 hover:shadow-lg hover:shadow-slate-200/50",
                 )}
               >
-                {/* Simulated Article Header Image */}
                 <div className="h-48 w-full overflow-hidden bg-slate-800">
                   <img src={post.imageUrl} alt={post.title} className="h-full w-full object-cover opacity-80 transition-transform duration-500 group-hover:scale-105 group-hover:opacity-100" />
                 </div>
-                
                 <div className="flex flex-1 flex-col p-6">
                   <div className="mb-4 flex items-center justify-between text-xs">
                     <span
@@ -150,22 +193,12 @@ export function BlogHub({ isDark, onBack, onNavigateToPost }: BlogHubProps) {
                       {post.readTime}
                     </span>
                   </div>
-
                   <h2 className="mb-3 text-xl font-bold leading-snug tracking-tight group-hover:underline">{post.title}</h2>
                   <p className={cn("mb-6 flex-1 text-sm leading-relaxed", isDark ? "text-slate-300" : "text-slate-600")}>
                     {post.excerpt}
                   </p>
-
-                  <div className={cn("flex items-center justify-between border-t pt-4", isDark ? "border-white/10" : "border-slate-100")}>
-                    <div className="flex items-center gap-2">
-                      <div className={cn("flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold text-white shadow-sm bg-gradient-to-br", post.authorInitialColor)}>
-                        {post.author.charAt(0)}
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="text-xs font-semibold">{post.author}</span>
-                        <span className={cn("text-[10px]", isDark ? "text-slate-400" : "text-slate-500")}>{post.date}</span>
-                      </div>
-                    </div>
+                  <div className={cn("border-t pt-4 text-[11px]", isDark ? "border-white/10 text-slate-400" : "border-slate-100 text-slate-500")}>
+                    {post.author} • {post.date}
                   </div>
                 </div>
               </motion.article>

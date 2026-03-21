@@ -23,6 +23,12 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://janso.studio/free-tools</loc>
+    <lastmod>2026-03-21</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+  </url>
+  <url>
     <loc>https://janso.studio/contact</loc>
     <lastmod>2026-03-18</lastmod>
     <changefreq>monthly</changefreq>
@@ -70,9 +76,39 @@
   </url>
   <url>
     <loc>https://janso.studio/features/youtube-seo</loc>
-    <lastmod>2026-03-18</lastmod>
+    <lastmod>2026-03-21</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://janso.studio/features/seo-optimizer</loc>
+    <lastmod>2026-03-21</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://janso.studio/features/thumbnail-studio</loc>
+    <lastmod>2026-03-21</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.85</priority>
+  </url>
+  <url>
+    <loc>https://janso.studio/features/ai-youtube-coach</loc>
+    <lastmod>2026-03-21</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.85</priority>
+  </url>
+  <url>
+    <loc>https://janso.studio/features/youtube-analytics-dashboard</loc>
+    <lastmod>2026-03-21</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.85</priority>
+  </url>
+  <url>
+    <loc>https://janso.studio/features/youtube-video-idea-generator</loc>
+    <lastmod>2026-03-21</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.85</priority>
   </url>
 
   <!-- Guide Pages -->
@@ -88,25 +124,63 @@
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
+  <url>
+    <loc>https://janso.studio/guides/byok-gemini-api-key</loc>
+    <lastmod>2026-03-21</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.75</priority>
+  </url>
 
   <!-- Use Case Pages -->
   <url>
-    <loc>https://janso.studio/usecase/educators</loc>
-    <lastmod>2026-03-18</lastmod>
+    <loc>https://janso.studio/use-cases/educators</loc>
+    <lastmod>2026-03-21</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://janso.studio/usecase/gaming</loc>
-    <lastmod>2026-03-18</lastmod>
+    <loc>https://janso.studio/use-cases/gaming</loc>
+    <lastmod>2026-03-21</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://janso.studio/usecase/faceless</loc>
-    <lastmod>2026-03-18</lastmod>
+    <loc>https://janso.studio/use-cases/faceless</loc>
+    <lastmod>2026-03-21</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
+  </url>
+
+  <!-- Blog Posts -->
+  <url>
+    <loc>https://janso.studio/blog/youtube-keyword-research-gemini</loc>
+    <lastmod>2026-03-17</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.75</priority>
+  </url>
+  <url>
+    <loc>https://janso.studio/blog/structuring-scripts-retention</loc>
+    <lastmod>2026-03-17</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.75</priority>
+  </url>
+  <url>
+    <loc>https://janso.studio/blog/product-update-v2</loc>
+    <lastmod>2026-03-17</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.72</priority>
+  </url>
+  <url>
+    <loc>https://janso.studio/blog/youtube-shorts-from-long-videos</loc>
+    <lastmod>2026-03-21</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.78</priority>
+  </url>
+  <url>
+    <loc>https://janso.studio/blog/byok-gemini-privacy-creators</loc>
+    <lastmod>2026-03-21</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.78</priority>
   </url>
 
 </urlset>

@@ -12,6 +12,7 @@ import {
   Mic,
   Search,
   Shield,
+  Sparkles,
   Tag,
   TrendingUp,
   Volume2,
@@ -22,7 +23,15 @@ import { motion } from "motion/react";
 import { cn } from "@/src/lib/utils";
 import YouTubeLogoIcon from "@/src/components/icons/YouTubeLogoIcon";
 
-export type FeatureSlug = "script-architect" | "viral-clip-creator" | "voice-over-studio" | "youtube-seo";
+export type FeatureSlug =
+  | "script-architect"
+  | "viral-clip-creator"
+  | "voice-over-studio"
+  | "youtube-seo"
+  | "thumbnail-studio"
+  | "ai-youtube-coach"
+  | "analytics-dashboard"
+  | "video-idea-generator";
 
 type Benefit = {
   icon: React.ComponentType<{ className?: string }>;
@@ -337,6 +346,126 @@ const CONFIGS: Record<FeatureSlug, FeaturePageConfig> = {
     ctaHeadline: "Start Ranking on YouTube with Data, Not Luck",
     ctaSubheadline:
       "Gemini-powered analysis finds the gaps your competitors missed. Start for free today.",
+  },
+  "thumbnail-studio": {
+    documentTitle: "AI YouTube Thumbnail Generator & CTR Tester | Janso Studio",
+    metaDescription:
+      "Generate YouTube thumbnail ideas, test concepts, and improve click-through rate with Janso Studio's Thumbnail Studio for creators.",
+    badge: "Thumbnail Studio",
+    heroHeadline: "Design clickable thumbnails before you waste a single upload on a weak first impression.",
+    heroSubheadline:
+      "Thumbnail Studio helps creators generate concepts, pressure-test visual direction, and make smarter CTR decisions before publishing.",
+    gradientClasses: "from-pink-500 to-rose-500",
+    stats: [
+      { value: "Faster", label: "Concept development" },
+      { value: "Higher CTR", label: "Thumbnail decisions" },
+      { value: "Less guesswork", label: "Before publish" },
+    ],
+    benefits: [
+      { icon: Zap, title: "Concept Generation", description: "Generate multiple thumbnail directions from the same title so you are never locked into your first idea." },
+      { icon: Layers, title: "Visual Contrast Planning", description: "See how facial focus, color blocking, and text placement shift the visual hierarchy of your thumbnail." },
+      { icon: Brain, title: "Click Intent Alignment", description: "Match the thumbnail promise to the title promise so viewers feel compelled to click instead of confused." },
+      { icon: Tag, title: "Text Overlay Guidance", description: "Use short, punchy overlay copy that amplifies curiosity instead of duplicating the title." },
+      { icon: Search, title: "Niche Pattern Awareness", description: "Understand what thumbnail tropes your niche overuses so you can stand out instead of blending in." },
+      { icon: TrendingUp, title: "CTR-First Workflow", description: "Move from random design choices to a repeatable thumbnail system that supports channel growth." },
+    ],
+    steps: [
+      { title: "Start with your title or video premise", description: "Give the tool your working title and intended audience so the concepts reflect the click promise." },
+      { title: "Compare visual directions", description: "Review different concept angles, emotional hooks, and overlay approaches side by side." },
+      { title: "Publish the strongest option", description: "Leave with a clearer thumbnail direction before you invest time in final design work." },
+    ],
+    ctaHeadline: "Stop guessing your thumbnails into existence",
+    ctaSubheadline: "Build a repeatable thumbnail process that supports higher click-through rates over time.",
+  },
+  "ai-youtube-coach": {
+    documentTitle: "AI YouTube Coach | Channel Growth Advice for Creators | Janso Studio",
+    metaDescription:
+      "Get personalized YouTube growth advice, strategy prompts, and creator coaching with Janso Studio's AI YouTube Coach.",
+    badge: "AI YouTube Coach",
+    heroHeadline: "Get an always-on YouTube strategist that helps you think clearer, decide faster, and grow smarter.",
+    heroSubheadline:
+      "AI YouTube Coach gives creators practical strategy guidance, content positioning help, and channel-specific next steps without the cost of a full consultant.",
+    gradientClasses: "from-violet-500 to-fuchsia-500",
+    stats: [
+      { value: "24/7", label: "Strategy support" },
+      { value: "Faster", label: "Decision-making" },
+      { value: "Clearer", label: "Growth priorities" },
+    ],
+    benefits: [
+      { icon: Brain, title: "Idea Clarification", description: "Pressure-test video ideas, hooks, and positioning before you spend hours producing the wrong thing." },
+      { icon: Search, title: "Channel Growth Questions", description: "Ask about uploads, audience behavior, content direction, packaging, or momentum and get actionable answers fast." },
+      { icon: FileText, title: "Workflow Companion", description: "Use the coach as the strategic layer above scripting, SEO, voice, and ideas so your tools work together." },
+      { icon: Globe, title: "Always Available", description: "Get creator support whenever you are planning, reviewing performance, or stuck on what to publish next." },
+      { icon: Layers, title: "Conversation Memory", description: "Keep strategy threads alive so you can continue planning instead of starting over each time." },
+      { icon: TrendingUp, title: "Action-Oriented Output", description: "Walk away with specific next moves, not generic motivational fluff." },
+    ],
+    steps: [
+      { title: "Ask your channel question", description: "Bring your packaging, growth, SEO, upload, or audience problem directly into the conversation." },
+      { title: "Refine the direction", description: "Use follow-up prompts to sharpen the recommendation until it matches your real content goals." },
+      { title: "Turn advice into output", description: "Move straight into scripts, ideas, clips, and optimization with a clearer plan." },
+    ],
+    ctaHeadline: "Think with a strategist, not in circles",
+    ctaSubheadline: "Use AI YouTube Coach to make better content decisions every week.",
+  },
+  "analytics-dashboard": {
+    documentTitle: "YouTube Analytics Dashboard for Creators | Janso Studio",
+    metaDescription:
+      "Track channel growth, posting momentum, account performance, and creator-focused analytics in the Janso Studio YouTube dashboard.",
+    badge: "Analytics Dashboard",
+    heroHeadline: "See your YouTube channel like an operator, not just a creator refreshing Studio.",
+    heroSubheadline:
+      "Janso Studio's analytics dashboard organizes channel momentum, upload performance, and account-level insights into a clearer decision-making workspace.",
+    gradientClasses: "from-emerald-500 to-cyan-500",
+    stats: [
+      { value: "Multi-account", label: "Creator workspace" },
+      { value: "Live", label: "Operational visibility" },
+      { value: "Actionable", label: "Not just raw data" },
+    ],
+    benefits: [
+      { icon: BarChart2, title: "Growth Momentum", description: "Track the health of your channel with signals that are easier to act on than raw dashboard noise." },
+      { icon: TrendingUp, title: "Publishing Feedback Loops", description: "Use recent upload and timing patterns to understand what is actually driving performance." },
+      { icon: Layers, title: "Account Switching", description: "Move between channels cleanly when you operate multiple creator brands or client accounts." },
+      { icon: Search, title: "Strategy Context", description: "View analytics in the same workspace where you generate ideas, write scripts, and optimize SEO." },
+      { icon: Clock, title: "Faster Reviews", description: "Spend less time hunting metrics and more time deciding what to do next." },
+      { icon: Zap, title: "Operational Clarity", description: "Turn analytics into a practical publishing workflow instead of a passive reporting screen." },
+    ],
+    steps: [
+      { title: "Connect your channel", description: "Authenticate once and let Janso Studio pull the channel data needed for your workspace." },
+      { title: "Review momentum and performance", description: "Check growth, watch trends, and recent content outcomes in one consolidated view." },
+      { title: "Act on what the numbers imply", description: "Move directly into scripts, ideas, clips, or SEO with the context already in mind." },
+    ],
+    ctaHeadline: "Use analytics to decide, not just observe",
+    ctaSubheadline: "Get a creator-friendly dashboard that helps you move from data to action faster.",
+  },
+  "video-idea-generator": {
+    documentTitle: "YouTube Video Idea Generator | AI Content Ideas for Creators | Janso Studio",
+    metaDescription:
+      "Generate YouTube video ideas, hooks, trend angles, and content concepts with Janso Studio's AI Video Idea Generator.",
+    badge: "Video Idea Generator",
+    heroHeadline: "Build a pipeline of video ideas that actually match your niche, your audience, and your growth goals.",
+    heroSubheadline:
+      "Janso Studio's Video Idea Generator helps creators develop stronger topics, sharper hooks, and more publishable concepts without staring at a blank page.",
+    gradientClasses: "from-amber-500 to-orange-500",
+    stats: [
+      { value: "Faster", label: "Idea generation" },
+      { value: "Sharper", label: "Hooks and angles" },
+      { value: "More consistent", label: "Publishing pipeline" },
+    ],
+    benefits: [
+      { icon: Sparkles, title: "Fresh Topic Generation", description: "Generate multiple publishable concepts from a niche, trend, or creator problem in seconds." },
+      { icon: Search, title: "Trend-Aware Angles", description: "Get idea directions that are designed around creator intent, discoverability, and audience curiosity." },
+      { icon: Tag, title: "Hook Support", description: "Start with stronger opening angles so every concept feels more package-ready from the start." },
+      { icon: Brain, title: "Creative Unblocking", description: "Use the generator when you need momentum, not just inspiration." },
+      { icon: Layers, title: "Saved Idea Workflow", description: "Keep the best concepts around so they become part of a real content pipeline instead of a lost brainstorm." },
+      { icon: FileText, title: "Direct Handoff to Scripting", description: "Take winning ideas straight into Script Architect when you are ready to turn them into production-ready videos." },
+    ],
+    steps: [
+      { title: "Enter your niche or topic direction", description: "Start with the audience, trend, or channel theme you want to explore." },
+      { title: "Review hooks and concepts", description: "Scan multiple ideas quickly to find the ones with the strongest promise." },
+      { title: "Save and develop the best ones", description: "Move promising concepts into your active workflow so good ideas do not get lost." },
+    ],
+    ctaHeadline: "Never run your channel on empty again",
+    ctaSubheadline: "Use a generator built to help creators publish more consistently without lowering quality.",
   },
 };
 

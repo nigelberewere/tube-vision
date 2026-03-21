@@ -10,19 +10,24 @@ const FEATURE_LINKS = [
   { label: "AI Script Architect", href: "/features/script-architect" },
   { label: "Viral Clip Creator", href: "/features/viral-clip-creator" },
   { label: "Voice Over Studio", href: "/features/voice-over-studio" },
-  { label: "YouTube SEO & Keywords", href: "/features/youtube-seo" },
+  { label: "YouTube SEO & Keywords", href: "/features/seo-optimizer" },
+  { label: "Thumbnail Studio", href: "/features/thumbnail-studio" },
+  { label: "AI YouTube Coach", href: "/features/ai-youtube-coach" },
+  { label: "Analytics Dashboard", href: "/features/youtube-analytics-dashboard" },
+  { label: "Video Idea Generator", href: "/features/youtube-video-idea-generator" },
 ];
 const LEARN_LINKS = [
   { label: "Gemini API Setup Guide", href: "/guides/api-setup" },
   { label: "Platform Workflow", href: "/guides/platform-workflow" },
+  { label: "Free Tools", href: "/free-tools" },
   { label: "About Us & Vision", href: "/about" },
   { label: "FAQ", href: "/faq" },
   { label: "Contact & Support", href: "/contact" },
 ];
 const USECASE_LINKS = [
-  { label: "For Educators", href: "/usecase/educators" },
-  { label: "For Gaming Channels", href: "/usecase/gaming" },
-  { label: "For Faceless Channels", href: "/usecase/faceless" },
+  { label: "For Educators", href: "/use-cases/educators" },
+  { label: "For Gaming Channels", href: "/use-cases/gaming" },
+  { label: "For Faceless Channels", href: "/use-cases/faceless" },
 ];
 
 export function Footer({ isDark }: FooterProps) {

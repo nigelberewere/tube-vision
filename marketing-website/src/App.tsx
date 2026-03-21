@@ -4,13 +4,16 @@ import { AboutPage } from "@/src/components/AboutPage";
 import { BlogHub } from "@/src/components/BlogHub";
 import { BlogPost } from "@/src/components/BlogPost";
 import { ContactPage } from "@/src/components/ContactPage";
+import { ContentEngineSection } from "@/src/components/ContentEngineSection";
 import { CookieConsentBanner } from "@/src/components/CookieConsentBanner";
 import { CTASection } from "@/src/components/CTASection";
+import { DiscoveryGrid } from "@/src/components/DiscoveryGrid";
 import { FAQ } from "@/src/components/FAQ";
 import { FAQPage } from "@/src/components/FAQPage";
 import { FeaturePage, type FeatureSlug } from "@/src/components/FeaturePage";
 import { Features } from "@/src/components/Features";
 import { Footer } from "@/src/components/Footer";
+import { FreeToolsPage } from "@/src/components/FreeToolsPage";
 import { GuidePage, type GuideSlug } from "@/src/components/GuidePage";
 import { Hero } from "@/src/components/Hero";
 import { LegalViewer } from "@/src/components/LegalViewer";
@@ -36,31 +39,61 @@ type Page =
   | "contact"
   | "faq"
   | "blog"
-  | "blog_post";
+  | "blog_post"
+  | "free_tools";
 
-const FEATURE_SLUGS = ["script-architect", "viral-clip-creator", "voice-over-studio", "youtube-seo"] as const;
-const GUIDE_SLUGS = ["api-setup", "platform-workflow"] as const;
-const USECASE_SLUGS = ["educators", "gaming", "faceless"] as const;
+const FEATURE_ROUTE_MAP = {
+  "script-architect": "script-architect",
+  "ai-youtube-script-generator": "script-architect",
+  "viral-clip-creator": "viral-clip-creator",
+  "viral-clip-extractor": "viral-clip-creator",
+  "voice-over-studio": "voice-over-studio",
+  "youtube-seo": "youtube-seo",
+  "seo-optimizer": "youtube-seo",
+  "keyword-research-tool": "youtube-seo",
+  "thumbnail-studio": "thumbnail-studio",
+  "ai-thumbnail-generator": "thumbnail-studio",
+  "ai-youtube-coach": "ai-youtube-coach",
+  "youtube-growth-coach": "ai-youtube-coach",
+  "analytics-dashboard": "analytics-dashboard",
+  "youtube-analytics-dashboard": "analytics-dashboard",
+  "video-idea-generator": "video-idea-generator",
+  "youtube-video-idea-generator": "video-idea-generator",
+} as const satisfies Record<string, FeatureSlug>;
+
+const GUIDE_ROUTE_MAP = {
+  "api-setup": "api-setup",
+  "gemini-api-setup": "api-setup",
+  "byok-gemini-api-key": "api-setup",
+  "platform-workflow": "platform-workflow",
+  "youtube-workflow": "platform-workflow",
+} as const satisfies Record<string, GuideSlug>;
+
+const USECASE_ROUTE_MAP = {
+  educators: "educators",
+  "educational-channels": "educators",
+  gaming: "gaming",
+  "gaming-creators": "gaming",
+  faceless: "faceless",
+  "faceless-youtube-channels": "faceless",
+} as const satisfies Record<string, UseCaseSlug>;
 
 function getFeatureSlugFromPath(pathname: string): FeatureSlug | null {
   const match = pathname.match(/^\/features\/([^/]+)$/);
   if (!match) return null;
-  const slug = match[1];
-  return (FEATURE_SLUGS as readonly string[]).includes(slug) ? (slug as FeatureSlug) : null;
+  return FEATURE_ROUTE_MAP[match[1] as keyof typeof FEATURE_ROUTE_MAP] ?? null;
 }
 
 function getGuideSlugFromPath(pathname: string): GuideSlug | null {
   const match = pathname.match(/^\/guides\/([^/]+)$/);
   if (!match) return null;
-  const slug = match[1];
-  return (GUIDE_SLUGS as readonly string[]).includes(slug) ? (slug as GuideSlug) : null;
+  return GUIDE_ROUTE_MAP[match[1] as keyof typeof GUIDE_ROUTE_MAP] ?? null;
 }
 
 function getUseCaseSlugFromPath(pathname: string): UseCaseSlug | null {
-  const match = pathname.match(/^\/usecase\/([^/]+)$/);
+  const match = pathname.match(/^\/(?:usecase|use-cases)\/([^/]+)$/);
   if (!match) return null;
-  const slug = match[1];
-  return (USECASE_SLUGS as readonly string[]).includes(slug) ? (slug as UseCaseSlug) : null;
+  return USECASE_ROUTE_MAP[match[1] as keyof typeof USECASE_ROUTE_MAP] ?? null;
 }
 
 function getBlogPostSlugFromPath(pathname: string): string | null {
@@ -80,6 +113,7 @@ function getPageFromPath(pathname: string): Page {
   if (pathname === "/faq") return "faq";
   if (pathname === "/blog") return "blog";
   if (getBlogPostSlugFromPath(pathname)) return "blog_post";
+  if (pathname === "/free-tools") return "free_tools";
   return "home";
 }
 
@@ -160,7 +194,7 @@ export default function App() {
   };
 
   const goToFeature = (slug: string) => {
-    if ((FEATURE_SLUGS as readonly string[]).includes(slug as any)) {
+    if (Object.values(FEATURE_ROUTE_MAP).includes(slug as FeatureSlug)) {
       window.history.pushState({}, "", `/features/${slug}`);
       setPage("feature");
       setCurrentFeatureSlug(slug as FeatureSlug);
@@ -172,7 +206,7 @@ export default function App() {
   };
 
   const goToGuide = (slug: string) => {
-    if ((GUIDE_SLUGS as readonly string[]).includes(slug as any)) {
+    if (Object.values(GUIDE_ROUTE_MAP).includes(slug as GuideSlug)) {
       window.history.pushState({}, "", `/guides/${slug}`);
       setPage("guide");
       setCurrentGuideSlug(slug as GuideSlug);
@@ -194,8 +228,8 @@ export default function App() {
   };
 
   const goToUseCase = (slug: string) => {
-    if ((USECASE_SLUGS as readonly string[]).includes(slug as any)) {
-      window.history.pushState({}, "", `/usecase/${slug}`);
+    if (Object.values(USECASE_ROUTE_MAP).includes(slug as UseCaseSlug)) {
+      window.history.pushState({}, "", `/use-cases/${slug}`);
       setPage("usecase");
       setCurrentUseCaseSlug(slug as UseCaseSlug);
       setCurrentFeatureSlug(null);
@@ -203,6 +237,16 @@ export default function App() {
       setCurrentBlogPostSlug(null);
       window.scrollTo({ top: 0, behavior: "auto" });
     }
+  };
+
+  const goToFreeTools = () => {
+    window.history.pushState({}, "", "/free-tools");
+    setPage("free_tools");
+    setCurrentFeatureSlug(null);
+    setCurrentGuideSlug(null);
+    setCurrentUseCaseSlug(null);
+    setCurrentBlogPostSlug(null);
+    window.scrollTo({ top: 0, behavior: "auto" });
   };
 
   const goToContact = () => {
@@ -272,11 +316,25 @@ export default function App() {
     mainContent = <BlogHub isDark={isDark} onBack={goHome} onNavigateToPost={goToBlogPost} />;
   } else if (page === "blog_post" && currentBlogPostSlug) {
     mainContent = <BlogPost slug={currentBlogPostSlug} isDark={isDark} isAuthenticated={isAuthenticated} onBack={goToBlog} onConnect={openDashboardAuth} />;
+  } else if (page === "free_tools") {
+    mainContent = <FreeToolsPage isDark={isDark} isAuthenticated={isAuthenticated} onBack={goHome} onConnect={openDashboardAuth} />;
   } else {
     mainContent = (
       <>
         <Hero isDark={isDark} isAuthenticated={isAuthenticated} authProfile={authState.profile} onConnect={openDashboardAuth} />
         <Features isDark={isDark} onNavigateToFeature={goToFeature} />
+        <DiscoveryGrid
+          isDark={isDark}
+          onNavigateToFeature={goToFeature}
+          onNavigateToGuide={goToGuide}
+          onNavigateToUseCase={goToUseCase}
+          onNavigateToFreeTools={goToFreeTools}
+        />
+        <ContentEngineSection
+          isDark={isDark}
+          onNavigateToBlog={goToBlog}
+          onNavigateToPost={goToBlogPost}
+        />
         <Pricing isDark={isDark} isAuthenticated={isAuthenticated} onConnect={openDashboardAuth} />
         <FAQ isDark={isDark} />
         <CTASection isDark={isDark} isAuthenticated={isAuthenticated} onConnect={openDashboardAuth} />
@@ -316,6 +374,7 @@ export default function App() {
         onNavigateToContact={goToContact}
         onNavigateToFAQ={goToFAQ}
         onNavigateToBlog={goToBlog}
+        onNavigateToFreeTools={goToFreeTools}
       />
 
       <main className="relative z-10 w-full overflow-visible">

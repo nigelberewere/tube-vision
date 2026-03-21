@@ -7,6 +7,7 @@ import {
   Mic,
   Play,
   Search,
+  Lightbulb,
   Users
 } from "lucide-react";
 import { motion } from "motion/react";
@@ -47,6 +48,7 @@ const features: FeatureItem[] = [
     description: "Run heatmap analysis and A/B test thumbnail concepts before publishing your next high-stakes upload.",
     icon: ImageIcon,
     accentClass: "from-pink-500 to-red-500",
+    learnMoreSlug: "thumbnail-studio",
   },
   {
     title: "YouTube SEO Optimizer for Video Titles",
@@ -60,12 +62,14 @@ const features: FeatureItem[] = [
     description: "Track growth trends, retention curves, and content velocity with creator-focused metrics.",
     icon: BarChart4,
     accentClass: "from-green-500 to-emerald-500",
+    learnMoreSlug: "analytics-dashboard",
   },
   {
     title: "AI YouTube Growth Coach",
     description: "Get personalized growth advice, upload strategy, and experiments tailored to your channel goals.",
     icon: GraduationCap,
     accentClass: "from-violet-500 to-indigo-500",
+    learnMoreSlug: "ai-youtube-coach",
   },
   {
     title: "AI Script Architect for YouTube Videos",
@@ -79,6 +83,13 @@ const features: FeatureItem[] = [
     description: "Analyze competitors, identify collab opportunities, and map audience overlap for faster expansion.",
     icon: Users,
     accentClass: "from-teal-500 to-cyan-500",
+  },
+  {
+    title: "YouTube Video Idea Generator AI",
+    description: "Generate stronger content ideas, hooks, and angles so you can publish consistently without recycling stale formats.",
+    icon: Lightbulb,
+    accentClass: "from-amber-500 to-orange-500",
+    learnMoreSlug: "video-idea-generator",
   },
 ];
 
