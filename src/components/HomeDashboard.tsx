@@ -48,6 +48,10 @@ interface HomeDashboardProps {
   theme?: 'dark' | 'light';
 }
 
+interface ChannelResponse {
+  channel?: ChannelInfo | null;
+}
+
 interface AnalyticsReport {
   columnHeaders?: Array<{ name: string }>;
   rows?: any[][];
@@ -216,6 +220,7 @@ export default function HomeDashboard({
   theme = 'dark',
 }: HomeDashboardProps) {
   const isLightTheme = theme === 'light';
+  const [liveChannel, setLiveChannel] = useState<ChannelInfo | null>(channel);
   const [analytics, setAnalytics] = useState<AnalyticsPayload | null>(null);
   const [videos, setVideos] = useState<VideoItem[]>([]);
   const [bestPostingTime, setBestPostingTime] = useState<BestPostingTime | null>(null);
@@ -229,6 +234,10 @@ export default function HomeDashboard({
   const [copiedRepurposeItem, setCopiedRepurposeItem] = useState<'x' | 'linkedin' | 'blog' | null>(null);
   const [repurposeInsightDismissed, setRepurposeInsightDismissed] = useState(false);
 
+  useEffect(() => {
+    setLiveChannel(channel);
+  }, [channel]);
+
   const fetchDashboard = async () => {
     if (!isConnected) {
       return;
@@ -238,15 +247,21 @@ export default function HomeDashboard({
     setError(null);
 
     try {
-      const [analyticsResponse, videosResponse, bestTimeResponse] = await Promise.all([
+      const [channelResponse, analyticsResponse, videosResponse, bestTimeResponse] = await Promise.all([
+        fetch('/api/user/channel?refresh=1', { cache: 'no-store' }),
         fetch('/api/user/analytics'),
         fetch('/api/user/videos'),
         fetch('/api/user/best-posting-time'),
       ]);
 
-      if (analyticsResponse.status === 401 || videosResponse.status === 401) {
+      if (channelResponse.status === 401 || analyticsResponse.status === 401 || videosResponse.status === 401) {
         setError('Reconnect your YouTube account to load your home metrics.');
         return;
+      }
+
+      if (channelResponse.ok) {
+        const channelData = (await channelResponse.json()) as ChannelResponse & ChannelInfo;
+        setLiveChannel(channelData.channel ?? channelData ?? null);
       }
 
       if (!analyticsResponse.ok) {
@@ -322,7 +337,7 @@ export default function HomeDashboard({
       };
 
       const prompt = `Generate 3 daily video ideas for a YouTube creator.
-      ${channel ? `Channel Name: ${channel.title}. Description: ${channel.description}. Subscribers: ${channel.statistics.subscriberCount}.` : "The user hasn't connected their channel yet, so generate general high-potential ideas for content creators."}
+      ${liveChannel ? `Channel Name: ${liveChannel.title}. Description: ${liveChannel.description}. Subscribers: ${liveChannel.statistics.subscriberCount}.` : "The user hasn't connected their channel yet, so generate general high-potential ideas for content creators."}
       
       Each idea should include:
       1. A compelling, high-CTR title.
@@ -805,7 +820,7 @@ Return valid JSON only.`;
             <Users size={17} />
           </div>
           <p className={cn('mt-4 text-xs font-bold uppercase tracking-wider', labelTextClass)}>Subscribers</p>
-          <p className={cn('mt-1 text-2xl font-bold', strongTextClass)}>{compact(toNumber(channel?.statistics?.subscriberCount))}</p>
+          <p className={cn('mt-1 text-2xl font-bold', strongTextClass)}>{compact(toNumber(liveChannel?.statistics?.subscriberCount))}</p>
         </div>
 
         <div className={cn('rounded-xl border p-5', surfaceCardClass)}>
@@ -844,12 +859,12 @@ Return valid JSON only.`;
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
         <div className={cn('rounded-xl border p-5', surfaceCardClass)}>
           <p className={cn('text-xs font-bold uppercase tracking-wider', labelTextClass)}>All Channel Views (All-Time)</p>
-          <p className={cn('mt-1 text-2xl font-bold', strongTextClass)}>{full(toNumber(channel?.statistics?.viewCount))}</p>
-          <p className={cn('mt-1 text-xs', labelTextClass)}>{compact(toNumber(channel?.statistics?.viewCount))} lifetime views</p>
+          <p className={cn('mt-1 text-2xl font-bold', strongTextClass)}>{full(toNumber(liveChannel?.statistics?.viewCount))}</p>
+          <p className={cn('mt-1 text-xs', labelTextClass)}>{compact(toNumber(liveChannel?.statistics?.viewCount))} lifetime views</p>
         </div>
         <div className={cn('rounded-xl border p-5', surfaceCardClass)}>
           <p className={cn('text-xs font-bold uppercase tracking-wider', labelTextClass)}>Total Videos</p>
-          <p className={cn('mt-1 text-2xl font-bold', strongTextClass)}>{compact(toNumber(channel?.statistics?.videoCount))}</p>
+          <p className={cn('mt-1 text-2xl font-bold', strongTextClass)}>{compact(toNumber(liveChannel?.statistics?.videoCount))}</p>
         </div>
         <div className={cn('rounded-xl border p-5', surfaceCardClass)}>
           <p className={cn('text-xs font-bold uppercase tracking-wider', labelTextClass)}>Avg Views / Day (30d)</p>

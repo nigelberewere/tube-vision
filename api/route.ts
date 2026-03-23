@@ -491,6 +491,97 @@ async function getActiveYouTubeUser(req: VercelRequest) {
   return accounts[activeIndex] || null;
 }
 
+function mapYouTubeChannelToLegacyChannel(channel: any) {
+  return {
+    id: channel?.id || '',
+    title: channel?.snippet?.title || 'Untitled Channel',
+    description: channel?.snippet?.description || '',
+    thumbnails: channel?.snippet?.thumbnails?.default
+      ? { default: channel.snippet.thumbnails.default }
+      : channel?.snippet?.thumbnails || {},
+    statistics: {
+      subscriberCount: String(channel?.statistics?.subscriberCount || '0'),
+      viewCount: String(channel?.statistics?.viewCount || '0'),
+      videoCount: String(channel?.statistics?.videoCount || '0'),
+    },
+  };
+}
+
+async function refreshActiveYouTubeChannel(req: VercelRequest, res: VercelResponse, userData: any) {
+  if (!userData?.channel?.id) {
+    return userData;
+  }
+
+  const authHeader = await getAuthHeaderForAccount(userData);
+  const response = await fetch(
+    'https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics&mine=true',
+    {
+      headers: {
+        ...authHeader,
+        'Cache-Control': 'no-cache',
+      },
+    },
+  );
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok || data?.error) {
+    const upstream = extractYouTubeError(
+      data,
+      'Failed to refresh channel stats from YouTube',
+      response.status,
+    );
+    throw new Error(upstream.message);
+  }
+
+  const refreshedChannel =
+    (data?.items || []).find((item: any) => item?.id === userData.channel.id) ||
+    data?.items?.[0];
+
+  if (!refreshedChannel) {
+    throw new Error('No YouTube channel data was returned during refresh');
+  }
+
+  const refreshedUser = {
+    ...userData,
+    channel: mapYouTubeChannelToLegacyChannel(refreshedChannel),
+  };
+
+  const authUser = await verifySupabaseUser(req);
+  if (authUser?.id && supabaseServer) {
+    const accessToken = String(authHeader.Authorization || '').replace(/^Bearer\s+/i, '').trim();
+    await persistYouTubeAccountToSupabase(
+      authUser.id,
+      {
+        id: userData.id,
+        name: userData.name,
+        picture: userData.picture,
+      },
+      refreshedChannel,
+      {
+        access_token: accessToken || userData?.tokens?.access_token,
+        refresh_token: userData?.tokens?.refresh_token,
+        expiry_date: userData?.tokens?.expiry_date,
+      },
+    );
+  } else {
+    const state = readAccountsFromCookies(req);
+    if (state.accounts.length > 0) {
+      const refreshedAccounts = state.accounts.map((account: any) =>
+        account?.channel?.id === refreshedUser.channel.id
+          ? { ...account, channel: refreshedUser.channel }
+          : account,
+      );
+      const cookieValue = encodeURIComponent(JSON.stringify(refreshedAccounts));
+      res.setHeader('Set-Cookie', [
+        `tube_vision_accounts=${cookieValue}; ${COOKIE_BASE_OPTIONS}`,
+        `tube_vision_active=${state.activeIndex}; ${COOKIE_BASE_OPTIONS}`,
+      ]);
+    }
+  }
+
+  return refreshedUser;
+}
+
 async function resolveCoachHistoryUserId(req: VercelRequest): Promise<string | null> {
   const authUser = await verifySupabaseUser(req);
   if (authUser?.id) {
@@ -1301,16 +1392,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Get user channel data
   if (path === 'api/user/channel') {
     const { accounts, activeIndex } = await getUnifiedAccountsAndActiveIndex(req);
-    const userData = accounts[activeIndex];
+    let userData = accounts[activeIndex];
     if (!userData) {
       return res.status(401).json({ error: 'Not authenticated' });
     }
 
     try {
+      if (req.query.refresh === '1') {
+        userData = await refreshActiveYouTubeChannel(req, res, userData);
+      }
+
       const { tokens, ...safeUser } = userData;
       return res.json(safeUser);
     } catch (error) {
-      return res.status(401).json({ error: 'Invalid session' });
+      console.error('Channel refresh error:', error);
+      return res.status(502).json({ error: error instanceof Error ? error.message : 'Invalid session' });
     }
   }
 

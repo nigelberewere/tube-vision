@@ -370,6 +370,97 @@ export async function createApp(options: CreateAppOptions = {}) {
     throw new Error("No OAuth token available for active account");
   }
 
+  function mapYouTubeChannelToLegacyChannel(channel: any) {
+    return {
+      id: channel?.id || "",
+      title: channel?.snippet?.title || "Untitled Channel",
+      description: channel?.snippet?.description || "",
+      thumbnails: channel?.snippet?.thumbnails?.default
+        ? { default: channel.snippet.thumbnails.default }
+        : channel?.snippet?.thumbnails || {},
+      statistics: {
+        subscriberCount: String(channel?.statistics?.subscriberCount || "0"),
+        viewCount: String(channel?.statistics?.viewCount || "0"),
+        videoCount: String(channel?.statistics?.videoCount || "0"),
+      },
+    };
+  }
+
+  async function refreshActiveYouTubeChannel(req: express.Request, user: any) {
+    if (!user?.channel?.id) {
+      return user;
+    }
+
+    const authHeader = await getAuthHeaderForAccount(user);
+    const response = await fetch(
+      "https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics&mine=true",
+      {
+        headers: {
+          ...authHeader,
+          "Cache-Control": "no-cache",
+        },
+      },
+    );
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok || data?.error) {
+      const upstream = extractYouTubeError(
+        data,
+        "Failed to refresh channel stats from YouTube",
+        response.status,
+      );
+      throw new Error(upstream.message);
+    }
+
+    const refreshedChannel =
+      (data?.items || []).find((item: any) => item?.id === user.channel.id) ||
+      data?.items?.[0];
+
+    if (!refreshedChannel) {
+      throw new Error("No YouTube channel data was returned during refresh");
+    }
+
+    const refreshedUser = {
+      ...user,
+      channel: mapYouTubeChannelToLegacyChannel(refreshedChannel),
+    };
+
+    const authUser = await verifyUser(req);
+    if (authUser?.id) {
+      const accessToken = String(authHeader.Authorization || "").replace(/^Bearer\s+/i, "").trim();
+      await persistYouTubeAccountToSupabase(
+        authUser.id,
+        {
+          id: user.id,
+          name: user.name,
+          picture: user.picture,
+        },
+        refreshedChannel,
+        {
+          access_token: accessToken || user?.tokens?.access_token,
+          refresh_token: user?.tokens?.refresh_token,
+          expiry_date: user?.tokens?.expiry_date,
+        },
+      );
+    }
+
+    const sessionState = getSessionAccountsAndActiveIndex(req);
+    if (sessionState.accounts.length > 0) {
+      const refreshedAccounts = sessionState.accounts.map((account: any) =>
+        account?.channel?.id === refreshedUser.channel.id
+          ? { ...account, channel: refreshedUser.channel }
+          : account,
+      );
+      const nextActiveIndex = Math.min(
+        Math.max(sessionState.activeIndex, 0),
+        Math.max(refreshedAccounts.length - 1, 0),
+      );
+      setSessionAccountsAndActiveIndex(req, refreshedAccounts, nextActiveIndex);
+    }
+
+    return refreshedUser;
+  }
+
   function parseMaxResults(rawValue: unknown, fallback: number = 50): number {
     const raw = Array.isArray(rawValue) ? rawValue[0] : rawValue;
     const parsed = Number(raw);
@@ -1318,11 +1409,20 @@ For every video provided, evaluate segments based on:
 
   app.get("/api/user/channel", async (req, res) => {
     const { accounts, activeIndex } = await getUnifiedAccountsAndActiveIndex(req);
-    const user = accounts[activeIndex];
+    let user = accounts[activeIndex];
     if (!user) {
       return res.status(401).json({ error: "Not authenticated" });
     }
-    // Don't send tokens back to client
+
+    if (req.query.refresh === "1") {
+      try {
+        user = await refreshActiveYouTubeChannel(req, user);
+      } catch (error) {
+        console.error("Channel refresh error:", error);
+        return res.status(502).json({ error: error instanceof Error ? error.message : "Failed to refresh channel" });
+      }
+    }
+
     const { tokens, ...safeUser } = user;
     res.json(safeUser);
   });
