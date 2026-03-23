@@ -13,7 +13,56 @@ const corsOrigin = process.env.CORS_ORIGIN || '*';
 const maxSeconds = Number(process.env.MAX_CLIP_SECONDS || 65);
 const ytDlpCookiesBase64 = String(process.env.YTDLP_COOKIES_B64 || '').trim();
 
-app.use(cors({ origin: corsOrigin === '*' ? true : corsOrigin.split(',').map((v) => v.trim()) }));
+function normalizeOrigin(value) {
+  const trimmed = String(value || '').trim();
+  if (!trimmed) return '';
+
+  try {
+    return new URL(trimmed).origin;
+  } catch {
+    try {
+      return new URL(`https://${trimmed}`).origin;
+    } catch {
+      return '';
+    }
+  }
+}
+
+const configuredOrigins = corsOrigin === '*'
+  ? ['*']
+  : Array.from(
+      new Set(
+        [
+          ...corsOrigin.split(',').map(normalizeOrigin),
+          'https://app.janso.studio',
+          'https://janso.studio',
+          'https://www.janso.studio',
+        ].filter(Boolean),
+      ),
+    );
+
+const corsOptions = {
+  origin(origin, callback) {
+    if (!origin || configuredOrigins.includes('*')) {
+      callback(null, true);
+      return;
+    }
+
+    const normalizedOrigin = normalizeOrigin(origin);
+    if (normalizedOrigin && configuredOrigins.includes(normalizedOrigin)) {
+      callback(null, true);
+      return;
+    }
+
+    callback(new Error(`Origin ${origin} is not allowed by CORS`));
+  },
+  methods: ['GET', 'HEAD', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type'],
+  optionsSuccessStatus: 204,
+};
+
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 app.use(express.json({ limit: '1mb' }));
 
 function parseTimeToSeconds(value) {
