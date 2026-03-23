@@ -19,6 +19,8 @@ The provided [Dockerfile](/c:/Users/nigel/projects/vid-vision/cloud-run-renderer
 - `MAX_CLIP_SECONDS`
 - `YTDLP_COOKIES_B64` optional, but recommended for videos that trigger YouTube anti-bot checks
 
+On Render, the service must bind to the provided `PORT` on `0.0.0.0`. The server is configured to do this explicitly.
+
 ## Health check
 
 `GET /health` now reports whether `ffmpeg` and `yt-dlp` are actually available. A healthy response looks like:
