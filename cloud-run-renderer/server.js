@@ -5,7 +5,7 @@ import { existsSync } from 'node:fs';
 import { promises as fs } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 
 const app = express();
 const port = Number(process.env.PORT || 8080);
@@ -70,6 +70,51 @@ function runCommand(command, args, timeoutMs = 20 * 60 * 1000) {
       }
     });
   });
+}
+
+function inspectBinary(command, versionArgs = ['--version']) {
+  const result = spawnSync(command, versionArgs, {
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+
+  const output = String(result.stdout || result.stderr || '').trim();
+  const firstLine = output.split(/\r?\n/).find(Boolean) || '';
+
+  return {
+    command,
+    available: !result.error && result.status === 0,
+    version: firstLine,
+    error:
+      result.error?.code ||
+      result.error?.message ||
+      (result.status && result.status !== 0 ? `${command} exited with ${result.status}` : ''),
+  };
+}
+
+function getRuntimeDiagnostics() {
+  const ytDlp = inspectBinary('yt-dlp');
+  const ffmpeg = inspectBinary('ffmpeg', ['-version']);
+
+  return {
+    ok: ytDlp.available && ffmpeg.available,
+    cookiesConfigured: Boolean(ytDlpCookiesBase64),
+    ytDlp,
+    ffmpeg,
+  };
+}
+
+function getMissingDependencyMessage(diagnostics) {
+  const missing = [diagnostics.ytDlp, diagnostics.ffmpeg].filter((item) => !item.available);
+  if (missing.length === 0) {
+    return '';
+  }
+
+  const summary = missing
+    .map((item) => `${item.command}${item.error ? ` (${item.error})` : ''}`)
+    .join(', ');
+
+  return `Cloud renderer is missing required runtime dependencies: ${summary}. Deploy the renderer from cloud-run-renderer/Dockerfile or install ffmpeg and yt-dlp in the Render service environment.`;
 }
 
 const YTDLP_FORMAT_STRATEGIES = [
@@ -172,6 +217,20 @@ function buildRendererError(error) {
   const normalized = raw.toLowerCase();
 
   if (
+    error?.code === 'ENOENT' ||
+    error?.code === 'EPERM' ||
+    normalized.includes('spawn yt-dlp') ||
+    normalized.includes('spawn ffmpeg')
+  ) {
+    return {
+      status: 503,
+      message:
+        'Cloud renderer runtime is missing ffmpeg or yt-dlp. Redeploy the renderer using cloud-run-renderer/Dockerfile and verify both binaries are installed.',
+      detail: raw.slice(0, 1200),
+    };
+  }
+
+  if (
     normalized.includes("sign in to confirm you're not a bot") ||
     normalized.includes('sign in to confirm you’re not a bot')
   ) {
@@ -242,7 +301,8 @@ function isSupportedYouTubeUrl(url) {
 }
 
 app.get('/health', (_req, res) => {
-  res.json({ ok: true, cookiesConfigured: Boolean(ytDlpCookiesBase64) });
+  const diagnostics = getRuntimeDiagnostics();
+  res.status(diagnostics.ok ? 200 : 503).json(diagnostics);
 });
 
 app.post('/render', async (req, res) => {
@@ -282,6 +342,14 @@ app.post('/render', async (req, res) => {
   const cookiesPath = path.join(tempDir, 'cookies.txt');
 
   try {
+    const diagnostics = getRuntimeDiagnostics();
+    if (!diagnostics.ok) {
+      return res.status(503).json({
+        error: getMissingDependencyMessage(diagnostics),
+        detail: diagnostics,
+      });
+    }
+
     await fs.mkdir(tempDir, { recursive: true });
     let hasCookies = false;
     if (ytDlpCookiesBase64) {
