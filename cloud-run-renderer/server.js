@@ -126,7 +126,9 @@ const YTDLP_FORMAT_STRATEGIES = [
 
 const YTDLP_EXTRACTOR_STRATEGIES = [
   'youtube:player_client=android,tv,ios;player_skip=webpage,configs',
+  'youtube:player_client=android,tv_simply_embedded,ios;player_skip=webpage,configs',
   'youtube:player_client=android,ios;player_skip=webpage',
+  'youtube:player_client=android_creator,tv_simply_embedded,ios',
   'youtube:player_client=android,web,tv,ios',
 ];
 
@@ -146,6 +148,15 @@ function isFormatUnavailableError(error) {
 function isPageReloadError(error) {
   const raw = String(error?.stderr || error?.stdout || error?.message || '').toLowerCase();
   return raw.includes('the page needs to be reloaded');
+}
+
+function isPlayerResponseExtractionError(error) {
+  const raw = String(error?.stderr || error?.stdout || error?.message || '').toLowerCase();
+  return (
+    raw.includes('failed to extract any player response') ||
+    raw.includes('unable to extract initial player response') ||
+    raw.includes('player response') && raw.includes('git.io/yt-dlp-bug')
+  );
 }
 
 async function downloadYouTubeSource({ youtubeUrl, inputPath, cookiesPath }) {
@@ -177,6 +188,12 @@ async function downloadYouTubeSource({ youtubeUrl, inputPath, cookiesPath }) {
         lastError = error;
         await fs.rm(inputPath, { force: true }).catch(() => {});
 
+        if (isPlayerResponseExtractionError(error)) {
+          shouldTryNextExtractorStrategy = true;
+          await sleep(1000);
+          break;
+        }
+
         if (isPageReloadError(error)) {
           shouldTryNextExtractorStrategy = true;
           await sleep(1000);
@@ -201,6 +218,11 @@ async function downloadYouTubeSource({ youtubeUrl, inputPath, cookiesPath }) {
     } catch (error) {
       lastError = error;
       await fs.rm(inputPath, { force: true }).catch(() => {});
+
+      if (isPlayerResponseExtractionError(error)) {
+        await sleep(1000);
+        continue;
+      }
 
       if (isPageReloadError(error)) {
         await sleep(1000);
@@ -275,6 +297,15 @@ function buildRendererError(error) {
       status: 503,
       message:
         'YouTube returned a transient extraction response for this video. Retry in a moment. If it keeps failing, configure YTDLP_COOKIES_B64 on the renderer service and redeploy.',
+      detail: raw.slice(0, 1200),
+    };
+  }
+
+  if (isPlayerResponseExtractionError(error)) {
+    return {
+      status: 503,
+      message:
+        'yt-dlp could not parse YouTube player data for this video. Redeploy the renderer with the latest yt-dlp nightly build, then retry. If it still fails, refresh YTDLP_COOKIES_B64 as well.',
       detail: raw.slice(0, 1200),
     };
   }

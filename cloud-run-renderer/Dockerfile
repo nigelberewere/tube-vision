@@ -10,7 +10,7 @@ RUN apt-get update \
     python3 \
     python3-pip \
     ca-certificates \
-  && pip3 install --break-system-packages --no-cache-dir yt-dlp \
+  && pip3 install --break-system-packages --no-cache-dir --pre "yt-dlp[default]" \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*
 

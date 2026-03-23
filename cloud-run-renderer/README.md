@@ -10,7 +10,7 @@ The renderer must run with:
 - `ffmpeg`
 - `yt-dlp`
 
-The provided [Dockerfile](/c:/Users/nigel/projects/vid-vision/cloud-run-renderer/Dockerfile) installs all required dependencies. If you deploy this service on Render, use a Docker web service rooted at [cloud-run-renderer](/c:/Users/nigel/projects/vid-vision/cloud-run-renderer) so both binaries are available at runtime.
+The provided [Dockerfile](/c:/Users/nigel/projects/vid-vision/cloud-run-renderer/Dockerfile) installs all required dependencies and pulls yt-dlp from the nightly channel, which is often needed when YouTube changes its player responses. If you deploy this service on Render, use a Docker web service rooted at [cloud-run-renderer](/c:/Users/nigel/projects/vid-vision/cloud-run-renderer) so both binaries are available at runtime.
 
 ## Environment variables
 
