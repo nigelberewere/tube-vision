@@ -6,15 +6,17 @@
     <meta name="robots" content="index,follow" />
     <meta
       name="description"
-      content="AI-powered YouTube analytics tool with script generator, viral clip extractor, SEO optimizer, and keyword research for content creators. Grow your channel faster with Janso Studio."
+      content="AI YouTube analytics, script generation, clip extraction, and SEO tools for creators who want to grow faster with less guesswork."
     />
     <meta name="keywords" content="YouTube analytics, AI script generator, YouTube SEO, viral clip creator, YouTube keyword research, content creator tools, Janso Studio" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="shortcut icon" href="/favicon.svg" />
 
     <!-- Open Graph -->
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://janso.studio/" />
-    <meta property="og:title" content="Janso Studio - AI YouTube Analytics & Script Generator for Creators" />
-    <meta property="og:description" content="AI-powered YouTube analytics tool with script generator, viral clip extractor, SEO optimizer, and keyword research for content creators." />
+    <meta property="og:title" content="Janso Studio | AI YouTube Analytics for Creators" />
+    <meta property="og:description" content="AI YouTube analytics, script generation, clip extraction, and SEO tools for creators who want to grow faster." />
     <meta property="og:site_name" content="Janso Studio" />
     <meta property="og:image" content="https://janso.studio/og.png" />
     <meta property="og:image:secure_url" content="https://janso.studio/og.png" />
@@ -22,8 +24,8 @@
 
     <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Janso Studio - AI YouTube Analytics & Script Generator" />
-    <meta name="twitter:description" content="Grow your YouTube channel faster with AI-powered analytics, script generation, viral clip extraction, and SEO tools." />
+    <meta name="twitter:title" content="Janso Studio | AI YouTube Analytics for Creators" />
+    <meta name="twitter:description" content="AI YouTube analytics, script generation, clip extraction, and SEO tools for creators who want to grow faster." />
     <meta name="twitter:image" content="https://janso.studio/og.png" />
 
     <link rel="canonical" href="https://janso.studio/" />
@@ -38,7 +40,7 @@
           "@id": "https://janso.studio/#website",
           "url": "https://janso.studio/",
           "name": "Janso Studio",
-          "description": "AI-powered YouTube analytics and optimization platform for content creators.",
+          "description": "AI YouTube analytics and optimization platform for creators who want to grow faster with less guesswork.",
           "publisher": {
             "@type": "Organization",
             "name": "Janso Studio",
@@ -64,7 +66,7 @@
           "url": "https://app.janso.studio/",
           "applicationCategory": "BusinessApplication",
           "operatingSystem": "Web",
-          "description": "AI-powered YouTube analytics dashboard with script generation, viral clip extraction, SEO optimizer, and keyword research.",
+          "description": "AI YouTube analytics dashboard with script generation, clip extraction, SEO tools, and keyword research.",
           "offers": {
             "@type": "Offer",
             "price": "0",
@@ -84,32 +86,86 @@
       ]
     }
     </script>
-
-    <script>
-      (() => {
-        const configuredDashboardUrl = "%VITE_DASHBOARD_URL%".trim()
-        const unresolvedDashboardUrlToken = "%" + "VITE_DASHBOARD_URL" + "%"
-        const isLocalHost = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
-        const hasConfiguredDashboardUrl =
-          configuredDashboardUrl.length > 0 && configuredDashboardUrl !== unresolvedDashboardUrlToken
-        const configuredDashboardUrlIsLocalHost = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/|$)/i.test(configuredDashboardUrl)
-        const dashboardUrl = hasConfiguredDashboardUrl && (isLocalHost || !configuredDashboardUrlIsLocalHost)
-          ? configuredDashboardUrl
-          : isLocalHost
-            ? "http://localhost:3000"
-            : "https://app.janso.studio"
-        const faviconUrl = new URL("/favicon.svg", dashboardUrl).toString()
-
-        document.head.insertAdjacentHTML(
-          "beforeend",
-          `<link rel="icon" type="image/svg+xml" href="${faviconUrl}" />\n<link rel="shortcut icon" href="${faviconUrl}" />`
-        )
-      })()
-    </script>
-    <title>Janso Studio - AI YouTube Analytics &amp; Script Generator for Creators</title>
+    <title>Janso Studio | AI YouTube Analytics for Creators</title>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <main>
+        <header>
+          <nav aria-label="Primary">
+            <a href="/">Janso Studio</a>
+            <a href="/features/analytics-dashboard">Analytics Dashboard</a>
+            <a href="/features/script-architect">Script Architect</a>
+            <a href="/features/youtube-seo">YouTube SEO</a>
+            <a href="/blog">Blog</a>
+            <a href="https://app.janso.studio/">Dashboard</a>
+          </nav>
+          <h1>AI YouTube analytics and growth tools for creators</h1>
+          <p>
+            Janso Studio helps YouTube creators analyze channel performance, generate scripts, extract clips, improve SEO,
+            and build a stronger publishing workflow from one workspace.
+          </p>
+          <p>
+            Use AI-powered analytics, keyword research, thumbnail planning, and content strategy tools to make faster
+            decisions and turn channel data into action.
+          </p>
+          <p>
+            <a href="https://app.janso.studio/">Open the dashboard</a>
+            <a href="/features/analytics-dashboard"> Explore analytics features</a>
+          </p>
+          <img
+            src="/og.png"
+            alt="Janso Studio dashboard preview showing YouTube analytics and creator workflow tools"
+            width="1200"
+            height="630"
+          />
+        </header>
+
+        <section>
+          <h2>What Janso Studio helps you do</h2>
+          <p>
+            Track channel momentum, spot performance trends, research YouTube keywords, write higher-retention scripts,
+            create clips from long-form videos, and organize your next content moves with less guesswork.
+          </p>
+          <h3>Creator workflows</h3>
+          <ul>
+            <li><a href="/features/analytics-dashboard">Review analytics dashboards and growth metrics</a></li>
+            <li><a href="/features/script-architect">Generate scripts with the AI Script Architect</a></li>
+            <li><a href="/features/youtube-seo">Optimize titles, descriptions, and keywords for YouTube SEO</a></li>
+            <li><a href="/features/viral-clip-creator">Turn long videos into Shorts-ready clips</a></li>
+            <li><a href="/features/video-idea-generator">Build a stronger video idea pipeline</a></li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Who it is for</h2>
+          <p>
+            Janso Studio is built for solo creators, faceless channels, educators, gaming creators, and small teams that
+            want better YouTube analytics and faster production support.
+          </p>
+          <ul>
+            <li><a href="/use-cases/educators">Educators and tutorial channels</a></li>
+            <li><a href="/use-cases/gaming">Gaming creators and streamers</a></li>
+            <li><a href="/use-cases/faceless">Faceless YouTube channels</a></li>
+            <li><a href="/guides/api-setup">Creators using BYOK and Gemini API workflows</a></li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Learn more</h2>
+          <p>
+            Browse feature pages, free tools, guides, and blog posts to learn how to grow your channel with a more
+            repeatable content system.
+          </p>
+          <ul>
+            <li><a href="/about">About Janso Studio</a></li>
+            <li><a href="/free-tools">Free tools</a></li>
+            <li><a href="/faq">Frequently asked questions</a></li>
+            <li><a href="/contact">Contact</a></li>
+          </ul>
+        </section>
+      </main>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
