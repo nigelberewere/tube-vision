@@ -27,16 +27,14 @@ function replaceMeta(html, selector, content) {
   return html.replace(selector, content);
 }
 
-function replaceRootContent(html, content) {
-  const rootStart = html.indexOf('<div id="root">');
-  const bodyEnd = html.lastIndexOf("</body>");
-  const rootEnd = html.lastIndexOf("</div>", bodyEnd);
+function replacePrerenderContent(html, content) {
+  const prerenderPattern = /<div id="seo-prerender">[\s\S]*?<\/div>/;
 
-  if (rootStart === -1 || rootEnd === -1) {
-    throw new Error("Could not locate root container in built HTML.");
+  if (!prerenderPattern.test(html)) {
+    throw new Error("Could not locate prerender container in built HTML.");
   }
 
-  return `${html.slice(0, rootStart)}<div id="root">\n${content}\n    </div>${html.slice(rootEnd + "</div>".length)}`;
+  return html.replace(prerenderPattern, `<div id="seo-prerender">\n${content}\n    </div>`);
 }
 
 function linkList(items) {
@@ -137,7 +135,7 @@ function renderRoute(route) {
     /<link\s+rel="canonical"\s+href="[^"]*"\s*\/>/,
     `<link rel="canonical" href="${absoluteUrl}" />`,
   );
-  html = replaceRootContent(html, pageBody(route));
+  html = replacePrerenderContent(html, pageBody(route));
 
   return html;
 }
