@@ -1,7 +1,14 @@
+import { useEffect } from "react";
 import { motion } from "motion/react";
 import { cn } from "@/src/lib/utils";
+import { applyPageMeta } from "@/src/lib/seo";
 
 export function AboutPage({ isDark, onBack }: { isDark: boolean; onBack: () => void }) {
+  useEffect(() => applyPageMeta(
+    "About Janso Studio | Creator-Focused AI YouTube Platform",
+    "Learn about Janso Studio, our privacy-first creator tools, and the vision behind our AI YouTube workflow platform.",
+  ), []);
+
   return (
     <div className={cn("w-full pb-12 transition-colors duration-500", isDark ? "text-slate-200" : "text-slate-900")}> 
       <div className="mx-auto w-full max-w-3xl px-4 pt-10 md:px-0 md:pt-16">

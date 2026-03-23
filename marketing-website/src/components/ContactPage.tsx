@@ -1,10 +1,16 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "motion/react";
 import { cn } from "@/src/lib/utils";
+import { applyPageMeta } from "@/src/lib/seo";
 
 export function ContactPage({ isDark, onBack }: { isDark: boolean; onBack: () => void }) {
   const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
   const [form, setForm] = useState({ name: "", email: "", message: "" });
+
+  useEffect(() => applyPageMeta(
+    "Contact Janso Studio | Support, Feedback, and Feature Requests",
+    "Contact Janso Studio for support, bug reports, product feedback, or creator workflow questions.",
+  ), []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setForm((f) => ({ ...f, [e.target.name]: e.target.value }));

@@ -1,7 +1,9 @@
+import { useEffect } from "react";
 import { motion } from "motion/react";
 import { ArrowLeft, BookOpen, Gamepad2, UserX, CheckCircle2, Play, Users, Zap, Search, Mic, Wand2, Youtube } from "lucide-react";
 import { cn } from "@/src/lib/utils";
 import YouTubeLogoIcon from "@/src/components/icons/YouTubeLogoIcon";
+import { applyPageMeta } from "@/src/lib/seo";
 
 export type UseCaseSlug = "educators" | "gaming" | "faceless";
 
@@ -101,6 +103,21 @@ const CONFIGS = {
   },
 };
 
+const META_CONFIG = {
+  educators: {
+    title: "AI YouTube Tools for Educators and Tutorial Channels | Janso Studio",
+    description: "See how educators use Janso Studio for lesson scripting, voiceovers, accessibility, and YouTube SEO.",
+  },
+  gaming: {
+    title: "AI YouTube Tools for Gaming Creators and Streamers | Janso Studio",
+    description: "Discover how gaming creators use Janso Studio for clip extraction, Shorts workflows, and creator growth systems.",
+  },
+  faceless: {
+    title: "AI YouTube Tools for Faceless Channels | Janso Studio",
+    description: "Learn how faceless YouTube channels use Janso Studio for AI scripting, voiceovers, SEO, and scalable production.",
+  },
+} as const;
+
 type UseCasePageProps = {
   slug: UseCaseSlug;
   isDark: boolean;
@@ -112,6 +129,8 @@ type UseCasePageProps = {
 export function UseCasePage({ slug, isDark, isAuthenticated, onBack, onConnect }: UseCasePageProps) {
   const config = CONFIGS[slug];
   const BadgeIcon = config.badgeIcon;
+
+  useEffect(() => applyPageMeta(META_CONFIG[slug].title, META_CONFIG[slug].description), [slug]);
 
   return (
     <div className="w-full pb-20">

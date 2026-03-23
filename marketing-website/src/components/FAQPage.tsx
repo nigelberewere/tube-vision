@@ -1,5 +1,7 @@
+import { useEffect } from "react";
 import { motion } from "motion/react";
 import { cn } from "@/src/lib/utils";
+import { applyPageMeta } from "@/src/lib/seo";
 
 const FAQS = [
   {
@@ -33,6 +35,11 @@ const FAQS = [
 ];
 
 export function FAQPage({ isDark, onBack }: { isDark: boolean; onBack: () => void }) {
+  useEffect(() => applyPageMeta(
+    "Janso Studio FAQ | Privacy, BYOK, and Creator Workflow Questions",
+    "Read answers about Janso Studio privacy, browser-side processing, BYOK setup, exports, costs, and support.",
+  ), []);
+
   return (
     <div className={cn("w-full pb-12 transition-colors duration-500", isDark ? "text-slate-200" : "text-slate-900")}> 
       <div className="mx-auto w-full max-w-2xl px-4 pt-10 md:px-0 md:pt-16">
