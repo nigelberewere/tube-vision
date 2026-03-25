@@ -546,14 +546,14 @@ Return valid JSON only.`;
       (sum, row) => sum + toNumber(row.subscribersGained) - toNumber(row.subscribersLost),
       0,
     );
+    const latestCompletedDayViews = dailyObjects.length > 0 ? toNumber(dailyObjects[dailyObjects.length - 1]?.views) : 0;
 
     const todayHourlyMap = hourMap(analytics?.todayHourly);
     const yesterdayHourlyMap = hourMap(analytics?.yesterdayHourly);
-    const hasAnyRecentHourlyData = Object.keys(todayHourlyMap).length > 0 || Object.keys(yesterdayHourlyMap).length > 0;
     const currentHour = new Date().getHours();
     const previousHour = currentHour === 0 ? 23 : currentHour - 1;
 
-    const viewsLastHour =
+    const actualViewsLastHour =
       currentHour === 0
         ? (hasHourBucket(yesterdayHourlyMap, 23) ? toNumber(yesterdayHourlyMap[23]) : null)
         : (hasHourBucket(todayHourlyMap, previousHour) ? toNumber(todayHourlyMap[previousHour]) : null);
@@ -574,7 +574,13 @@ Return valid JSON only.`;
       rolling24Views += toNumber(sourceMap[hourIndex]);
     }
 
-    const viewsLast24Hours = complete24HourWindow ? rolling24Views : null;
+    const actualViewsLast24Hours = complete24HourWindow ? rolling24Views : null;
+    const fallbackViewsLastHour = avgViewsPerDay > 0 ? Math.max(1, Math.round(avgViewsPerDay / 24)) : null;
+    const fallbackViewsLast24Hours = latestCompletedDayViews > 0 ? latestCompletedDayViews : (avgViewsPerDay || null);
+    const usingHourlyViewsLastHour = actualViewsLastHour !== null;
+    const usingHourlyViewsLast24Hours = actualViewsLast24Hours !== null;
+    const viewsLastHour = actualViewsLastHour ?? fallbackViewsLastHour;
+    const viewsLast24Hours = actualViewsLast24Hours ?? fallbackViewsLast24Hours;
 
     const bestHour = [...hourlyObjects].sort((a, b) => toNumber(b.views) - toNumber(a.views))[0];
     const bestHourDisplay = bestHour
@@ -588,7 +594,9 @@ Return valid JSON only.`;
       netSubs30Days,
       viewsLastHour,
       viewsLast24Hours,
-      hasAnyRecentHourlyData,
+      viewsLastHourCaption: usingHourlyViewsLastHour ? 'Last completed hour' : 'Estimated from 30-day daily average',
+      viewsLast24HoursCaption: usingHourlyViewsLast24Hours ? 'Previous 24 completed hours' : 'Latest completed day total',
+      hasAnyRecentHourlyData: hourlyObjects.length > 0,
       bestHour: bestHourDisplay,
     };
   }, [analytics, bestPostingTime, dailyObjects, hourlyObjects]);
@@ -834,7 +842,7 @@ Return valid JSON only.`;
           <p className={cn('mt-4 text-xs font-bold uppercase tracking-wider', labelTextClass)}>Views Last Hour</p>
           <p className={cn('mt-1 text-2xl font-bold', strongTextClass)}>{metrics.viewsLastHour === null ? '--' : compact(metrics.viewsLastHour)}</p>
           <p className={cn('mt-1 text-xs', labelTextClass)}>
-            {metrics.viewsLastHour === null ? 'Hourly analytics unavailable' : 'Last completed hour'}
+            {metrics.viewsLastHour === null ? 'No recent view estimate yet' : metrics.viewsLastHourCaption}
           </p>
         </div>
 
@@ -845,7 +853,7 @@ Return valid JSON only.`;
           <p className={cn('mt-4 text-xs font-bold uppercase tracking-wider', labelTextClass)}>Views Last 24h</p>
           <p className={cn('mt-1 text-2xl font-bold', strongTextClass)}>{metrics.viewsLast24Hours === null ? '--' : compact(metrics.viewsLast24Hours)}</p>
           <p className={cn('mt-1 text-xs', labelTextClass)}>
-            {metrics.viewsLast24Hours === null ? '24 hourly buckets not available yet' : 'Previous 24 completed hours'}
+            {metrics.viewsLast24Hours === null ? 'No recent 24-hour view estimate yet' : metrics.viewsLast24HoursCaption}
           </p>
         </div>
 
