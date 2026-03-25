@@ -871,6 +871,13 @@ function summarizeGrowth(snapshots: SnapshotMetric[]) {
   const first = snapshots[0];
   const last = snapshots[snapshots.length - 1];
 
+  const avgDailyViews =
+    snapshots.length > 0
+      ? Math.round(
+          snapshots.reduce((sum, snapshot) => sum + toNumber(snapshot.estimatedDailyViews), 0) / snapshots.length,
+        )
+      : 0;
+
   return {
     period: `${snapshots.length} days`,
     subscriberGrowth: last.subscriberCount - first.subscriberCount,
@@ -880,7 +887,7 @@ function summarizeGrowth(snapshots: SnapshotMetric[]) {
         : 0,
     viewGrowth: last.viewCount - first.viewCount,
     videoGrowth: last.videoCount - first.videoCount,
-    avgDailyViews: Math.round(last.estimatedDailyViews),
+    avgDailyViews,
   };
 }
 
@@ -889,33 +896,72 @@ function filterSnapshotsByDays(snapshots: SnapshotMetric[], days: number): Snaps
   return snapshots.filter((snapshot) => snapshot.date >= cutoffIso);
 }
 
-async function getEstimatedDailyViews(accessToken: string): Promise<number> {
-  const authHeader = { Authorization: `Bearer ${accessToken}` };
+async function getEstimatedDailyViews(authHeader: Record<string, string>): Promise<number | null> {
   const endDate = new Date().toISOString().split('T')[0];
   const startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
   try {
     const analyticsResponse = await fetch(
-      `https://youtubeanalytics.googleapis.com/v2/reports?ids=channel==MINE&startDate=${startDate}&endDate=${endDate}&metrics=views`,
+      `https://youtubeanalytics.googleapis.com/v2/reports?ids=channel==MINE&startDate=${startDate}&endDate=${endDate}&metrics=views&dimensions=day&sort=day`,
       { headers: authHeader },
     );
 
     if (!analyticsResponse.ok) {
-      return 0;
+      const errorText = await analyticsResponse.text().catch(() => '');
+      console.warn('Daily views analytics request failed:', analyticsResponse.status, errorText);
+      return null;
     }
 
     const analyticsData = await analyticsResponse.json();
-    const rows = analyticsData.rows || [];
-    if (rows.length === 0) {
-      return 0;
+    if (analyticsData?.error) {
+      console.warn('Daily views analytics API error:', analyticsData.error);
+      return null;
     }
 
-    const totalViews = rows.reduce((sum: number, row: any[]) => sum + toNumber(row[0]), 0);
+    const rows = analyticsData.rows || [];
+    if (rows.length === 0) {
+      return null;
+    }
+
+    const totalViews = rows.reduce((sum: number, row: any[]) => sum + toNumber(row[1] ?? row[0]), 0);
     return Math.round(totalViews / Math.max(1, rows.length));
   } catch (error) {
     console.warn('Failed to fetch daily views for snapshot:', error);
-    return 0;
+    return null;
   }
+}
+
+async function getFallbackEstimatedDailyViews(
+  channelId: string,
+  snapshotUserId: string,
+  currentViewCount: number,
+): Promise<number | null> {
+  if (!supabaseServer) {
+    return null;
+  }
+
+  try {
+    const { data, error } = await supabaseServer
+      .from('channel_snapshots')
+      .select('total_views')
+      .eq('user_id', snapshotUserId)
+      .eq('channel_id', channelId)
+      .order('snapshot_date', { ascending: false })
+      .limit(1);
+
+    if (error) {
+      console.warn('Daily views fallback snapshot lookup failed:', error);
+      return null;
+    }
+
+    if (Array.isArray(data) && data.length > 0) {
+      return Math.max(0, currentViewCount - toNumber(data[0]?.total_views));
+    }
+  } catch (error) {
+    console.warn('Daily views fallback snapshot lookup exception:', error);
+  }
+
+  return null;
 }
 
 async function resolveSnapshotUserId(req: VercelRequest, channelId: string): Promise<string | null> {
@@ -963,6 +1009,7 @@ async function saveSnapshotToSupabase(
   const subscribers = toNumber(user?.channel?.statistics?.subscriberCount);
   const videoCount = toNumber(user?.channel?.statistics?.videoCount);
   const viewCount = toNumber(user?.channel?.statistics?.viewCount);
+  const authHeader = await getAuthHeaderForAccount(user);
 
   if (!force) {
     const { data: existing, error: existingError } = await supabaseServer
@@ -974,7 +1021,9 @@ async function saveSnapshotToSupabase(
       .maybeSingle();
 
     if (!existingError && existing) {
-      return { snapshot: mapSupabaseSnapshotRow(existing), created: false };
+      if (toNumber(existing.estimated_daily_views) > 0) {
+        return { snapshot: mapSupabaseSnapshotRow(existing), created: false };
+      }
     }
 
     if (existingError && existingError.code !== 'PGRST116') {
@@ -982,7 +1031,10 @@ async function saveSnapshotToSupabase(
     }
   }
 
-  const estimatedDailyViews = await getEstimatedDailyViews(String(user?.tokens?.access_token || ''));
+  const estimatedDailyViews =
+    (await getEstimatedDailyViews(authHeader)) ??
+    (await getFallbackEstimatedDailyViews(channelId, snapshotUserId, viewCount)) ??
+    0;
 
   const payload = {
     user_id: snapshotUserId,

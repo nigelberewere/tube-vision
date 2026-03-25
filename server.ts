@@ -3694,6 +3694,13 @@ Return as JSON.`;
     const first = snapshots[0];
     const last = snapshots[snapshots.length - 1];
 
+    const avgDailyViews =
+      snapshots.length > 0
+        ? Math.round(
+            snapshots.reduce((sum, snapshot) => sum + toNumber(snapshot.estimatedDailyViews), 0) / snapshots.length,
+          )
+        : 0;
+
     return {
       period: `${snapshots.length} days`,
       subscriberGrowth: last.subscriberCount - first.subscriberCount,
@@ -3703,7 +3710,7 @@ Return as JSON.`;
           : 0,
       viewGrowth: last.viewCount - first.viewCount,
       videoGrowth: last.videoCount - first.videoCount,
-      avgDailyViews: Math.round(last.estimatedDailyViews),
+      avgDailyViews,
     };
   };
 
@@ -3712,33 +3719,74 @@ Return as JSON.`;
     return snapshots.filter((snapshot) => snapshot.date >= cutoffIso);
   };
 
-  async function getEstimatedDailyViews(accessToken: string): Promise<number> {
-    const authHeader = { Authorization: `Bearer ${accessToken}` };
+  async function getEstimatedDailyViews(authHeader: Record<string, string>): Promise<number | null> {
     const endDate = new Date().toISOString().split("T")[0];
     const startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
 
     try {
       const analyticsResponse = await fetch(
-        `https://youtubeanalytics.googleapis.com/v2/reports?ids=channel==MINE&startDate=${startDate}&endDate=${endDate}&metrics=views`,
+        `https://youtubeanalytics.googleapis.com/v2/reports?ids=channel==MINE&startDate=${startDate}&endDate=${endDate}&metrics=views&dimensions=day&sort=day`,
         { headers: authHeader },
       );
 
       if (!analyticsResponse.ok) {
-        return 0;
+        const errorText = await analyticsResponse.text().catch(() => "");
+        console.warn("Daily views analytics request failed:", analyticsResponse.status, errorText);
+        return null;
       }
 
       const analyticsData = await analyticsResponse.json();
-      const rows = analyticsData.rows || [];
-      if (rows.length === 0) {
-        return 0;
+      if (analyticsData?.error) {
+        console.warn("Daily views analytics API error:", analyticsData.error);
+        return null;
       }
 
-      const totalViews = rows.reduce((sum: number, row: any[]) => sum + toNumber(row[0]), 0);
+      const rows = analyticsData.rows || [];
+      if (rows.length === 0) {
+        return null;
+      }
+
+      const totalViews = rows.reduce((sum: number, row: any[]) => sum + toNumber(row[1] ?? row[0]), 0);
       return Math.round(totalViews / Math.max(1, rows.length));
     } catch (error) {
       console.warn("Failed to fetch daily views for snapshot:", error);
-      return 0;
+      return null;
     }
+  }
+
+  async function getFallbackEstimatedDailyViews(
+    channelId: string,
+    snapshotUserId: string | null,
+    currentViewCount: number,
+  ): Promise<number | null> {
+    if (HAS_SUPABASE_SERVER && snapshotUserId) {
+      try {
+        const { data, error } = await supabaseServer
+          .from("channel_snapshots")
+          .select("total_views")
+          .eq("user_id", snapshotUserId)
+          .eq("channel_id", channelId)
+          .order("snapshot_date", { ascending: false })
+          .limit(1);
+
+        if (!error && Array.isArray(data) && data.length > 0) {
+          return Math.max(0, currentViewCount - toNumber(data[0]?.total_views));
+        }
+
+        if (error) {
+          console.warn("Daily views fallback snapshot lookup failed:", error);
+        }
+      } catch (error) {
+        console.warn("Daily views fallback snapshot lookup exception:", error);
+      }
+    }
+
+    const latest = getLatestSnapshot(channelId);
+    if (latest?.viewCount !== undefined) {
+      return Math.max(0, currentViewCount - toNumber(latest.viewCount));
+    }
+
+    return null;
   }
 
   async function resolveSnapshotUserId(req: express.Request, channelId: string): Promise<string | null> {
@@ -3854,13 +3902,17 @@ Return as JSON.`;
     const subscribers = toNumber(user.channel.statistics?.subscriberCount);
     const videoCount = toNumber(user.channel.statistics?.videoCount);
     const viewCount = toNumber(user.channel.statistics?.viewCount);
+    const authHeader = await getAuthHeaderForAccount(user);
 
     let estimatedDailyViews: number | null = null;
     const ensureEstimatedDailyViews = async () => {
       if (estimatedDailyViews !== null) {
         return estimatedDailyViews;
       }
-      estimatedDailyViews = await getEstimatedDailyViews(String(user.tokens.access_token || ""));
+      estimatedDailyViews =
+        (await getEstimatedDailyViews(authHeader)) ??
+        (await getFallbackEstimatedDailyViews(channelId, snapshotUserId, viewCount)) ??
+        0;
       return estimatedDailyViews;
     };
 
@@ -3875,11 +3927,13 @@ Return as JSON.`;
           .maybeSingle();
 
         if (!existingError && existing) {
-          return {
-            snapshot: mapSupabaseSnapshotRow(existing),
-            created: false,
-            storage: "supabase",
-          };
+          if (toNumber(existing.estimated_daily_views) > 0) {
+            return {
+              snapshot: mapSupabaseSnapshotRow(existing),
+              created: false,
+              storage: "supabase",
+            };
+          }
         }
 
         if (existingError && existingError.code !== "PGRST116") {
@@ -3918,7 +3972,7 @@ Return as JSON.`;
 
     if (!force) {
       const latest = getLatestSnapshot(channelId);
-      if (latest?.date === snapshotDate) {
+      if (latest?.date === snapshotDate && toNumber(latest.estimatedDailyViews) > 0) {
         return {
           snapshot: {
             date: latest.date,
