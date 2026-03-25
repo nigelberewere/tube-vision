@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ComposedChart } from 'recharts';
+import { Bar, CartesianGrid, ComposedChart, Legend, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { TrendingUp, TrendingDown, Zap } from 'lucide-react';
 import { fetchCachedJson } from '../lib/apiFetch';
 import { cn } from '../lib/utils';
@@ -94,8 +94,8 @@ export default function GrowthMomentum({ isConnected, className, theme = 'dark' 
   // Format chart data for recharts
   const chartData = displayData.map((item) => ({
     date: new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-    subscribers: item.subscriberCount,
-    views: Math.round(item.viewCount / 1000), // Show in thousands
+    subscriberChange: item.subscriberGrowth ?? 0,
+    totalSubscribers: item.subscriberCount,
     dailyViews: item.estimatedDailyViews,
   }));
 
@@ -129,6 +129,41 @@ export default function GrowthMomentum({ isConnected, className, theme = 'dark' 
   const tooltipBackground = isLightTheme ? '#ffffff' : '#0f172a';
   const tooltipBorder = isLightTheme ? '#e2e8f0' : 'rgba(148, 163, 184, 0.2)';
   const tooltipText = isLightTheme ? '#0f172a' : '#e2e8f0';
+  const chartPointFill = isLightTheme ? '#ffffff' : '#0f172a';
+  const compactNumber = (value: number) =>
+    Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 }).format(value);
+
+  const renderGrowthTooltip = ({ active, payload, label }: any) => {
+    if (!active || !payload?.length) {
+      return null;
+    }
+
+    const point = payload[0]?.payload;
+
+    return (
+      <div
+        style={{
+          backgroundColor: tooltipBackground,
+          border: `1px solid ${tooltipBorder}`,
+          borderRadius: '12px',
+          color: tooltipText,
+          padding: '12px 14px',
+          boxShadow: isLightTheme ? '0 12px 30px rgba(15, 23, 42, 0.08)' : '0 18px 36px rgba(2, 6, 23, 0.5)',
+        }}
+      >
+        <p className="mb-2 text-sm font-semibold">{label}</p>
+        <div className="space-y-1 text-sm">
+          <p>Daily views: {formatNumber(point?.dailyViews)}</p>
+          <p>
+            Subscriber change:{' '}
+            {point?.subscriberChange > 0 ? '+' : ''}
+            {formatNumber(point?.subscriberChange)}
+          </p>
+          <p>Total subscribers: {formatNumber(point?.totalSubscribers)}</p>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className={cn('space-y-6', className)}>
@@ -237,6 +272,9 @@ export default function GrowthMomentum({ isConnected, className, theme = 'dark' 
       {chartData.length > 0 ? (
         <div className={cn('rounded-lg border p-4 sm:p-6', cardClass)}>
           <h3 className={cn('mb-4 text-lg font-semibold', headingClass)}>Growth Trend</h3>
+          <p className={cn('mb-4 text-sm', mutedClass)}>
+            Bars show estimated daily views. The line shows subscribers gained or lost each day.
+          </p>
           <ResponsiveContainer width="100%" height={280}>
             <ComposedChart data={chartData} margin={{ top: 5, right: 12, left: -18, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
@@ -244,33 +282,32 @@ export default function GrowthMomentum({ isConnected, className, theme = 'dark' 
                 dataKey="date" 
                 style={{ color: axisColor }}
               />
-              <YAxis yAxisId="left" style={{ color: axisColor }} />
-              <YAxis yAxisId="right" orientation="right" style={{ color: axisColor }} />
+              <YAxis
+                yAxisId="left"
+                style={{ color: axisColor }}
+                tickFormatter={(value: number) => `${value > 0 ? '+' : ''}${value}`}
+                width={44}
+              />
+              <YAxis
+                yAxisId="right"
+                orientation="right"
+                style={{ color: axisColor }}
+                tickFormatter={(value: number) => compactNumber(value)}
+                width={44}
+              />
               <Tooltip 
-                contentStyle={{
-                  backgroundColor: tooltipBackground,
-                  borderColor: tooltipBorder,
-                  borderRadius: '8px',
-                  color: tooltipText,
-                }}
-                labelStyle={{ color: tooltipText }}
-                itemStyle={{ color: tooltipText }}
-                formatter={(value: any) => {
-                  if (typeof value === 'number') {
-                    return [formatNumber(value), ''];
-                  }
-                  return value;
-                }}
+                content={renderGrowthTooltip}
               />
               <Legend wrapperStyle={{ color: tooltipText }} />
               <Line
                 yAxisId="left"
                 type="monotone"
-                dataKey="subscribers"
+                dataKey="subscriberChange"
                 stroke="#3b82f6"
                 strokeWidth={2}
-                dot={false}
-                name="Subscribers"
+                dot={{ r: 3, strokeWidth: 2, fill: chartPointFill }}
+                activeDot={{ r: 5 }}
+                name="Subscriber change"
               />
               <Bar
                 yAxisId="right"
@@ -278,6 +315,7 @@ export default function GrowthMomentum({ isConnected, className, theme = 'dark' 
                 fill="#8b5cf6"
                 opacity={0.7}
                 name="Daily Views"
+                radius={[6, 6, 0, 0]}
               />
             </ComposedChart>
           </ResponsiveContainer>
