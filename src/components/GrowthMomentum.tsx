@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ComposedChart } from 'recharts';
 import { TrendingUp, TrendingDown, Zap } from 'lucide-react';
+import { fetchCachedJson } from '../lib/apiFetch';
 import { cn } from '../lib/utils';
 
 interface GrowthMetric {
@@ -44,19 +45,9 @@ export default function GrowthMomentum({ isConnected, className, theme = 'dark' 
     setError(null);
 
     try {
-      // Ensure today's snapshot exists before loading trend endpoints.
-      const saveResponse = await fetch('/api/snapshots/save', { method: 'POST' });
-      if (saveResponse.status === 401) {
-        setError('Reconnect your YouTube account');
-        return;
-      }
-      if (!saveResponse.ok) {
-        console.warn('Snapshot save endpoint returned non-OK status:', saveResponse.status);
-      }
-
       const [historyRes, momentumRes] = await Promise.all([
-        fetch('/api/snapshots/history?days=90'),
-        fetch('/api/snapshots/momentum'),
+        fetchCachedJson<{ snapshots?: GrowthMetric[] }>('/api/snapshots/history?days=90', { ttlMs: 5 * 60 * 1000 }),
+        fetchCachedJson<{ momentum?: { week?: Momentum; month?: Momentum; quarter?: Momentum } }>('/api/snapshots/momentum', { ttlMs: 5 * 60 * 1000 }),
       ]);
 
       if (!historyRes.ok || !momentumRes.ok) {
@@ -68,8 +59,8 @@ export default function GrowthMomentum({ isConnected, className, theme = 'dark' 
         throw new Error('Failed to fetch growth data');
       }
 
-      const historyJson = await historyRes.json();
-      const momentumJson = await momentumRes.json();
+      const historyJson = historyRes.data || {};
+      const momentumJson = momentumRes.data || {};
 
       setHistoryData(historyJson.snapshots || []);
       setMomentum(momentumJson.momentum);
@@ -84,8 +75,7 @@ export default function GrowthMomentum({ isConnected, className, theme = 'dark' 
   useEffect(() => {
     if (isConnected) {
       fetchGrowthData();
-      // Refresh every 6 hours
-      const interval = setInterval(fetchGrowthData, 6 * 60 * 60 * 1000);
+      const interval = setInterval(fetchGrowthData, 12 * 60 * 60 * 1000);
       return () => clearInterval(interval);
     }
   }, [isConnected]);

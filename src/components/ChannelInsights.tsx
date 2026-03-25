@@ -25,16 +25,23 @@ import {
   ArrowDownRight
 } from 'lucide-react';
 import { ShimmerChart, ShimmerStat } from './Shimmer';
+import { fetchCachedJson } from '../lib/apiFetch';
 import { cn } from '../lib/utils';
 
 interface AnalyticsData {
   daily: {
     columnHeaders: any[];
     rows: any[][];
+    error?: {
+      message?: string;
+    };
   };
   hourly: {
     columnHeaders: any[];
     rows: any[][];
+    error?: {
+      message?: string;
+    };
   };
   todayHourly?: {
     columnHeaders?: any[];
@@ -104,12 +111,16 @@ export default function ChannelInsights() {
     setError(null);
     try {
       const [response, bestPostingResponse] = await Promise.all([
-        fetch('/api/user/analytics'),
-        fetch('/api/user/best-posting-time'),
+        fetchCachedJson<AnalyticsData>('/api/user/analytics', { ttlMs: 10 * 60 * 1000 }),
+        fetchCachedJson<BestPostingTimeData>('/api/user/best-posting-time', { ttlMs: 10 * 60 * 1000 }),
       ]);
 
       if (response.ok) {
-        const result = await response.json();
+        const result = response.data;
+        if (!result) {
+          setError("Failed to fetch analytics data.");
+          return;
+        }
         if (result.daily.error || result.hourly.error) {
            setError("YouTube Analytics API returned an error. Make sure you have granted the required permissions and your channel has enough data.");
         } else {
@@ -122,7 +133,7 @@ export default function ChannelInsights() {
       }
 
       if (bestPostingResponse.ok) {
-        const bestPostingResult = await bestPostingResponse.json();
+        const bestPostingResult = bestPostingResponse.data;
         if (typeof bestPostingResult?.bestHour === 'number') {
           setBestPostingTime({ bestHour: bestPostingResult.bestHour });
         } else {

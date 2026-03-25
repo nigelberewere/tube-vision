@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { generateVidVisionInsight } from '../services/geminiService';
 import { Type } from '@google/genai';
 import { Loader2, Users, Mail, Copy, Check, ExternalLink, Play, TrendingUp } from 'lucide-react';
+import { fetchCachedJson } from '../lib/apiFetch';
 
 interface Creator {
   id: string;
@@ -68,9 +69,9 @@ export default function CollaborationEngine() {
     const loadUserChannel = async () => {
       try {
         setLoading(true);
-        const response = await fetch('/api/user/channel');
+        const response = await fetchCachedJson<any>('/api/user/channel', { ttlMs: 2 * 60 * 1000 });
         if (response.ok) {
-          const data = await response.json();
+          const data = response.data;
           const normalized = normalizeChannelPayload(data);
           if (!normalized?.id) {
             setError('Unable to load your channel info. Please reconnect your account.');

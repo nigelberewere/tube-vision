@@ -47,6 +47,7 @@ import YouTubeLogoIcon from './components/icons/YouTubeLogoIcon';
 import YouTubeMyVideosIcon from './components/icons/YouTubeMyVideosIcon';
 import YouTubeLogoBlackIcon from './components/icons/YouTubeLogoBlackIcon';
 import { GEMINI_USER_ERROR_EVENT, type GeminiUserErrorDetail } from './lib/geminiErrorEvents';
+import { fetchCachedJson, invalidateApiCache } from './lib/apiFetch';
 import { setSharedAuthState } from './lib/sharedAuthCookie';
 import { useAuth } from './lib/supabaseAuth';
 
@@ -470,13 +471,14 @@ export default function App() {
       }
 
       // Fetch all accounts
-      const accountsResponse = await fetch('/api/user/accounts', {
+      const accountsResponse = await fetchCachedJson<{ accounts?: User[]; activeIndex?: number }>('/api/user/accounts', {
         headers: authHeaders,
         credentials: 'include',
-        cache: 'no-store',
+        ttlMs: shouldFinalizePendingYouTubeAccount ? 0 : 30_000,
+        bypassCache: shouldFinalizePendingYouTubeAccount,
       });
       if (accountsResponse.ok) {
-        const accountsData = await accountsResponse.json();
+        const accountsData = accountsResponse.data || {};
         const nextAccounts = Array.isArray(accountsData.accounts) ? accountsData.accounts : [];
         const nextActiveIndex = Number.isInteger(accountsData.activeIndex) ? accountsData.activeIndex : 0;
         if (requestId !== fetchUserRequestIdRef.current) {
@@ -494,20 +496,21 @@ export default function App() {
         
         // Fetch active account details
         if (nextAccounts.length > 0) {
-          const channelResponse = await fetch('/api/user/channel', {
+          const channelResponse = await fetchCachedJson<User>('/api/user/channel', {
             headers: authHeaders,
             credentials: 'include',
-            cache: 'no-store',
+            ttlMs: shouldFinalizePendingYouTubeAccount ? 0 : 30_000,
+            bypassCache: shouldFinalizePendingYouTubeAccount,
           });
           if (requestId !== fetchUserRequestIdRef.current) {
             return;
           }
           if (channelResponse.ok) {
-            const channelData = await channelResponse.json();
+            const channelData = channelResponse.data;
             if (requestId !== fetchUserRequestIdRef.current) {
               return;
             }
-            setUser(channelData);
+            setUser(channelData || null);
           }
         }
       } else {
@@ -532,8 +535,6 @@ export default function App() {
   };
 
   useEffect(() => {
-    fetchUser();
-
     const handleMessage = (event: MessageEvent) => {
       // Security: validate message origin in production
       // if (process.env.NODE_ENV === 'production' && event.origin !== window.location.origin) {
@@ -815,14 +816,16 @@ export default function App() {
       // Poll account state instead of popup.closed to avoid COOP warnings in modern browsers.
       const checkInterval = window.setInterval(async () => {
         try {
-          const accountsResponse = await fetch('/api/user/accounts', {
+          const accountsResponse = await fetchCachedJson<{ accounts?: User[]; activeIndex?: number }>('/api/user/accounts', {
             headers: getSupabaseAuthHeaders(),
+            ttlMs: 0,
+            bypassCache: true,
           });
           if (!accountsResponse.ok) {
             return;
           }
 
-          const accountsData = await accountsResponse.json();
+          const accountsData = accountsResponse.data || {};
           const nextAccounts = Array.isArray(accountsData.accounts) ? accountsData.accounts : [];
           const nextActiveIndex = Number.isInteger(accountsData.activeIndex) ? accountsData.activeIndex : 0;
           const nextActiveChannelId = nextAccounts[nextActiveIndex]?.channel?.id || null;
@@ -838,10 +841,10 @@ export default function App() {
         } catch {
           // Ignore transient polling errors while OAuth flow is in progress.
         }
-      }, 1500);
+      }, 5000);
 
-      // Safety timeout: stop checking after 2 minutes
-      window.setTimeout(() => window.clearInterval(checkInterval), 2 * 60 * 1000);
+      // Safety timeout: stop checking after 45 seconds
+      window.setTimeout(() => window.clearInterval(checkInterval), 45 * 1000);
     } catch (error) {
       console.error('[Connect Error] Exception:', error);
       alert('An error occurred. Check browser console for details.');
@@ -849,6 +852,7 @@ export default function App() {
   };
 
   const handleLogout = () => {
+    invalidateApiCache();
     setSharedAuthState({ isAuthenticated: false, profile: null });
 
     // Remove persisted Supabase session tokens before any async work.
@@ -926,6 +930,7 @@ export default function App() {
       });
       
       if (response.ok) {
+        invalidateApiCache();
         setActiveAccountIndex(index);
         setUser(accounts[index] || null);
         setRecentlyActivatedAccountIndex(index);
@@ -967,6 +972,7 @@ export default function App() {
       });
       
       if (response.ok) {
+        invalidateApiCache();
         await fetchUser();
       }
     } catch (error) {

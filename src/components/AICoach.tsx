@@ -17,6 +17,7 @@ import {
   X,
   RefreshCw
 } from 'lucide-react';
+import { fetchCachedJson } from '../lib/apiFetch';
 import { cn } from '../lib/utils';
 import Markdown from 'react-markdown';
 import { useAuth } from '../lib/supabaseAuth';
@@ -562,12 +563,15 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
       }
 
       try {
-        const response = await fetch('/api/coach/insight-alert');
+        const response = await fetchCachedJson<{ alert?: InsightAlert }>('/api/coach/insight-alert', {
+          ttlMs: 20 * 60 * 1000,
+          bypassCache: !silent,
+        });
         if (!response.ok) {
           return;
         }
 
-        const payload = await response.json();
+        const payload = response.data || {};
         const alert = payload?.alert;
 
         if (cancelled) {
@@ -603,7 +607,7 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
 
     const intervalId = window.setInterval(() => {
       fetchInsightAlert(true);
-    }, 5 * 60 * 1000);
+    }, 20 * 60 * 1000);
 
     return () => {
       cancelled = true;
@@ -1043,8 +1047,11 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
                 <button
                   onClick={() => {
                     setLoadingInsightAlert(true);
-                    fetch('/api/coach/insight-alert')
-                      .then((response) => (response.ok ? response.json() : null))
+                    fetchCachedJson<{ alert?: InsightAlert }>('/api/coach/insight-alert', {
+                      ttlMs: 0,
+                      bypassCache: true,
+                    })
+                      .then((response) => (response.ok ? response.data : null))
                       .then((payload) => {
                         const alert = payload?.alert;
                         if (

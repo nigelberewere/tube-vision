@@ -15,6 +15,7 @@ import {
   Wand2,
 } from 'lucide-react';
 import { generateThumbnailImage, generateVidVisionInsight } from '../services/geminiService';
+import { fetchCachedJson } from '../lib/apiFetch';
 import { getModelLabel } from '../lib/modelStorage';
 import { loadBrandKit } from './BrandKit';
 import { parseApiErrorResponse } from '../lib/youtubeApiErrors';
@@ -353,7 +354,7 @@ export default function ThumbnailConcepting() {
     setVideosError(null);
 
     try {
-      const response = await fetch('/api/user/videos');
+      const response = await fetchCachedJson<VideoItem[]>('/api/user/videos', { ttlMs: 5 * 60 * 1000 });
       if (response.status === 401) {
         setNeedsConnection(true);
         setVideos([]);
@@ -361,11 +362,11 @@ export default function ThumbnailConcepting() {
       }
 
       if (!response.ok) {
-        const message = await parseApiErrorResponse(response, 'Failed to fetch your videos.');
+        const message = await parseApiErrorResponse(response.response, 'Failed to fetch your videos.');
         throw new Error(message);
       }
 
-      const data = (await response.json()) as VideoItem[];
+      const data = (response.data || []) as VideoItem[];
       setNeedsConnection(false);
       setVideos(data || []);
       return data || [];

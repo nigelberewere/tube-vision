@@ -10,6 +10,7 @@ import {
   Sparkles
 } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { fetchCachedJson } from '../lib/apiFetch';
 import { parseApiErrorResponse } from '../lib/youtubeApiErrors';
 import { ShimmerVideoCard } from './Shimmer';
 
@@ -51,14 +52,14 @@ export default function VideoList({ onOptimizeSEO }: VideoListProps = {}) {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch('/api/user/videos');
+      const response = await fetchCachedJson<Video[]>('/api/user/videos', { ttlMs: 5 * 60 * 1000 });
       if (response.ok) {
-        const data = await response.json();
+        const data = response.data || [];
         setVideos(data);
       } else if (response.status === 401) {
         setError("Please connect your YouTube account to view your videos.");
       } else {
-        const message = await parseApiErrorResponse(response, 'Failed to fetch your videos.');
+        const message = await parseApiErrorResponse(response.response, 'Failed to fetch your videos.');
         setError(message);
       }
     } catch (err) {

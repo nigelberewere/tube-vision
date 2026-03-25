@@ -22,6 +22,7 @@ import { ShimmerCard, ShimmerStat, ShimmerChart } from './Shimmer';
 import GrowthMomentum from './GrowthMomentum';
 import { generateVidVisionInsight } from '../services/geminiService';
 import { Type } from '@google/genai';
+import { fetchCachedJson } from '../lib/apiFetch';
 import { cn } from '../lib/utils';
 
 interface ChannelInfo {
@@ -248,10 +249,10 @@ export default function HomeDashboard({
 
     try {
       const [channelResponse, analyticsResponse, videosResponse, bestTimeResponse] = await Promise.all([
-        fetch('/api/user/channel?refresh=1', { cache: 'no-store' }),
-        fetch('/api/user/analytics'),
-        fetch('/api/user/videos'),
-        fetch('/api/user/best-posting-time'),
+        fetchCachedJson<ChannelResponse & ChannelInfo>('/api/user/channel', { ttlMs: 2 * 60 * 1000 }),
+        fetchCachedJson<AnalyticsPayload>('/api/user/analytics', { ttlMs: 10 * 60 * 1000 }),
+        fetchCachedJson<VideoItem[]>('/api/user/videos', { ttlMs: 5 * 60 * 1000 }),
+        fetchCachedJson<BestPostingTime>('/api/user/best-posting-time', { ttlMs: 10 * 60 * 1000 }),
       ]);
 
       if (channelResponse.status === 401 || analyticsResponse.status === 401 || videosResponse.status === 401) {
@@ -260,12 +261,12 @@ export default function HomeDashboard({
       }
 
       if (channelResponse.ok) {
-        const channelData = (await channelResponse.json()) as ChannelResponse & ChannelInfo;
+        const channelData = (channelResponse.data || null) as (ChannelResponse & ChannelInfo) | null;
         setLiveChannel(channelData.channel ?? channelData ?? null);
       }
 
       if (!analyticsResponse.ok) {
-        const errorData = await analyticsResponse.json();
+        const errorData = analyticsResponse.data as any;
         // Check if it's the YouTube Analytics API not enabled error
         if (errorData.error && errorData.error.includes('youtubeanalytics.googleapis.com')) {
           throw new Error('ANALYTICS_API_DISABLED');
@@ -273,7 +274,10 @@ export default function HomeDashboard({
         throw new Error(errorData.error || 'Failed to fetch analytics for homepage.');
       }
 
-      const analyticsData = (await analyticsResponse.json()) as AnalyticsPayload;
+      const analyticsData = (analyticsResponse.data || null) as AnalyticsPayload | null;
+      if (!analyticsData) {
+        throw new Error('Failed to fetch analytics for homepage.');
+      }
       if (analyticsData.daily?.error || analyticsData.hourly?.error) {
         const message = analyticsData.daily?.error?.message || analyticsData.hourly?.error?.message;
         throw new Error(message || 'YouTube Analytics returned an error for your channel.');
@@ -282,14 +286,14 @@ export default function HomeDashboard({
       setAnalytics(analyticsData);
 
       if (videosResponse.ok) {
-        const videosData = (await videosResponse.json()) as VideoItem[];
+        const videosData = (videosResponse.data || []) as VideoItem[];
         setVideos(videosData || []);
       } else {
         setVideos([]);
       }
 
       if (bestTimeResponse.ok) {
-        const bestTimeData = (await bestTimeResponse.json()) as BestPostingTime;
+        const bestTimeData = (bestTimeResponse.data || null) as BestPostingTime | null;
         setBestPostingTime(bestTimeData);
       } else {
         setBestPostingTime(null);
@@ -498,7 +502,7 @@ Return valid JSON only.`;
 
     const pollId = window.setInterval(() => {
       fetchDashboard();
-    }, 5 * 60 * 1000);
+    }, 15 * 60 * 1000);
 
     return () => window.clearInterval(pollId);
     // eslint-disable-next-line react-hooks/exhaustive-deps

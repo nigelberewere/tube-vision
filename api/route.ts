@@ -69,6 +69,13 @@ const CLEAR_COOKIE_BASE_OPTIONS = APP_URL.startsWith('https://')
   ? 'Path=/; HttpOnly; SameSite=None; Secure; Max-Age=0'
   : 'Path=/; HttpOnly; SameSite=Lax; Max-Age=0';
 
+function setPrivateCacheHeaders(res: VercelResponse, maxAgeSeconds: number, staleWhileRevalidateSeconds = maxAgeSeconds) {
+  res.setHeader(
+    'Cache-Control',
+    `private, max-age=${Math.max(0, maxAgeSeconds)}, stale-while-revalidate=${Math.max(0, staleWhileRevalidateSeconds)}`,
+  );
+}
+
 function signOAuthState(payload: { redirectTo: string; supabaseUserId: string | null; issuedAt: number }) {
   return createHmac('sha256', OAUTH_STATE_SECRET)
     .update(JSON.stringify(payload))
@@ -1391,6 +1398,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   // Get user channel data
   if (path === 'api/user/channel') {
+    setPrivateCacheHeaders(res, 60, 5 * 60);
     const { accounts, activeIndex } = await getUnifiedAccountsAndActiveIndex(req);
     let userData = accounts[activeIndex];
     if (!userData) {
@@ -1823,6 +1831,7 @@ Recent videos: ${recentTitles.join(' | ') || 'No recent titles'}`;
 
   // Proactive AI coaching insight alert
   if (path === 'api/coach/insight-alert') {
+    setPrivateCacheHeaders(res, 5 * 60, 20 * 60);
     const userData = await getActiveYouTubeUser(req);
     if (!userData) {
       return res.status(401).json({ error: 'Not authenticated' });
@@ -2110,6 +2119,7 @@ Return JSON with:
 
   // Get all accounts
   if (path === 'api/user/accounts') {
+    setPrivateCacheHeaders(res, 30, 60);
     const { accounts, activeIndex } = await getUnifiedAccountsAndActiveIndex(req);
 
     try {
@@ -2323,6 +2333,7 @@ Return JSON with:
 
   // Get user videos
   if (path === 'api/user/videos') {
+    setPrivateCacheHeaders(res, 5 * 60, 10 * 60);
     const userData = await getActiveYouTubeUser(req);
     if (!userData) {
       return res.status(401).json({ error: 'Not authenticated' });
@@ -2710,6 +2721,7 @@ Return JSON with:
 
   // Get user analytics
   if (path === 'api/user/analytics') {
+    setPrivateCacheHeaders(res, 10 * 60, 20 * 60);
     const userData = await getActiveYouTubeUser(req);
     if (!userData) {
       return res.status(401).json({ error: 'Not authenticated' });
@@ -2785,6 +2797,7 @@ Return JSON with:
 
   // Best posting time recommendation
   if (path === 'api/user/best-posting-time') {
+    setPrivateCacheHeaders(res, 10 * 60, 20 * 60);
     const userData = await getActiveYouTubeUser(req);
     if (!userData) {
       return res.status(401).json({ error: 'Not authenticated' });
@@ -4020,6 +4033,7 @@ Return as JSON.`;
   }
 
   if (path === 'api/snapshots/history' && req.method === 'GET') {
+    setPrivateCacheHeaders(res, 5 * 60, 10 * 60);
     const user = await getActiveYouTubeUser(req);
     if (!user || !user.tokens || !user.channel?.id) {
       return res.status(401).json({ error: 'Not authenticated or no channel connected' });
@@ -4034,12 +4048,6 @@ Return as JSON.`;
     }
 
     try {
-      try {
-        await saveSnapshotToSupabase(user, snapshotUserId, false);
-      } catch (snapshotError) {
-        console.warn('Snapshot auto-save skipped while loading history:', snapshotError);
-      }
-
       const snapshots = await fetchSupabaseSnapshots(channelId, days, snapshotUserId);
 
       return res.json({
@@ -4057,6 +4065,7 @@ Return as JSON.`;
   }
 
   if (path === 'api/snapshots/momentum' && req.method === 'GET') {
+    setPrivateCacheHeaders(res, 5 * 60, 10 * 60);
     const user = await getActiveYouTubeUser(req);
     if (!user || !user.tokens || !user.channel?.id) {
       return res.status(401).json({ error: 'Not authenticated or no channel connected' });

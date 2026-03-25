@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { generateVidVisionInsight } from '../services/geminiService';
 import { Type } from '@google/genai';
 import { Loader2, MessageSquare, TrendingUp, AlertCircle, CheckCircle, Copy, Check, Search } from 'lucide-react';
+import { fetchCachedJson } from '../lib/apiFetch';
 import { cn } from '../lib/utils';
 import { parseApiErrorResponse } from '../lib/youtubeApiErrors';
 
@@ -77,9 +78,9 @@ export default function CommentStrategist({ videoId }: CommentStrategistProps) {
     const loadVideos = async () => {
       setLoadingVideos(true);
       try {
-        const response = await fetch('/api/user/videos?maxResults=10');
+        const response = await fetchCachedJson<any>('/api/user/videos?maxResults=10', { ttlMs: 5 * 60 * 1000 });
         if (response.ok) {
-          const data = await response.json();
+          const data = response.data;
           const rawVideos = Array.isArray(data) ? data : data.items || [];
           const normalizedVideos = rawVideos
             .map((video: any) => {
@@ -101,7 +102,7 @@ export default function CommentStrategist({ videoId }: CommentStrategistProps) {
         } else if (response.status === 401) {
           setError('Please connect your YouTube account to load videos.');
         } else {
-          const message = await parseApiErrorResponse(response, 'Failed to load videos for comment analysis.');
+          const message = await parseApiErrorResponse(response.response, 'Failed to load videos for comment analysis.');
           setError(message);
         }
       } catch (err) {

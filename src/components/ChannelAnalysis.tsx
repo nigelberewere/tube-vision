@@ -17,6 +17,7 @@ import {
   FileText
 } from 'lucide-react';
 import { ShimmerTable, ShimmerCard } from './Shimmer';
+import { fetchCachedJson } from '../lib/apiFetch';
 import { cn } from '../lib/utils';
 import YouTubeLogoIcon from './icons/YouTubeLogoIcon';
 
@@ -51,9 +52,9 @@ export default function ChannelAnalysis() {
   const fetchVideos = async () => {
     setLoading(true);
     try {
-      const response = await fetch('/api/user/videos');
+      const response = await fetchCachedJson<any[]>('/api/user/videos', { ttlMs: 5 * 60 * 1000 });
       if (response.ok) {
-        const data = await response.json();
+        const data = response.data || [];
         setVideos(data);
       }
     } catch (error) {
