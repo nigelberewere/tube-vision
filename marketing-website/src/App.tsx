@@ -174,6 +174,16 @@ export default function App() {
   const isDark = theme === "dark";
   const isAuthenticated = authState.isAuthenticated;
 
+  const navigateToPath = (path: string) => {
+    window.history.pushState({}, "", path);
+    setPage(getPageFromPath(path));
+    setCurrentFeatureSlug(getFeatureSlugFromPath(path));
+    setCurrentGuideSlug(getGuideSlugFromPath(path));
+    setCurrentUseCaseSlug(getUseCaseSlugFromPath(path));
+    setCurrentBlogPostSlug(getBlogPostSlugFromPath(path));
+    window.scrollTo({ top: 0, behavior: "auto" });
+  };
+
   const openDashboardAuth = () => {
     if (isAuthenticated) {
       window.location.assign(getDashboardUrl());
@@ -184,109 +194,49 @@ export default function App() {
   };
 
   const goHome = () => {
-    window.history.pushState({}, "", "/");
-    setPage("home");
-    setCurrentFeatureSlug(null);
-    setCurrentGuideSlug(null);
-    setCurrentUseCaseSlug(null);
-    setCurrentBlogPostSlug(null);
-    window.scrollTo({ top: 0, behavior: "auto" });
+    navigateToPath("/");
   };
 
   const goToFeature = (slug: string) => {
     if (Object.values(FEATURE_ROUTE_MAP).includes(slug as FeatureSlug)) {
-      window.history.pushState({}, "", `/features/${slug}`);
-      setPage("feature");
-      setCurrentFeatureSlug(slug as FeatureSlug);
-      setCurrentGuideSlug(null);
-      setCurrentUseCaseSlug(null);
-      setCurrentBlogPostSlug(null);
-      window.scrollTo({ top: 0, behavior: "auto" });
+      navigateToPath(`/features/${slug}`);
     }
   };
 
   const goToGuide = (slug: string) => {
     if (Object.values(GUIDE_ROUTE_MAP).includes(slug as GuideSlug)) {
-      window.history.pushState({}, "", `/guides/${slug}`);
-      setPage("guide");
-      setCurrentGuideSlug(slug as GuideSlug);
-      setCurrentFeatureSlug(null);
-      setCurrentUseCaseSlug(null);
-      setCurrentBlogPostSlug(null);
-      window.scrollTo({ top: 0, behavior: "auto" });
+      navigateToPath(`/guides/${slug}`);
     }
   };
 
   const goToAbout = () => {
-    window.history.pushState({}, "", "/about");
-    setPage("about");
-    setCurrentFeatureSlug(null);
-    setCurrentGuideSlug(null);
-    setCurrentUseCaseSlug(null);
-    setCurrentBlogPostSlug(null);
-    window.scrollTo({ top: 0, behavior: "auto" });
+    navigateToPath("/about");
   };
 
   const goToUseCase = (slug: string) => {
     if (Object.values(USECASE_ROUTE_MAP).includes(slug as UseCaseSlug)) {
-      window.history.pushState({}, "", `/use-cases/${slug}`);
-      setPage("usecase");
-      setCurrentUseCaseSlug(slug as UseCaseSlug);
-      setCurrentFeatureSlug(null);
-      setCurrentGuideSlug(null);
-      setCurrentBlogPostSlug(null);
-      window.scrollTo({ top: 0, behavior: "auto" });
+      navigateToPath(`/use-cases/${slug}`);
     }
   };
 
   const goToFreeTools = () => {
-    window.history.pushState({}, "", "/free-tools");
-    setPage("free_tools");
-    setCurrentFeatureSlug(null);
-    setCurrentGuideSlug(null);
-    setCurrentUseCaseSlug(null);
-    setCurrentBlogPostSlug(null);
-    window.scrollTo({ top: 0, behavior: "auto" });
+    navigateToPath("/free-tools");
   };
 
   const goToContact = () => {
-    window.history.pushState({}, "", "/contact");
-    setPage("contact");
-    setCurrentFeatureSlug(null);
-    setCurrentGuideSlug(null);
-    setCurrentUseCaseSlug(null);
-    setCurrentBlogPostSlug(null);
-    window.scrollTo({ top: 0, behavior: "auto" });
+    navigateToPath("/contact");
   };
 
   const goToFAQ = () => {
-    window.history.pushState({}, "", "/faq");
-    setPage("faq");
-    setCurrentFeatureSlug(null);
-    setCurrentGuideSlug(null);
-    setCurrentUseCaseSlug(null);
-    setCurrentBlogPostSlug(null);
-    window.scrollTo({ top: 0, behavior: "auto" });
+    navigateToPath("/faq");
   };
 
   const goToBlog = () => {
-    window.history.pushState({}, "", "/blog");
-    setPage("blog");
-    setCurrentFeatureSlug(null);
-    setCurrentGuideSlug(null);
-    setCurrentUseCaseSlug(null);
-    setCurrentBlogPostSlug(null);
-    window.scrollTo({ top: 0, behavior: "auto" });
+    navigateToPath("/blog");
   };
 
   const goToBlogPost = (slug: string) => {
-    window.history.pushState({}, "", `/blog/${slug}`);
-    setPage("blog_post");
-    setCurrentBlogPostSlug(slug);
-    setCurrentFeatureSlug(null);
-    setCurrentGuideSlug(null);
-    setCurrentUseCaseSlug(null);
-    window.scrollTo({ top: 0, behavior: "auto" });
+    navigateToPath(`/blog/${slug}`);
   };
 
   if (page === "privacy" || page === "terms") {
@@ -381,7 +331,7 @@ export default function App() {
         {mainContent}
       </main>
 
-      <Footer isDark={isDark} />
+      <Footer isDark={isDark} onNavigateInternal={navigateToPath} />
       <CookieConsentBanner theme={isDark ? "dark" : "light"} />
     </div>
   );

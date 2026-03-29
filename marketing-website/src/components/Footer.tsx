@@ -4,16 +4,17 @@ import { cn } from "@/src/lib/utils";
 
 type FooterProps = {
   isDark: boolean;
+  onNavigateInternal: (href: string) => void;
 };
 
 const FEATURE_LINKS = [
   { label: "AI Script Architect", href: "/features/script-architect" },
   { label: "Viral Clip Creator", href: "/features/viral-clip-creator" },
   { label: "Voice Over Studio", href: "/features/voice-over-studio" },
-  { label: "YouTube SEO & Keywords", href: "/features/seo-optimizer" },
+  { label: "YouTube SEO & Keywords", href: "/features/youtube-seo" },
   { label: "Thumbnail Studio", href: "/features/thumbnail-studio" },
   { label: "AI YouTube Coach", href: "/features/ai-youtube-coach" },
-  { label: "Analytics Dashboard", href: "/features/youtube-analytics-dashboard" },
+  { label: "Analytics Dashboard", href: "/features/analytics-dashboard" },
   { label: "Video Idea Generator", href: "/features/youtube-video-idea-generator" },
 ];
 const LEARN_LINKS = [
@@ -30,7 +31,21 @@ const USECASE_LINKS = [
   { label: "For Faceless Channels", href: "/use-cases/faceless" },
 ];
 
-export function Footer({ isDark }: FooterProps) {
+export function Footer({ isDark, onNavigateInternal }: FooterProps) {
+  const renderInternalLink = (link: { label: string; href: string }) => (
+    <a
+      key={link.href}
+      href={link.href}
+      onClick={(event) => {
+        event.preventDefault();
+        onNavigateInternal(link.href);
+      }}
+      className={cn("transition", isDark ? "text-slate-300 hover:text-white" : "text-slate-700 hover:text-slate-900")}
+    >
+      {link.label}
+    </a>
+  );
+
   return (
     <footer
       className={cn(
@@ -48,21 +63,15 @@ export function Footer({ isDark }: FooterProps) {
 
         <div className="flex flex-col gap-2 text-sm">
           <p className={cn("mb-1 text-xs font-semibold uppercase tracking-wider", isDark ? "text-slate-500" : "text-slate-400")}>Features</p>
-          {FEATURE_LINKS.map((link) => (
-            <a key={link.href} href={link.href} className={cn("transition", isDark ? "text-slate-300 hover:text-white" : "text-slate-700 hover:text-slate-900")}>{link.label}</a>
-          ))}
+          {FEATURE_LINKS.map(renderInternalLink)}
         </div>
         <div className="flex flex-col gap-2 text-sm">
           <p className={cn("mb-1 text-xs font-semibold uppercase tracking-wider", isDark ? "text-slate-500" : "text-slate-400")}>Learn</p>
-          {LEARN_LINKS.map((link) => (
-            <a key={link.href} href={link.href} className={cn("transition", isDark ? "text-slate-300 hover:text-white" : "text-slate-700 hover:text-slate-900")}>{link.label}</a>
-          ))}
+          {LEARN_LINKS.map(renderInternalLink)}
         </div>
         <div className="flex flex-col gap-2 text-sm">
           <p className={cn("mb-1 text-xs font-semibold uppercase tracking-wider", isDark ? "text-slate-500" : "text-slate-400")}>Use Cases</p>
-          {USECASE_LINKS.map((link) => (
-            <a key={link.href} href={link.href} className={cn("transition", isDark ? "text-slate-300 hover:text-white" : "text-slate-700 hover:text-slate-900")}>{link.label}</a>
-          ))}
+          {USECASE_LINKS.map(renderInternalLink)}
         </div>
 
         <div className="flex flex-col gap-2 text-sm">
@@ -74,9 +83,11 @@ export function Footer({ isDark }: FooterProps) {
               "transition",
               isDark ? "text-slate-300 hover:text-white" : "text-slate-700 hover:text-slate-900"
             )}
-            href="https://janso.studio/privacy"
-            target="_blank"
-            rel="noopener noreferrer"
+            href="/privacy"
+            onClick={(event) => {
+              event.preventDefault();
+              onNavigateInternal("/privacy");
+            }}
           >
             Privacy Policy
           </a>
@@ -85,9 +96,11 @@ export function Footer({ isDark }: FooterProps) {
               "transition",
               isDark ? "text-slate-300 hover:text-white" : "text-slate-700 hover:text-slate-900"
             )}
-            href="https://janso.studio/terms"
-            target="_blank"
-            rel="noopener noreferrer"
+            href="/terms"
+            onClick={(event) => {
+              event.preventDefault();
+              onNavigateInternal("/terms");
+            }}
           >
             Terms of Service
           </a>
