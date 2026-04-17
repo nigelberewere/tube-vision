@@ -1265,7 +1265,7 @@ export default function App() {
 
           <div
             className={cn(
-              'shrink-0 border-t p-4',
+              'shrink-0 border-t px-4 pt-4 pb-[calc(1.25rem+env(safe-area-inset-bottom))]',
               theme === 'light' ? 'border-slate-200 bg-slate-50' : 'border-white/10 bg-[#0a0a0a]'
             )}
           >
