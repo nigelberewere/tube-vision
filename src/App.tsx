@@ -126,7 +126,7 @@ const ONBOARDING_STEPS: TourStep[] = [
   {
     targetId: 'tour-account-entry',
     title: 'Your Channel Identity',
-    description: 'Connect or switch YouTube channels here so analysis and automation run on the right account.',
+    description: 'Connect your YouTube channel here so analysis and automation run on the right account.',
   },
   {
     targetId: 'tour-settings-tab',
@@ -194,10 +194,6 @@ export default function App() {
     return savedTheme === 'light' ? 'light' : 'dark';
   });
   const [user, setUser] = useState<User | null>(null);
-  const [accounts, setAccounts] = useState<User[]>([]);
-  const [activeAccountIndex, setActiveAccountIndex] = useState(0);
-  const [switchingAccountIndex, setSwitchingAccountIndex] = useState<number | null>(null);
-  const [recentlyActivatedAccountIndex, setRecentlyActivatedAccountIndex] = useState<number | null>(null);
   const [loadingUser, setLoadingUser] = useState(true);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
@@ -223,7 +219,6 @@ export default function App() {
   const youtubeConnectIntentRef = useRef<string | null>(null);
   const logoutCleanupRef = useRef<Promise<void> | null>(null);
   const fetchUserRequestIdRef = useRef(0);
-  const recentAccountHighlightTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Handle URL-based routing for legal pages
   useEffect(() => {
@@ -264,14 +259,6 @@ export default function App() {
     return () => {
       window.removeEventListener('popstate', handleRouteChange);
       document.removeEventListener('click', handleLinkClick, true);
-    };
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      if (recentAccountHighlightTimeoutRef.current) {
-        clearTimeout(recentAccountHighlightTimeoutRef.current);
-      }
     };
   }, []);
 
@@ -383,7 +370,7 @@ export default function App() {
   const requiresChannelConnection = CHANNEL_REQUIRED_TABS.includes(activeTab);
   const showMyVideosConnectIcon = activeTab === 'videos';
   const isSupabaseAuthenticated = Boolean(supabaseUser && supabaseSession?.access_token);
-  const isCookieAuthenticated = Boolean(user || accounts.length > 0);
+  const isCookieAuthenticated = Boolean(user);
   const isAppAuthenticated = isSupabaseAuthenticated || isCookieAuthenticated;
   const isSupabaseGateOpen = !supabaseLoading || supabaseGateTimedOut || isCookieAuthenticated;
   const isAuthCheckPending = loadingUser || !isSupabaseGateOpen;
@@ -470,55 +457,23 @@ export default function App() {
         }
       }
 
-      // Fetch all accounts
-      const accountsResponse = await fetchCachedJson<{ accounts?: User[]; activeIndex?: number }>('/api/user/accounts', {
+      const channelResponse = await fetchCachedJson<User>('/api/user/channel', {
         headers: authHeaders,
         credentials: 'include',
         ttlMs: shouldFinalizePendingYouTubeAccount ? 0 : 30_000,
         bypassCache: shouldFinalizePendingYouTubeAccount,
       });
-      if (accountsResponse.ok) {
-        const accountsData = accountsResponse.data || {};
-        const nextAccounts = Array.isArray(accountsData.accounts) ? accountsData.accounts : [];
-        const nextActiveIndex = Number.isInteger(accountsData.activeIndex) ? accountsData.activeIndex : 0;
+      if (channelResponse.ok) {
         if (requestId !== fetchUserRequestIdRef.current) {
           return;
         }
-        setAccounts(nextAccounts);
-        setActiveAccountIndex(nextActiveIndex);
-        if (nextAccounts.length > 0) {
-          const fallbackIndex = Math.min(Math.max(nextActiveIndex, 0), nextAccounts.length - 1);
-          setUser(nextAccounts[fallbackIndex] || nextAccounts[0] || null);
-        } else {
-          setUser(null);
-        }
+        setUser(channelResponse.data || null);
         setLoadingUser(false);
-        
-        // Fetch active account details
-        if (nextAccounts.length > 0) {
-          const channelResponse = await fetchCachedJson<User>('/api/user/channel', {
-            headers: authHeaders,
-            credentials: 'include',
-            ttlMs: shouldFinalizePendingYouTubeAccount ? 0 : 30_000,
-            bypassCache: shouldFinalizePendingYouTubeAccount,
-          });
-          if (requestId !== fetchUserRequestIdRef.current) {
-            return;
-          }
-          if (channelResponse.ok) {
-            const channelData = channelResponse.data;
-            if (requestId !== fetchUserRequestIdRef.current) {
-              return;
-            }
-            setUser(channelData || null);
-          }
-        }
       } else {
         if (requestId !== fetchUserRequestIdRef.current) {
           return;
         }
         setUser(null);
-        setAccounts([]);
       }
     } catch (error) {
       console.error('Failed to fetch user:', error);
@@ -526,7 +481,6 @@ export default function App() {
         return;
       }
       setUser(null);
-      setAccounts([]);
     } finally {
       if (requestId === fetchUserRequestIdRef.current && loadingUser) {
         setLoadingUser(false);
@@ -619,17 +573,16 @@ export default function App() {
       return;
     }
 
-    const activeAccount = accounts[activeAccountIndex] || user;
     setSharedAuthState({
       isAuthenticated: true,
       profile: {
-        displayName: activeAccount?.name || supabaseUser?.email || null,
-        avatarUrl: activeAccount?.channel?.thumbnails?.default?.url || activeAccount?.picture || null,
-        activeChannelTitle: activeAccount?.channel?.title || null,
-        totalChannels: accounts.length,
+        displayName: user?.name || supabaseUser?.email || null,
+        avatarUrl: user?.channel?.thumbnails?.default?.url || user?.picture || null,
+        activeChannelTitle: user?.channel?.title || null,
+        totalChannels: user ? 1 : 0,
       },
     });
-  }, [accounts, activeAccountIndex, isAppAuthenticated, isAuthCheckPending, supabaseUser?.email, user]);
+  }, [isAppAuthenticated, isAuthCheckPending, supabaseUser?.email, user]);
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -810,30 +763,24 @@ export default function App() {
 
       console.log('[Connect] Popup opened, waiting for OAuth completion...');
 
-      const previousAccountCount = accounts.length;
       const previousActiveChannelId = user?.channel?.id || null;
 
       // Poll account state instead of popup.closed to avoid COOP warnings in modern browsers.
       const checkInterval = window.setInterval(async () => {
         try {
-          const accountsResponse = await fetchCachedJson<{ accounts?: User[]; activeIndex?: number }>('/api/user/accounts', {
+          const channelResponse = await fetchCachedJson<User>('/api/user/channel', {
             headers: getSupabaseAuthHeaders(),
             ttlMs: 0,
             bypassCache: true,
           });
-          if (!accountsResponse.ok) {
+          if (!channelResponse.ok) {
             return;
           }
 
-          const accountsData = accountsResponse.data || {};
-          const nextAccounts = Array.isArray(accountsData.accounts) ? accountsData.accounts : [];
-          const nextActiveIndex = Number.isInteger(accountsData.activeIndex) ? accountsData.activeIndex : 0;
-          const nextActiveChannelId = nextAccounts[nextActiveIndex]?.channel?.id || null;
-
-          const accountAdded = nextAccounts.length > previousAccountCount;
+          const nextActiveChannelId = channelResponse.data?.channel?.id || null;
           const activeChannelChanged = Boolean(nextActiveChannelId && nextActiveChannelId !== previousActiveChannelId);
 
-          if (accountAdded || activeChannelChanged) {
+          if (activeChannelChanged) {
             window.clearInterval(checkInterval);
             console.log('[Connect] OAuth state updated, refreshing user...');
             fetchUser();
@@ -871,8 +818,6 @@ export default function App() {
 
     // Show login page immediately — don't block on network round-trips.
     setUser(null);
-    setAccounts([]);
-    setActiveAccountIndex(0);
     if (CHANNEL_REQUIRED_TABS.includes(activeTab)) {
       setActiveTab('voiceover');
     }
@@ -908,76 +853,6 @@ export default function App() {
       });
 
     logoutCleanupRef.current = cleanup;
-  };
-
-  const handleSwitchAccount = async (index: number) => {
-    if (index === activeAccountIndex || switchingAccountIndex !== null) {
-      return;
-    }
-
-    setSwitchingAccountIndex(index);
-
-    try {
-      const authHeaders = getSupabaseAuthHeaders();
-      const response = await fetch('/api/user/switch', {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-          ...authHeaders,
-        },
-        body: JSON.stringify({ index }),
-      });
-      
-      if (response.ok) {
-        invalidateApiCache();
-        setActiveAccountIndex(index);
-        setUser(accounts[index] || null);
-        setRecentlyActivatedAccountIndex(index);
-        if (recentAccountHighlightTimeoutRef.current) {
-          clearTimeout(recentAccountHighlightTimeoutRef.current);
-        }
-        recentAccountHighlightTimeoutRef.current = setTimeout(() => {
-          setRecentlyActivatedAccountIndex((current) => (current === index ? null : current));
-          recentAccountHighlightTimeoutRef.current = null;
-        }, 1400);
-        await fetchUser();
-        setIsProfileMenuOpen(false);
-        return;
-      }
-
-      const errorPayload = await response.json().catch(() => null);
-      console.error('Switch account failed:', response.status, errorPayload);
-      alert(errorPayload?.error || 'Failed to switch account.');
-    } catch (error) {
-      console.error('Switch account error:', error);
-      alert('Unable to switch account right now.');
-    } finally {
-      setSwitchingAccountIndex(null);
-    }
-  };
-
-  const handleRemoveAccount = async (index: number) => {
-    if (!confirm('Remove this account?')) return;
-    
-    try {
-      const authHeaders = getSupabaseAuthHeaders();
-      const response = await fetch('/api/user/remove', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...authHeaders,
-        },
-        body: JSON.stringify({ index }),
-      });
-      
-      if (response.ok) {
-        invalidateApiCache();
-        await fetchUser();
-      }
-    } catch (error) {
-      console.error('Remove account error:', error);
-    }
   };
 
   const renderSectionHelper = () => {
@@ -1095,8 +970,6 @@ export default function App() {
             onConnect={handleConnect}
             profileName={user?.name}
             profileImage={user?.picture}
-            activeAccountIndex={activeAccountIndex}
-            totalAccounts={accounts.length}
             onNavigateToIdeas={() => setActiveTab('ideas')}
             theme={theme}
           />
@@ -1154,8 +1027,6 @@ export default function App() {
             onConnect={handleConnect}
             profileName={user?.name}
             profileImage={user?.picture}
-            activeAccountIndex={activeAccountIndex}
-            totalAccounts={accounts.length}
             onNavigateToIdeas={() => setActiveTab('ideas')}
             theme={theme}
           />
@@ -1438,109 +1309,6 @@ export default function App() {
                       </p>
                     </div>
                     
-                    {/* All Accounts - for switching */}
-                    {accounts.length > 1 && (
-                      <div className={cn('border-b', theme === 'light' ? 'border-slate-200' : 'border-white/10')}>
-                        <p className="px-4 pt-3 pb-1.5 text-[10px] uppercase tracking-wider text-slate-500">Switch Account</p>
-                        <div className="py-1">
-                          {accounts.map((account, index) => {
-                            const isActive = index === activeAccountIndex;
-                            const isSwitching = index === switchingAccountIndex;
-                            const isRecentlyActivated = index === recentlyActivatedAccountIndex;
-
-                            return (
-                            <div key={account.id} className="relative group">
-                              <button
-                                onClick={() => {
-                                  if (!isActive) {
-                                    handleSwitchAccount(index);
-                                  }
-                                }}
-                                disabled={isActive || switchingAccountIndex !== null}
-                                aria-busy={isSwitching}
-                                className={cn(
-                                  'w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-all duration-200',
-                                  isActive
-                                    ? theme === 'light'
-                                      ? isRecentlyActivated
-                                        ? 'bg-blue-100 text-blue-800 cursor-default shadow-[0_0_0_1px_rgba(59,130,246,0.25)]'
-                                        : 'bg-blue-50 text-blue-700 cursor-default'
-                                      : isRecentlyActivated
-                                        ? 'bg-blue-500/18 text-blue-300 cursor-default shadow-[0_0_20px_rgba(59,130,246,0.18)]'
-                                        : 'bg-blue-500/10 text-blue-400 cursor-default'
-                                    : isSwitching
-                                      ? theme === 'light'
-                                        ? 'bg-slate-100 text-slate-900 scale-[0.985] shadow-inner'
-                                        : 'bg-white/12 text-white scale-[0.985] shadow-inner'
-                                    : theme === 'light'
-                                      ? 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'
-                                      : 'text-slate-300 hover:bg-white/10 hover:text-white'
-                                )}
-                              >
-                                <img
-                                  src={account.channel?.thumbnails?.default?.url || account.picture}
-                                  alt={account.name}
-                                  className={cn(
-                                    'w-8 h-8 rounded-full border',
-                                    theme === 'light' ? 'border-slate-300' : 'border-white/20'
-                                  )}
-                                  referrerPolicy="no-referrer"
-                                />
-                                <div className="flex-1 min-w-0 text-left">
-                                  <p className="text-xs font-medium truncate">
-                                    {account.channel?.title || account.name}
-                                  </p>
-                                  <p className={cn('text-[10px] truncate', theme === 'light' ? 'text-slate-600' : 'text-slate-400')}>
-                                    {isSwitching
-                                      ? 'Switching account...'
-                                      : isRecentlyActivated
-                                        ? 'Active now'
-                                      : account.channel
-                                        ? `${Number(account.channel.statistics.subscriberCount).toLocaleString()} subs`
-                                        : 'No channel'}
-                                  </p>
-                                </div>
-                                {isSwitching ? (
-                                  <span
-                                    className={cn(
-                                      'inline-block h-4 w-4 rounded-full border-2 border-current border-t-transparent animate-spin',
-                                      theme === 'light' ? 'text-slate-700' : 'text-slate-200'
-                                    )}
-                                    aria-hidden="true"
-                                  />
-                                ) : isActive ? (
-                                  <ShieldCheck
-                                    size={14}
-                                    className={cn(
-                                      theme === 'light' ? 'text-blue-700' : 'text-blue-400',
-                                      isRecentlyActivated && 'scale-110'
-                                    )}
-                                  />
-                                ) : null}
-                              </button>
-                              {!isActive && (
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleRemoveAccount(index);
-                                  }}
-                                  disabled={switchingAccountIndex !== null}
-                                  className={cn(
-                                    'absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 p-1 rounded transition-opacity',
-                                    theme === 'light' ? 'hover:bg-red-100' : 'hover:bg-red-500/20'
-                                  )}
-                                  title="Remove account"
-                                >
-                                  <X size={14} className={theme === 'light' ? 'text-red-600' : 'text-red-400'} />
-                                </button>
-                              )}
-                            </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-                    
                     {/* Actions */}
                     <div className="py-1">
                       <button
@@ -1562,22 +1330,6 @@ export default function App() {
                         <span>Settings</span>
                       </button>
 
-                      <button
-                        onClick={() => {
-                          setIsProfileMenuOpen(false);
-                          handleConnect();
-                        }}
-                        className={cn(
-                          'w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors',
-                          theme === 'light'
-                            ? 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'
-                            : 'text-slate-300 hover:bg-white/10 hover:text-white'
-                        )}
-                      >
-                        <Users size={16} />
-                        <span>Add Another Account</span>
-                      </button>
-                      
                       <button
                         onClick={() => {
                           setIsProfileMenuOpen(false);

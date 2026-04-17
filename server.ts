@@ -1236,175 +1236,21 @@ For every video provided, evaluate segments based on:
   app.get("/api/user/accounts", async (req, res) => {
     const { accounts, activeIndex } = await getUnifiedAccountsAndActiveIndex(req);
 
-    const safeAccounts = accounts.map((account: any) => {
-      const { tokens, ...safe } = account;
-      return safe;
-    });
+    const activeAccount = accounts[activeIndex] || accounts[0] || null;
+    if (!activeAccount) {
+      return res.json({ accounts: [], activeIndex: 0 });
+    }
 
-    res.json({ accounts: safeAccounts, activeIndex });
+    const { tokens, ...safeAccount } = activeAccount;
+    res.json({ accounts: [safeAccount], activeIndex: 0 });
   });
 
   app.post("/api/user/switch", async (req, res) => {
-    const authUser = await verifyUser(req);
-    if (authUser) {
-      try {
-        const { data: supabaseAccounts, error: fetchError } = await supabaseServer
-          .from("youtube_accounts")
-          .select("id, channel_id")
-          .eq("user_id", authUser.id)
-          .order("created_at", { ascending: false });
-
-        if (fetchError) {
-          console.error("Supabase switch fetch error:", fetchError);
-        } else if ((supabaseAccounts || []).length > 0) {
-          const index = Number(req.body?.index);
-          if (!Number.isInteger(index)) {
-            return res.status(400).json({ error: "Invalid index" });
-          }
-
-          if (index < 0 || index >= supabaseAccounts.length) {
-            return res.status(400).json({ error: "Index out of range" });
-          }
-
-          const selectedAccount = supabaseAccounts[index];
-          const { error: updateError } = await supabaseServer
-            .from("profiles")
-            .upsert({ id: authUser.id, channel_id: selectedAccount.channel_id }, { onConflict: "id" });
-
-          if (updateError) {
-            console.error("Supabase switch profile update error:", updateError);
-            return res.status(500).json({ error: "Failed to switch account" });
-          }
-
-          const unifiedState = await getUnifiedAccountsAndActiveIndex(req);
-          setSessionAccountsAndActiveIndex(req, unifiedState.accounts, unifiedState.activeIndex);
-
-          return res.json({ success: true, activeIndex: unifiedState.activeIndex });
-        }
-      } catch (error) {
-        console.error("Supabase switch error:", error);
-      }
-    }
-
-    const { accounts } = getSessionAccountsAndActiveIndex(req);
-    if (accounts.length === 0) {
-      return res.status(401).json({ error: "Not authenticated" });
-    }
-
-    const index = Number(req.body?.index);
-    if (!Number.isInteger(index)) {
-      return res.status(400).json({ error: "Invalid index" });
-    }
-
-    if (index < 0 || index >= accounts.length) {
-      return res.status(400).json({ error: "Index out of range" });
-    }
-
-    setSessionAccountsAndActiveIndex(req, accounts, index);
-    res.json({ success: true, activeIndex: index });
+    return res.status(410).json({ error: "Multi-account switching has been removed." });
   });
 
   app.post("/api/user/remove", async (req, res) => {
-    const authUser = await verifyUser(req);
-    if (authUser) {
-      try {
-        const [{ data: profile }, { data: supabaseAccounts, error: fetchError }] = await Promise.all([
-          supabaseServer
-            .from("profiles")
-            .select("channel_id")
-            .eq("id", authUser.id)
-            .maybeSingle(),
-          supabaseServer
-            .from("youtube_accounts")
-            .select("id, channel_id")
-            .eq("user_id", authUser.id)
-            .order("created_at", { ascending: false }),
-        ]);
-
-        if (fetchError) {
-          console.error("Supabase remove fetch error:", fetchError);
-        } else if ((supabaseAccounts || []).length > 0) {
-          const removeIndex = Number(req.body?.index);
-          if (!Number.isInteger(removeIndex)) {
-            return res.status(400).json({ error: "Invalid index" });
-          }
-
-          if (removeIndex < 0 || removeIndex >= supabaseAccounts.length) {
-            return res.status(400).json({ error: "Index out of range" });
-          }
-
-          const accountToRemove = supabaseAccounts[removeIndex];
-          const { error: deleteError } = await supabaseServer
-            .from("youtube_accounts")
-            .delete()
-            .eq("id", accountToRemove.id)
-            .eq("user_id", authUser.id);
-
-          if (deleteError) {
-            console.error("Supabase remove delete error:", deleteError);
-            return res.status(500).json({ error: "Failed to remove account" });
-          }
-
-          const previousActiveIndex = profile?.channel_id
-            ? supabaseAccounts.findIndex((account) => account.channel_id === profile.channel_id)
-            : 0;
-
-          const activeIndex = previousActiveIndex >= 0 ? previousActiveIndex : 0;
-          const remainingAccounts = supabaseAccounts.filter((_, idx) => idx !== removeIndex);
-
-          let nextActiveIndex = activeIndex;
-          if (remainingAccounts.length === 0) {
-            nextActiveIndex = 0;
-          } else if (activeIndex === removeIndex) {
-            nextActiveIndex = Math.max(0, removeIndex - 1);
-          } else if (activeIndex > removeIndex) {
-            nextActiveIndex = activeIndex - 1;
-          }
-
-          const nextChannelId = remainingAccounts[nextActiveIndex]?.channel_id || null;
-          const { error: profileUpdateError } = await supabaseServer
-            .from("profiles")
-            .upsert({ id: authUser.id, channel_id: nextChannelId }, { onConflict: "id" });
-
-          if (profileUpdateError) {
-            console.error("Supabase remove profile update error:", profileUpdateError);
-            return res.status(500).json({ error: "Failed to remove account" });
-          }
-
-          return res.json({ success: true, activeIndex: nextActiveIndex });
-        }
-      } catch (error) {
-        console.error("Supabase remove error:", error);
-      }
-    }
-
-    const { accounts, activeIndex } = getSessionAccountsAndActiveIndex(req);
-    if (accounts.length === 0) {
-      return res.status(401).json({ error: "Not authenticated" });
-    }
-
-    const removeIndex = Number(req.body?.index);
-    if (!Number.isInteger(removeIndex)) {
-      return res.status(400).json({ error: "Invalid index" });
-    }
-
-    if (removeIndex < 0 || removeIndex >= accounts.length) {
-      return res.status(400).json({ error: "Index out of range" });
-    }
-
-    const updatedAccounts = accounts.filter((_: any, idx: number) => idx !== removeIndex);
-
-    let nextActiveIndex = activeIndex;
-    if (updatedAccounts.length === 0) {
-      nextActiveIndex = 0;
-    } else if (activeIndex === removeIndex) {
-      nextActiveIndex = Math.max(0, removeIndex - 1);
-    } else if (activeIndex > removeIndex) {
-      nextActiveIndex = activeIndex - 1;
-    }
-
-    setSessionAccountsAndActiveIndex(req, updatedAccounts, nextActiveIndex);
-    res.json({ success: true, activeIndex: nextActiveIndex });
+    return res.status(410).json({ error: "Multi-account removal has been removed." });
   });
 
   app.get("/api/user/channel", async (req, res) => {

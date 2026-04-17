@@ -2169,218 +2169,32 @@ Return JSON with:
     }
   }
 
-  // Get all accounts
+  // Get account summary (single-account mode)
   if (path === 'api/user/accounts') {
     setPrivateCacheHeaders(res, 30, 60);
     const { accounts, activeIndex } = await getUnifiedAccountsAndActiveIndex(req);
 
     try {
-      // Send accounts without tokens for security
-      const safeAccounts = accounts.map((acc: any) => {
-        const { tokens, ...safe } = acc;
-        return safe;
-      });
-      
-      return res.json({ accounts: safeAccounts, activeIndex });
+      const activeAccount = accounts[activeIndex] || accounts[0] || null;
+      if (!activeAccount) {
+        return res.json({ accounts: [], activeIndex: 0 });
+      }
+
+      const { tokens, ...safeAccount } = activeAccount;
+      return res.json({ accounts: [safeAccount], activeIndex: 0 });
     } catch (error) {
       return res.json({ accounts: [], activeIndex: 0 });
     }
   }
 
-  // Switch active account
+  // Multi-account management has been removed.
   if (path === 'api/user/switch' && req.method === 'POST') {
-    const authUser = await verifySupabaseUser(req);
-    if (authUser && supabaseServer) {
-      try {
-        const { data: supabaseAccounts, error: fetchError } = await supabaseServer
-          .from('youtube_accounts')
-          .select('id, channel_id')
-          .eq('user_id', authUser.id)
-          .order('created_at', { ascending: false });
-
-        if (fetchError) {
-          console.error('Supabase switch fetch error:', fetchError);
-        } else if ((supabaseAccounts || []).length > 0) {
-          const body = readJsonBody(req);
-          const newIndex = Number(body.index);
-
-          if (!Number.isInteger(newIndex)) {
-            return res.status(400).json({ error: 'Invalid index' });
-          }
-
-          if (newIndex < 0 || newIndex >= supabaseAccounts.length) {
-            return res.status(400).json({ error: 'Index out of range' });
-          }
-
-          const selectedAccount = supabaseAccounts[newIndex];
-          const { error: updateError } = await supabaseServer
-            .from('profiles')
-            .upsert({ id: authUser.id, channel_id: selectedAccount.channel_id }, { onConflict: 'id' });
-
-          if (updateError) {
-            console.error('Supabase switch profile update error:', updateError);
-            return res.status(500).json({ error: 'Failed to switch account' });
-          }
-
-          return res.json({ success: true, activeIndex: newIndex });
-        }
-      } catch (error) {
-        console.error('Supabase switch error:', error);
-      }
-    }
-
-    const { accounts } = readAccountsFromCookies(req);
-    if (accounts.length === 0) {
-      return res.status(401).json({ error: 'Not authenticated' });
-    }
-
-    try {
-      const body = req.body || {};
-      const newIndex = body.index;
-      
-      if (typeof newIndex !== 'number') {
-        return res.status(400).json({ error: 'Invalid index' });
-      }
-
-      if (newIndex < 0 || newIndex >= accounts.length) {
-        return res.status(400).json({ error: 'Index out of range' });
-      }
-
-      res.setHeader('Set-Cookie', `tube_vision_active=${newIndex}; ${COOKIE_BASE_OPTIONS}`);
-      
-      return res.json({ success: true, activeIndex: newIndex });
-    } catch (error) {
-      return res.status(500).json({ error: 'Failed to switch account' });
-    }
+    return res.status(410).json({ error: 'Multi-account switching has been removed.' });
   }
 
-  // Remove an account
+  // Multi-account management has been removed.
   if (path === 'api/user/remove' && req.method === 'POST') {
-    const authUser = await verifySupabaseUser(req);
-    if (authUser && supabaseServer) {
-      try {
-        const [{ data: profile }, { data: supabaseAccounts, error: fetchError }] = await Promise.all([
-          supabaseServer
-            .from('profiles')
-            .select('channel_id')
-            .eq('id', authUser.id)
-            .maybeSingle(),
-          supabaseServer
-            .from('youtube_accounts')
-            .select('id, channel_id')
-            .eq('user_id', authUser.id)
-            .order('created_at', { ascending: false }),
-        ]);
-
-        if (fetchError) {
-          console.error('Supabase remove fetch error:', fetchError);
-        } else if ((supabaseAccounts || []).length > 0) {
-          const body = readJsonBody(req);
-          const removeIndex = Number(body.index);
-
-          if (!Number.isInteger(removeIndex)) {
-            return res.status(400).json({ error: 'Invalid index' });
-          }
-
-          if (removeIndex < 0 || removeIndex >= supabaseAccounts.length) {
-            return res.status(400).json({ error: 'Index out of range' });
-          }
-
-          const accountToRemove = supabaseAccounts[removeIndex];
-          const { error: deleteError } = await supabaseServer
-            .from('youtube_accounts')
-            .delete()
-            .eq('id', accountToRemove.id)
-            .eq('user_id', authUser.id);
-
-          if (deleteError) {
-            console.error('Supabase remove delete error:', deleteError);
-            return res.status(500).json({ error: 'Failed to remove account' });
-          }
-
-          const previousActiveIndex = profile?.channel_id
-            ? supabaseAccounts.findIndex((account) => account.channel_id === profile.channel_id)
-            : 0;
-          const activeIndex = previousActiveIndex >= 0 ? previousActiveIndex : 0;
-          const remainingAccounts = supabaseAccounts.filter((_, idx) => idx !== removeIndex);
-
-          let nextActiveIndex = activeIndex;
-          if (remainingAccounts.length === 0) {
-            nextActiveIndex = 0;
-          } else if (activeIndex === removeIndex) {
-            nextActiveIndex = Math.max(0, removeIndex - 1);
-          } else if (activeIndex > removeIndex) {
-            nextActiveIndex = activeIndex - 1;
-          }
-
-          const nextChannelId = remainingAccounts[nextActiveIndex]?.channel_id || null;
-          const { error: profileUpdateError } = await supabaseServer
-            .from('profiles')
-            .upsert({ id: authUser.id, channel_id: nextChannelId }, { onConflict: 'id' });
-
-          if (profileUpdateError) {
-            console.error('Supabase remove profile update error:', profileUpdateError);
-            return res.status(500).json({ error: 'Failed to remove account' });
-          }
-
-          return res.json({ success: true, activeIndex: nextActiveIndex });
-        }
-      } catch (error) {
-        console.error('Supabase remove error:', error);
-      }
-    }
-
-    const state = readAccountsFromCookies(req);
-    let accounts = state.accounts;
-    let activeIndex = state.activeIndex;
-    if (accounts.length === 0) {
-      return res.status(401).json({ error: 'Not authenticated' });
-    }
-
-    try {
-      const body = req.body || {};
-      const removeIndex = body.index;
-      
-      if (typeof removeIndex !== 'number') {
-        return res.status(400).json({ error: 'Invalid index' });
-      }
-
-      if (removeIndex < 0 || removeIndex >= accounts.length) {
-        return res.status(400).json({ error: 'Index out of range' });
-      }
-
-      // Remove the account
-      accounts.splice(removeIndex, 1);
-
-      // Adjust active index if necessary
-      if (activeIndex >= accounts.length) {
-        activeIndex = Math.max(0, accounts.length - 1);
-      } else if (activeIndex > removeIndex) {
-        activeIndex--;
-      }
-
-      if (accounts.length === 0) {
-        // Clear cookies if no accounts left
-        res.setHeader('Set-Cookie', [
-          APP_URL.startsWith('https://')
-            ? 'tube_vision_accounts=; Path=/; HttpOnly; SameSite=None; Secure; Max-Age=0'
-            : 'tube_vision_accounts=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0',
-          APP_URL.startsWith('https://')
-            ? 'tube_vision_active=; Path=/; HttpOnly; SameSite=None; Secure; Max-Age=0'
-            : 'tube_vision_active=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0'
-        ]);
-      } else {
-        const cookieValue = encodeURIComponent(JSON.stringify(accounts));
-        res.setHeader('Set-Cookie', [
-          `tube_vision_accounts=${cookieValue}; ${COOKIE_BASE_OPTIONS}`,
-          `tube_vision_active=${activeIndex}; ${COOKIE_BASE_OPTIONS}`
-        ]);
-      }
-      
-      return res.json({ success: true, activeIndex });
-    } catch (error) {
-      return res.status(500).json({ error: 'Failed to remove account' });
-    }
+    return res.status(410).json({ error: 'Multi-account removal has been removed.' });
   }
 
   // Get user videos
