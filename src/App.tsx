@@ -1112,7 +1112,7 @@ export default function App() {
   return (
     <div
       className={cn(
-        'theme-root flex h-screen overflow-x-hidden font-sans transition-colors',
+        'theme-root flex h-[100svh] overflow-x-hidden font-sans transition-colors',
         theme === 'light'
           ? 'theme-light bg-slate-100 text-slate-900 selection:bg-slate-300 selection:text-slate-900'
           : 'theme-dark bg-[#050505] text-slate-200 selection:bg-white/20 selection:text-white'
@@ -1135,7 +1135,7 @@ export default function App() {
 
       <aside
         className={cn(
-          'fixed inset-y-0 left-0 z-40 flex h-[100dvh] max-h-[100dvh] w-64 min-h-0 flex-col overflow-hidden border-r transform transition-transform duration-200 ease-in-out sm:w-72 lg:static lg:block lg:h-screen lg:max-h-screen lg:translate-x-0',
+          'fixed inset-y-0 left-0 z-40 flex h-[100svh] max-h-[100svh] w-64 min-h-0 flex-col overflow-hidden border-r transform transition-transform duration-200 ease-in-out sm:w-72 lg:static lg:block lg:h-[100svh] lg:max-h-[100svh] lg:translate-x-0',
           theme === 'light' ? 'bg-slate-50 border-slate-200' : 'bg-[#0a0a0a] border-white/10',
           isSidebarOpen ? 'translate-x-0' : '-translate-x-full',
         )}
@@ -1265,7 +1265,7 @@ export default function App() {
 
           <div
             className={cn(
-              'shrink-0 border-t px-4 pt-4 pb-[calc(1.25rem+env(safe-area-inset-bottom))]',
+              'shrink-0 border-t px-4 pt-3 pb-[calc(0.85rem+env(safe-area-inset-bottom))]',
               theme === 'light' ? 'border-slate-200 bg-slate-50' : 'border-white/10 bg-[#0a0a0a]'
             )}
           >
