@@ -1402,15 +1402,17 @@ export default function App() {
 
       <main className={cn('flex-1 overflow-y-auto transition-colors', theme === 'light' ? 'bg-slate-100' : 'bg-[#050505]')}>
         <div className="mx-auto max-w-6xl px-3 pb-6 pt-20 sm:px-6 sm:pb-8 sm:pt-6 lg:p-10">
-          <div className="mb-5 rounded-2xl border border-white/10 bg-white/[0.03] p-4 backdrop-blur-xl sm:mb-8 sm:p-6">
-            <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-              <div className="min-w-0">
-                <p className="text-[10px] sm:text-xs uppercase tracking-[0.2em] text-slate-500">Active Workspace</p>
-                <h1 className="mt-1 pr-8 text-xl font-bold tracking-tight text-white sm:text-2xl md:text-3xl lg:pr-0">{activeTabConfig.label}</h1>
-                <p className="mt-1 max-w-3xl pr-4 text-sm text-slate-400 md:mt-2 md:pr-0">{activeTabConfig.summary}</p>
+          {activeTab !== 'home' && (
+            <div className="mb-5 rounded-2xl border border-white/10 bg-white/[0.03] p-4 backdrop-blur-xl sm:mb-8 sm:p-6">
+              <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                <div className="min-w-0">
+                  <p className="text-[10px] sm:text-xs uppercase tracking-[0.2em] text-slate-500">Active Workspace</p>
+                  <h1 className="mt-1 pr-8 text-xl font-bold tracking-tight text-white sm:text-2xl md:text-3xl lg:pr-0">{activeTabConfig.label}</h1>
+                  <p className="mt-1 max-w-3xl pr-4 text-sm text-slate-400 md:mt-2 md:pr-0">{activeTabConfig.summary}</p>
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
           {shouldUseInlineAuthHandoff ? (
             <div className="space-y-6">

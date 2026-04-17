@@ -690,19 +690,6 @@ Return valid JSON only.`;
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500 pb-10">
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-        <div>
-          <p className={cn('text-[10px] font-bold uppercase tracking-[0.2em]', labelTextClass)}>Home</p>
-          <h2 className={cn('mt-1 text-3xl font-bold', strongTextClass)}>{channel?.title || 'Your Channel Overview'}</h2>
-          <p className={cn('mt-2', mutedTextClass)}>Your daily command center for subscriber and view momentum.</p>
-        </div>
-        <button
-          onClick={fetchDashboard}
-          className={cn('rounded-xl px-5 py-2.5 text-sm font-semibold transition-colors', primaryActionClass)}
-        >
-          Refresh Home Metrics
-        </button>
-      </div>
 
       <div
         className={cn(
@@ -712,7 +699,8 @@ Return valid JSON only.`;
             : 'border-indigo-400/20 bg-gradient-to-r from-indigo-500/10 via-slate-900 to-cyan-500/10'
         )}
       >
-        <div className="flex items-center gap-4 min-w-0">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-4 min-w-0">
             {profileImage ? (
               <img
                 src={profileImage}
@@ -743,6 +731,13 @@ Return valid JSON only.`;
                 {channel?.title ? `${channel.title} is now your active dashboard.` : 'Your connected account is active.'}
               </p>
             </div>
+          </div>
+          <button
+            onClick={fetchDashboard}
+            className={cn('w-full sm:w-auto rounded-xl px-5 py-2.5 text-sm font-semibold transition-colors', primaryActionClass)}
+          >
+            Refresh Home Metrics
+          </button>
         </div>
       </div>
 
