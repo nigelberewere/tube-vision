@@ -969,7 +969,7 @@ export default function App() {
             isConnected={Boolean(user)}
             onConnect={handleConnect}
             profileName={user?.name}
-            profileImage={user?.picture}
+            profileImage={user?.channel?.thumbnails?.default?.url || user?.picture}
             onNavigateToIdeas={() => setActiveTab('ideas')}
             theme={theme}
           />
@@ -1026,7 +1026,7 @@ export default function App() {
             isConnected={Boolean(user)}
             onConnect={handleConnect}
             profileName={user?.name}
-            profileImage={user?.picture}
+            profileImage={user?.channel?.thumbnails?.default?.url || user?.picture}
             onNavigateToIdeas={() => setActiveTab('ideas')}
             theme={theme}
           />
