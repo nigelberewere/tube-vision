@@ -826,74 +826,74 @@ Return valid JSON only.`;
         </div>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        <div className={cn('rounded-xl border p-5', surfaceCardClass)}>
-          <div className={cn('flex h-9 w-9 items-center justify-center rounded-lg', isLightTheme ? 'bg-emerald-100 text-emerald-700' : 'bg-emerald-500/10 text-emerald-300')}>
-            <Users size={17} />
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-4">
+        <div className={cn('rounded-xl border p-4 sm:p-5', surfaceCardClass)}>
+          <div className={cn('flex h-8 w-8 items-center justify-center rounded-lg sm:h-9 sm:w-9', isLightTheme ? 'bg-emerald-100 text-emerald-700' : 'bg-emerald-500/10 text-emerald-300')}>
+            <Users size={16} className="sm:w-[17px] sm:h-[17px]" />
           </div>
-          <p className={cn('mt-4 text-xs font-bold uppercase tracking-wider', labelTextClass)}>Subscribers</p>
-          <p className={cn('mt-1 text-2xl font-bold', strongTextClass)}>{compact(toNumber(liveChannel?.statistics?.subscriberCount))}</p>
+          <p className={cn('mt-3 text-[10px] sm:mt-4 sm:text-xs font-bold uppercase tracking-wider', labelTextClass)}>Subscribers</p>
+          <p className={cn('mt-1 text-xl sm:text-2xl font-bold', strongTextClass)}>{compact(toNumber(liveChannel?.statistics?.subscriberCount))}</p>
         </div>
 
-        <div className={cn('rounded-xl border p-5', surfaceCardClass)}>
-          <div className={cn('flex h-9 w-9 items-center justify-center rounded-lg', isLightTheme ? 'bg-indigo-100 text-indigo-700' : 'bg-indigo-500/10 text-indigo-300')}>
-            <Eye size={17} />
+        <div className={cn('rounded-xl border p-4 sm:p-5', surfaceCardClass)}>
+          <div className={cn('flex h-8 w-8 items-center justify-center rounded-lg sm:h-9 sm:w-9', isLightTheme ? 'bg-indigo-100 text-indigo-700' : 'bg-indigo-500/10 text-indigo-300')}>
+            <Eye size={16} className="sm:w-[17px] sm:h-[17px]" />
           </div>
-          <p className={cn('mt-4 text-xs font-bold uppercase tracking-wider', labelTextClass)}>Views Last Hour</p>
-          <p className={cn('mt-1 text-2xl font-bold', strongTextClass)}>{metrics.viewsLastHour === null ? '--' : compact(metrics.viewsLastHour)}</p>
-          <p className={cn('mt-1 text-xs', labelTextClass)}>
+          <p className={cn('mt-3 text-[10px] sm:mt-4 sm:text-xs font-bold uppercase tracking-wider', labelTextClass)}>Views Last Hour</p>
+          <p className={cn('mt-1 text-xl sm:text-2xl font-bold', strongTextClass)}>{metrics.viewsLastHour === null ? '--' : compact(metrics.viewsLastHour)}</p>
+          <p className={cn('mt-1 text-[11px] sm:text-xs', labelTextClass)}>
             {metrics.viewsLastHour === null ? 'No recent view estimate yet' : metrics.viewsLastHourCaption}
           </p>
         </div>
 
-        <div className={cn('rounded-xl border p-5', surfaceCardClass)}>
-          <div className={cn('flex h-9 w-9 items-center justify-center rounded-lg', isLightTheme ? 'bg-blue-100 text-blue-700' : 'bg-blue-500/10 text-blue-300')}>
-            <Activity size={17} />
+        <div className={cn('rounded-xl border p-4 sm:p-5', surfaceCardClass)}>
+          <div className={cn('flex h-8 w-8 items-center justify-center rounded-lg sm:h-9 sm:w-9', isLightTheme ? 'bg-blue-100 text-blue-700' : 'bg-blue-500/10 text-blue-300')}>
+            <Activity size={16} className="sm:w-[17px] sm:h-[17px]" />
           </div>
-          <p className={cn('mt-4 text-xs font-bold uppercase tracking-wider', labelTextClass)}>Views Last 24h</p>
-          <p className={cn('mt-1 text-2xl font-bold', strongTextClass)}>{metrics.viewsLast24Hours === null ? '--' : compact(metrics.viewsLast24Hours)}</p>
-          <p className={cn('mt-1 text-xs', labelTextClass)}>
+          <p className={cn('mt-3 text-[10px] sm:mt-4 sm:text-xs font-bold uppercase tracking-wider', labelTextClass)}>Views Last 24h</p>
+          <p className={cn('mt-1 text-xl sm:text-2xl font-bold', strongTextClass)}>{metrics.viewsLast24Hours === null ? '--' : compact(metrics.viewsLast24Hours)}</p>
+          <p className={cn('mt-1 text-[11px] sm:text-xs', labelTextClass)}>
             {metrics.viewsLast24Hours === null ? 'No recent 24-hour view estimate yet' : metrics.viewsLast24HoursCaption}
           </p>
         </div>
 
-        <div className={cn('rounded-xl border p-5', surfaceCardClass)}>
-          <div className={cn('flex h-9 w-9 items-center justify-center rounded-lg', isLightTheme ? 'bg-amber-100 text-amber-700' : 'bg-amber-500/10 text-amber-300')}>
-            <BarChart3 size={17} />
+        <div className={cn('rounded-xl border p-4 sm:p-5', surfaceCardClass)}>
+          <div className={cn('flex h-8 w-8 items-center justify-center rounded-lg sm:h-9 sm:w-9', isLightTheme ? 'bg-amber-100 text-amber-700' : 'bg-amber-500/10 text-amber-300')}>
+            <BarChart3 size={16} className="sm:w-[17px] sm:h-[17px]" />
           </div>
-          <p className={cn('mt-4 text-xs font-bold uppercase tracking-wider', labelTextClass)}>Net Subs 30d</p>
-          <p className={cn('mt-1 text-2xl font-bold', strongTextClass)}>
+          <p className={cn('mt-3 text-[10px] sm:mt-4 sm:text-xs font-bold uppercase tracking-wider', labelTextClass)}>Net Subs 30d</p>
+          <p className={cn('mt-1 text-xl sm:text-2xl font-bold', strongTextClass)}>
             {metrics.netSubs30Days > 0 ? `+${compact(metrics.netSubs30Days)}` : compact(metrics.netSubs30Days)}
           </p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-        <div className={cn('rounded-xl border p-5', surfaceCardClass)}>
-          <p className={cn('text-xs font-bold uppercase tracking-wider', labelTextClass)}>All Channel Views (All-Time)</p>
-          <p className={cn('mt-1 text-2xl font-bold', strongTextClass)}>{full(toNumber(liveChannel?.statistics?.viewCount))}</p>
-          <p className={cn('mt-1 text-xs', labelTextClass)}>{compact(toNumber(liveChannel?.statistics?.viewCount))} lifetime views</p>
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-3">
+        <div className={cn('rounded-xl border p-4 sm:p-5', surfaceCardClass)}>
+          <p className={cn('text-[10px] sm:text-xs font-bold uppercase tracking-wider', labelTextClass)}>All Channel Views (All-Time)</p>
+          <p className={cn('mt-1 text-xl sm:text-2xl font-bold', strongTextClass)}>{full(toNumber(liveChannel?.statistics?.viewCount))}</p>
+          <p className={cn('mt-1 text-[11px] sm:text-xs', labelTextClass)}>{compact(toNumber(liveChannel?.statistics?.viewCount))} lifetime views</p>
         </div>
-        <div className={cn('rounded-xl border p-5', surfaceCardClass)}>
-          <p className={cn('text-xs font-bold uppercase tracking-wider', labelTextClass)}>Total Videos</p>
-          <p className={cn('mt-1 text-2xl font-bold', strongTextClass)}>{compact(toNumber(liveChannel?.statistics?.videoCount))}</p>
+        <div className={cn('rounded-xl border p-4 sm:p-5', surfaceCardClass)}>
+          <p className={cn('text-[10px] sm:text-xs font-bold uppercase tracking-wider', labelTextClass)}>Total Videos</p>
+          <p className={cn('mt-1 text-xl sm:text-2xl font-bold', strongTextClass)}>{compact(toNumber(liveChannel?.statistics?.videoCount))}</p>
         </div>
-        <div className={cn('rounded-xl border p-5', surfaceCardClass)}>
-          <p className={cn('text-xs font-bold uppercase tracking-wider', labelTextClass)}>Avg Views / Day (30d)</p>
-          <p className={cn('mt-1 text-2xl font-bold', strongTextClass)}>{compact(metrics.avgViewsPerDay)}</p>
+        <div className={cn('rounded-xl border p-4 sm:p-5', surfaceCardClass)}>
+          <p className={cn('text-[10px] sm:text-xs font-bold uppercase tracking-wider', labelTextClass)}>Avg Views / Day (30d)</p>
+          <p className={cn('mt-1 text-xl sm:text-2xl font-bold', strongTextClass)}>{compact(metrics.avgViewsPerDay)}</p>
         </div>
-        <div className={cn('rounded-xl border p-5', surfaceCardClass)}>
-          <p className={cn('text-xs font-bold uppercase tracking-wider', labelTextClass)}>Views Last 7 Days</p>
-          <p className={cn('mt-1 text-2xl font-bold', strongTextClass)}>{compact(metrics.last7DaysViews)}</p>
+        <div className={cn('rounded-xl border p-4 sm:p-5', surfaceCardClass)}>
+          <p className={cn('text-[10px] sm:text-xs font-bold uppercase tracking-wider', labelTextClass)}>Views Last 7 Days</p>
+          <p className={cn('mt-1 text-xl sm:text-2xl font-bold', strongTextClass)}>{compact(metrics.last7DaysViews)}</p>
         </div>
-        <div className={cn('rounded-xl border p-5', surfaceCardClass)}>
-          <p className={cn('text-xs font-bold uppercase tracking-wider', labelTextClass)}>Views Last 30 Days</p>
-          <p className={cn('mt-1 text-2xl font-bold', strongTextClass)}>{compact(metrics.last30DaysViews)}</p>
+        <div className={cn('rounded-xl border p-4 sm:p-5', surfaceCardClass)}>
+          <p className={cn('text-[10px] sm:text-xs font-bold uppercase tracking-wider', labelTextClass)}>Views Last 30 Days</p>
+          <p className={cn('mt-1 text-xl sm:text-2xl font-bold', strongTextClass)}>{compact(metrics.last30DaysViews)}</p>
         </div>
-        <div className={cn('rounded-xl border p-5', surfaceCardClass)}>
-          <p className={cn('text-xs font-bold uppercase tracking-wider', labelTextClass)}>Best Posting Hour</p>
-          <p className={cn('mt-1 text-2xl font-bold', strongTextClass)}>{metrics.bestHour}</p>
-          <p className={cn('mt-1 text-xs', labelTextClass)}>
+        <div className={cn('rounded-xl border p-4 sm:p-5', surfaceCardClass)}>
+          <p className={cn('text-[10px] sm:text-xs font-bold uppercase tracking-wider', labelTextClass)}>Best Posting Hour</p>
+          <p className={cn('mt-1 text-xl sm:text-2xl font-bold', strongTextClass)}>{metrics.bestHour}</p>
+          <p className={cn('mt-1 text-[11px] sm:text-xs', labelTextClass)}>
             {metrics.hasAnyRecentHourlyData ? 'Based on hourly analytics' : 'Fallback from posting-time analysis'}
           </p>
         </div>

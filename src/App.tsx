@@ -1247,17 +1247,20 @@ export default function App() {
           : 'theme-dark bg-[#050505] text-slate-200 selection:bg-white/20 selection:text-white'
       )}
     >
-      <button
-        className={cn(
-          'lg:hidden fixed left-3 top-[max(0.75rem,env(safe-area-inset-top))] z-50 rounded-xl border p-2.5 shadow-sm backdrop-blur',
-          theme === 'light'
-            ? 'bg-white border-slate-300 text-slate-700'
-            : 'bg-[#0a0a0a] border-white/10'
-        )}
-        onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-      >
-        {isSidebarOpen ? <X size={20} /> : <Menu size={20} />}
-      </button>
+      {!isSidebarOpen && (
+        <button
+          className={cn(
+            'lg:hidden fixed left-3 top-[max(0.75rem,env(safe-area-inset-top))] z-50 rounded-xl border p-2.5 shadow-sm backdrop-blur',
+            theme === 'light'
+              ? 'bg-white border-slate-300 text-slate-700'
+              : 'bg-[#0a0a0a] border-white/10'
+          )}
+          onClick={() => setIsSidebarOpen(true)}
+          aria-label="Open navigation menu"
+        >
+          <Menu size={20} />
+        </button>
+      )}
 
       <aside
         className={cn(
@@ -1279,6 +1282,18 @@ export default function App() {
             <p className="text-sm sm:text-base font-bold tracking-tight text-white">Janso Studio</p>
             <p className="text-[9px] sm:text-[10px] uppercase tracking-[0.22em] text-slate-500">New Heights Everyday</p>
           </div>
+          <button
+            className={cn(
+              'lg:hidden ml-auto rounded-xl border p-2 transition-colors',
+              theme === 'light'
+                ? 'border-slate-300 text-slate-700 hover:bg-slate-100'
+                : 'border-white/10 text-slate-300 hover:bg-white/5 hover:text-white'
+            )}
+            onClick={() => setIsSidebarOpen(false)}
+            aria-label="Close navigation menu"
+          >
+            <X size={18} />
+          </button>
         </div>
 
         <div className="flex min-h-0 flex-1 flex-col">
