@@ -3856,15 +3856,12 @@ Return as JSON.`;
   // Logout
   if (path === 'api/auth/logout') {
     res.setHeader('Set-Cookie', [
-      APP_URL.startsWith('https://')
-        ? 'tube_vision_accounts=; Path=/; HttpOnly; SameSite=None; Secure; Max-Age=0'
-        : 'tube_vision_accounts=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0',
-      APP_URL.startsWith('https://')
-        ? 'tube_vision_active=; Path=/; HttpOnly; SameSite=None; Secure; Max-Age=0'
-        : 'tube_vision_active=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0',
-      APP_URL.startsWith('https://')
-        ? `${PENDING_ACCOUNT_COOKIE}=; Path=/; HttpOnly; SameSite=None; Secure; Max-Age=0`
-        : `${PENDING_ACCOUNT_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`
+      `tube_vision_accounts=; ${CLEAR_COOKIE_BASE_OPTIONS}`,
+      `tube_vision_active=; ${CLEAR_COOKIE_BASE_OPTIONS}`,
+      `${PENDING_ACCOUNT_COOKIE}=; ${CLEAR_COOKIE_BASE_OPTIONS}`,
+      `${THUMBNAIL_AUTH_COOKIE}=; ${CLEAR_COOKIE_BASE_OPTIONS}`,
+      `janso_authenticated=; ${CLEAR_COOKIE_BASE_OPTIONS}`,
+      `janso_profile=; ${CLEAR_COOKIE_BASE_OPTIONS}`,
     ]);
     return res.json({ success: true });
   }

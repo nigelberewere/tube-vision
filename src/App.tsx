@@ -106,6 +106,7 @@ const CHANNEL_REQUIRED_TABS: Tab[] = ['channel', 'competitors', 'videos'];
 const ONBOARDING_STORAGE_KEY = 'tube_vision_onboarding_completed_v2';
 const YOUTUBE_CONNECT_QUERY_KEY = 'connect_youtube';
 const AUTH_HANDOFF_STORAGE_KEY = 'janso_auth_handoff_pending';
+const LOGOUT_PENDING_STORAGE_KEY = 'tube_vision_logout_pending';
 const ONBOARDING_STEPS: TourStep[] = [
   {
     targetId: 'tour-home-tab',
@@ -175,6 +176,24 @@ function buildYouTubeAuthUrlRequest(next: string | null) {
   return url.toString();
 }
 
+function clearSupabaseClientTokens() {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  const clearStorage = (storage: Storage) => {
+    for (const key of Object.keys(storage)) {
+      const normalizedKey = key.toLowerCase();
+      if (normalizedKey.startsWith('sb-') || normalizedKey.includes('supabase.auth.token')) {
+        storage.removeItem(key);
+      }
+    }
+  };
+
+  clearStorage(window.localStorage);
+  clearStorage(window.sessionStorage);
+}
+
 export default function App() {
   const {
     user: supabaseUser,
@@ -219,6 +238,17 @@ export default function App() {
   const youtubeConnectIntentRef = useRef<string | null>(null);
   const logoutCleanupRef = useRef<Promise<void> | null>(null);
   const fetchUserRequestIdRef = useRef(0);
+
+  const runLogoutCleanup = async () => {
+    await Promise.allSettled([
+      fetch('/api/auth/logout', {
+        method: 'POST',
+        credentials: 'include',
+        cache: 'no-store',
+      }),
+      signOutSupabase(),
+    ]);
+  };
 
   // Handle URL-based routing for legal pages
   useEffect(() => {
@@ -390,6 +420,35 @@ export default function App() {
       window.clearTimeout(timer);
     };
   }, [supabaseLoading]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    if (window.sessionStorage.getItem(LOGOUT_PENDING_STORAGE_KEY) !== '1') {
+      return;
+    }
+
+    setIsLogoutPending(true);
+    setSharedAuthState({ isAuthenticated: false, profile: null });
+    invalidateApiCache();
+    clearSupabaseClientTokens();
+    setUser(null);
+    setLoadingUser(false);
+
+    const recoverLogout = async () => {
+      try {
+        await runLogoutCleanup();
+      } finally {
+        window.sessionStorage.removeItem(LOGOUT_PENDING_STORAGE_KEY);
+        setIsLogoutPending(false);
+      }
+    };
+
+    void recoverLogout();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const getSupabaseAuthHeaders = () => {
     const token = supabaseSession?.access_token;
@@ -801,20 +860,10 @@ export default function App() {
   const handleLogout = () => {
     invalidateApiCache();
     setSharedAuthState({ isAuthenticated: false, profile: null });
+    window.sessionStorage.setItem(LOGOUT_PENDING_STORAGE_KEY, '1');
 
     // Remove persisted Supabase session tokens before any async work.
-    if (typeof window !== 'undefined') {
-      const clearSupabaseTokens = (storage: Storage) => {
-        for (const key of Object.keys(storage)) {
-          if (key.startsWith('sb-') && key.endsWith('-auth-token')) {
-            storage.removeItem(key);
-          }
-        }
-      };
-
-      clearSupabaseTokens(window.localStorage);
-      clearSupabaseTokens(window.sessionStorage);
-    }
+    clearSupabaseClientTokens();
 
     // Show login page immediately — don't block on network round-trips.
     setUser(null);
@@ -840,14 +889,12 @@ export default function App() {
     };
 
     const cleanup = withTimeout(
-      Promise.allSettled([
-        fetch('/api/auth/logout', { method: 'POST', credentials: 'include', keepalive: true }),
-        signOutSupabase(),
-      ]),
+      runLogoutCleanup(),
       6000,
     )
       .then(() => undefined)
       .finally(() => {
+        window.sessionStorage.removeItem(LOGOUT_PENDING_STORAGE_KEY);
         logoutCleanupRef.current = null;
         setIsLogoutPending(false);
       });
@@ -1091,6 +1138,7 @@ export default function App() {
             if (logoutCleanupRef.current) {
               await logoutCleanupRef.current;
             }
+            window.sessionStorage.removeItem(LOGOUT_PENDING_STORAGE_KEY);
             window.location.href = '/auth/youtube';
           }}
         />

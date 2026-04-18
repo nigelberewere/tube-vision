@@ -3483,11 +3483,25 @@ Return as JSON.`;
   });
 
   app.post("/api/auth/logout", (req, res) => {
+    const clearCookieOptions = {
+      path: "/",
+      httpOnly: true,
+      sameSite: (IS_PRODUCTION ? "none" : "lax") as "none" | "lax",
+      secure: IS_PRODUCTION,
+    };
+
+    res.clearCookie("tube_vision_accounts", clearCookieOptions);
+    res.clearCookie("tube_vision_active", clearCookieOptions);
+    res.clearCookie("tube_vision_pending_account", clearCookieOptions);
+    res.clearCookie("tube_vision_thumbnail_authorizations", clearCookieOptions);
+    res.clearCookie("janso_authenticated", { path: "/", sameSite: clearCookieOptions.sameSite, secure: IS_PRODUCTION });
+    res.clearCookie("janso_profile", { path: "/", sameSite: clearCookieOptions.sameSite, secure: IS_PRODUCTION });
+
     req.session.destroy((err) => {
       if (err) {
         return res.status(500).json({ error: "Logout failed" });
       }
-      res.clearCookie("connect.sid");
+      res.clearCookie("connect.sid", clearCookieOptions);
       res.json({ success: true });
     });
   });

@@ -163,7 +163,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   // Sign out
   async function signOutUser() {
-    const { error } = await supabase.auth.signOut({ scope: 'local' });
+    const { error } = await supabase.auth.signOut();
     if (error) {
       console.error('Error signing out:', error);
     }
