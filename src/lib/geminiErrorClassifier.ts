@@ -62,12 +62,13 @@ export function classifyGeminiError(error: unknown): ClassifiedError {
     errorStr.includes('rate limit') ||
     errorStr.includes('too many requests') ||
     errorStr.includes('429') ||
-    errorStr.includes('quota exceeded for quota metric')
+    errorStr.includes('quota exceeded for quota metric') ||
+    errorStr.includes('resource_exhausted')
   ) {
     return {
       type: 'rate_limited',
       message: errorMessage,
-      userMessage: 'Rate limit reached. Please wait a moment and try again.',
+      userMessage: 'Rate limit or image quota reached (429). Wait a few minutes or use a key/project with higher Gemini image limits.',
       retryable: true,
     };
   }

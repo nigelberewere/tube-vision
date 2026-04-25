@@ -131,6 +131,14 @@ export const AVAILABLE_MODELS: AvailableModel[] = [
 
 const STORAGE_KEY = 'vidvision_model_preferences';
 
+const DEPRECATED_MODEL_MIGRATIONS: Record<string, string> = {
+  'gemini-2.0-flash-preview-image-generation': 'gemini-3-pro-image-preview',
+};
+
+function migrateDeprecatedModelId(modelId: string): string {
+  return DEPRECATED_MODEL_MIGRATIONS[modelId] || modelId;
+}
+
 /**
  * Load model preferences from localStorage
  */
@@ -139,8 +147,22 @@ export function loadModelPreferences(): Record<Functionality, ModelConfig> {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
       const prefs = JSON.parse(stored);
-      // Merge with defaults to ensure all functionalities have a model
-      return { ...DEFAULT_MODELS, ...prefs };
+      const merged = { ...DEFAULT_MODELS, ...prefs } as Record<Functionality, ModelConfig>;
+
+      // Migrate deprecated model IDs to supported alternatives.
+      for (const functionality of Object.keys(merged) as Functionality[]) {
+        const current = merged[functionality];
+        if (!current?.model) continue;
+        const migratedModel = migrateDeprecatedModelId(current.model);
+        if (migratedModel !== current.model) {
+          merged[functionality] = {
+            ...current,
+            model: migratedModel,
+          };
+        }
+      }
+
+      return merged;
     }
   } catch (error) {
     console.error('Error loading model preferences:', error);

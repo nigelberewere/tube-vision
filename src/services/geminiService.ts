@@ -50,7 +50,6 @@ const DEFAULT_THUMBNAIL_IMAGE_MODELS = [
   "gemini-3-pro-image-preview",
   "imagen-4.0-generate-001",
   "imagen-3.0-generate-002",
-  "gemini-2.0-flash-preview-image-generation",
 ];
 
 async function tryImagenGeneration(
