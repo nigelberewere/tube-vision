@@ -93,6 +93,7 @@ const STORAGE_KEY = 'vid_vision_tracked_competitors';
 
 export default function CompetitorAnalysis() {
   const { session: authSession } = useAuth();
+  const trackedCompetitorToken = authSession?.access_token;
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [searching, setSearching] = useState(false);
@@ -113,15 +114,16 @@ export default function CompetitorAnalysis() {
   const [gapAnalysis, setGapAnalysis] = useState<ContentGapAnalysis | null>(null);
   const [gapAnalysisError, setGapAnalysisError] = useState<string | null>(null);
   const [loadingGapAnalysis, setLoadingGapAnalysis] = useState(false);
-  const trackedCompetitorHeaders = authSession?.access_token
-    ? {
-        Authorization: `Bearer ${authSession.access_token}`,
-        'X-Supabase-Auth': authSession.access_token,
-      }
-    : undefined;
-
   // Load tracked competitors from localStorage first, then refresh from the backend.
   useEffect(() => {
+    const trackedCompetitorHeaders = trackedCompetitorToken
+      ? {
+          Authorization: `Bearer ${trackedCompetitorToken}`,
+          'X-Supabase-Auth': trackedCompetitorToken,
+        }
+      : undefined;
+    const controller = new AbortController();
+
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
       try {
@@ -134,6 +136,7 @@ export default function CompetitorAnalysis() {
     fetch('/api/user/tracked-competitors', {
       credentials: 'include',
       headers: trackedCompetitorHeaders,
+      signal: controller.signal,
     })
       .then(async (response) => {
         if (!response.ok) {
@@ -147,11 +150,25 @@ export default function CompetitorAnalysis() {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(competitors));
       })
       .catch((error) => {
+        if ((error as Error)?.name === 'AbortError') {
+          return;
+        }
         console.error('Failed to load tracked competitors from backend:', error);
       });
-  }, [trackedCompetitorHeaders]);
+
+    return () => {
+      controller.abort();
+    };
+  }, [trackedCompetitorToken]);
 
   const saveTrackedCompetitors = (competitors: CompetitorChannel[]) => {
+    const trackedCompetitorHeaders = trackedCompetitorToken
+      ? {
+          Authorization: `Bearer ${trackedCompetitorToken}`,
+          'X-Supabase-Auth': trackedCompetitorToken,
+        }
+      : undefined;
+
     setTrackedCompetitors(competitors);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(competitors));
     fetch('/api/user/tracked-competitors', {
