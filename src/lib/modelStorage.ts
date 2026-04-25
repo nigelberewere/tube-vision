@@ -53,7 +53,7 @@ export const DEFAULT_MODELS: Record<Functionality, ModelConfig> = {
     quotaWarning: true,
   },
   thumbnailImage: {
-    model: 'gemini-2.0-flash-preview-image-generation',
+    model: 'gemini-3-pro-image-preview',
     tier: 'image',
     quotaWarning: true,
   },
@@ -96,12 +96,20 @@ export const AVAILABLE_MODELS: AvailableModel[] = [
     warning: 'Specialized for voice generation',
   },
   {
+    id: 'gemini-3-pro-image-preview',
+    name: 'Gemini 3 Pro (Image)',
+    tier: 'image' as const,
+    description: 'Current Gemini image generation/editing model for API-key workflows.',
+    quotaPerDay: 'Varies by account',
+    warning: 'Recommended for most users with Gemini API keys.',
+  },
+  {
     id: 'gemini-2.0-flash-preview-image-generation',
     name: 'Gemini Flash (Image)',
     tier: 'image' as const,
-    description: 'Standard free-tier image generation via Gemini Flash. Works with most API keys.',
+    description: 'Legacy image model kept for compatibility with older keys/setups.',
     quotaPerDay: 'Varies by account',
-    warning: 'Recommended default — works without billing or special access.',
+    warning: 'Legacy model. Prefer Gemini 3 Pro (Image).',
   },
   {
     id: 'imagen-4.0-generate-001',
