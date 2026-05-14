@@ -365,16 +365,17 @@ export default function ScriptArchitect({ initialTopic, onTopicUsed, channelCont
               <label className="block text-sm font-medium text-zinc-300 mb-2">
                 Script Format
               </label>
-              <div className="flex gap-2">
+              <div className="inline-flex items-center gap-1 rounded-full border border-zinc-800/80 bg-zinc-950/80 p-1 shadow-sm shadow-black/20">
                 <button
                   type="button"
                   onClick={() => setVideoFormat('short')}
                   className={cn(
-                    'px-4 py-2 rounded-lg border text-sm font-medium transition-colors',
+                    'rounded-full px-4 py-2 text-sm font-medium transition-all',
                     videoFormat === 'short'
-                      ? 'bg-indigo-600 border-indigo-500 text-white'
-                      : 'bg-zinc-950 border-zinc-800 text-zinc-300 hover:bg-zinc-900'
+                      ? 'bg-indigo-600 text-white shadow-md shadow-indigo-950/40'
+                      : 'text-zinc-400 hover:text-zinc-100 hover:bg-white/5'
                   )}
+                  aria-pressed={videoFormat === 'short'}
                 >
                   Short
                 </button>
@@ -382,11 +383,12 @@ export default function ScriptArchitect({ initialTopic, onTopicUsed, channelCont
                   type="button"
                   onClick={() => setVideoFormat('long')}
                   className={cn(
-                    'px-4 py-2 rounded-lg border text-sm font-medium transition-colors',
+                    'rounded-full px-4 py-2 text-sm font-medium transition-all',
                     videoFormat === 'long'
-                      ? 'bg-indigo-600 border-indigo-500 text-white'
-                      : 'bg-zinc-950 border-zinc-800 text-zinc-300 hover:bg-zinc-900'
+                      ? 'bg-indigo-600 text-white shadow-md shadow-indigo-950/40'
+                      : 'text-zinc-400 hover:text-zinc-100 hover:bg-white/5'
                   )}
+                  aria-pressed={videoFormat === 'long'}
                 >
                   Long-form
                 </button>
