@@ -70,6 +70,7 @@ interface Translation {
   isPlaying: boolean;
   currentTime: number;
   duration: number;
+  description: string;
 }
 
 
@@ -163,6 +164,7 @@ export default function VoiceOver() {
   const [playingPreview, setPlayingPreview] = useState<string | null>(null);
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
+  const [audioDescription, setAudioDescription] = useState<string>('');
   
   // Multi-language dubbing state
   const [sourceLanguage, setSourceLanguage] = useState('en');
@@ -433,7 +435,8 @@ export default function VoiceOver() {
               isGenerating: false,
               isPlaying: false,
               currentTime: 0,
-              duration: 0
+              duration: 0,
+              description: ''
             }];
           }
         });
@@ -488,9 +491,12 @@ export default function VoiceOver() {
         const blob = createWavFile(audioData, 24000);
         const url = URL.createObjectURL(blob);
         
+        // Generate description for filename in background
+        const desc = await generateDescription(translation.translatedText);
+        
         setTranslations(prev => prev.map(t => 
           t.languageCode === languageCode 
-            ? { ...t, audioUrl: url, isGenerating: false }
+            ? { ...t, audioUrl: url, description: desc, isGenerating: false }
             : t
         ));
       }
@@ -536,6 +542,7 @@ export default function VoiceOver() {
     setIsGenerating(true);
     setError(null);
     setAudioUrl(null);
+    setAudioDescription('');
     setIsPlaying(false);
     setCurrentTime(0);
     setDuration(0);
@@ -571,6 +578,10 @@ export default function VoiceOver() {
         const blob = createWavFile(base64Audio, 24000);
         const url = URL.createObjectURL(blob);
         setAudioUrl(url);
+        
+        // Generate description for filename in background
+        const desc = await generateDescription(script);
+        setAudioDescription(desc);
       } else {
         throw new Error("No audio data returned from the model.");
       }
@@ -614,32 +625,56 @@ export default function VoiceOver() {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // Build a safe filename from arbitrary text
+  // Build a safe filename token and a short deterministic id for concise filenames
   const makeSafeFilename = (input: string | undefined | null) => {
     if (!input) return '';
     return input
       .toLowerCase()
-      .replace(/\s+/g, '-')
-      .replace(/[^a-z0-9\-_.]/g, '')
+      .replace(/[^a-z0-9]/g, '-')
       .replace(/-+/g, '-')
       .replace(/(^-|-$)/g, '')
-      .slice(0, 60);
+      .slice(0, 40);
   };
 
-  const timestampForFilename = () => new Date().toISOString().replace(/[:.]/g, '-');
+  // Small, fast non-cryptographic hash -> base36 id (keeps filenames short)
+  const shortId = (input: string) => {
+    let h = 2166136261 >>> 0;
+    for (let i = 0; i < input.length; i++) {
+      h ^= input.charCodeAt(i);
+      h = Math.imul(h, 16777619) >>> 0;
+    }
+    return (h >>> 0).toString(36).slice(-6);
+  };
+
+  // Generate a concise 1-5 word description via Gemini
+  const generateDescription = async (text: string): Promise<string> => {
+    try {
+      const ai = await getAIClient();
+      const model = await getVoiceOverModel(false);
+      const response = await ai.models.generateContent({
+        model,
+        contents: text,
+        config: {
+          systemInstruction: "Summarize this text in 1-5 words that capture the main topic or theme. Return ONLY the summary, nothing else."
+        }
+      });
+      
+      const desc = response.text?.trim() || '';
+      return desc ? makeSafeFilename(desc) : 'audio';
+    } catch (err) {
+      console.error("Description generation error:", err);
+      return 'audio';
+    }
+  };
 
   const getMainDownloadFilename = () => {
-    const snippet = script ? script.replace(/\s+/g, ' ').trim().slice(0, 40) : 'voice';
-    const safeSnippet = makeSafeFilename(snippet) || 'voice';
-    const safeVoice = makeSafeFilename(voice) || 'voice';
-    return `tube-vision-${safeVoice}-${safeSnippet}-${timestampForFilename()}.wav`;
+    const desc = audioDescription || 'audio';
+    return `${desc}.wav`;
   };
 
   const getTranslationDownloadFilename = (translation: Translation) => {
-    const snippet = translation.translatedText ? translation.translatedText.replace(/\s+/g, ' ').trim().slice(0, 40) : 'script';
-    const safeSnippet = makeSafeFilename(snippet) || 'script';
-    const lang = makeSafeFilename(translation.languageCode || translation.language || 'lang') || 'lang';
-    return `tube-vision-${lang}-${safeSnippet}-${timestampForFilename()}.wav`;
+    const desc = translation.description || 'audio';
+    return `${desc}.wav`;
   };
 
   const handleProgressClick = (e: React.MouseEvent<HTMLDivElement>) => {
