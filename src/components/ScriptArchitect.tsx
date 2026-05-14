@@ -231,6 +231,8 @@ export default function ScriptArchitect({ initialTopic, onTopicUsed, channelCont
       return;
     }
 
+    const requestedFormat: VideoFormat = videoFormat;
+
     setGenerationError(null);
     setResult(null);
     setGeneratedConfig(null);
