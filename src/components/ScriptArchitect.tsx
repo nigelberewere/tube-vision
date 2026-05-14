@@ -363,9 +363,10 @@ export default function ScriptArchitect({ initialTopic, onTopicUsed, channelCont
     document.body.removeChild(element);
   };
 
-  const saveScriptToStorage = () => {
+  const saveScriptToStorage = async () => {
     if (!result || !generatedConfig) return;
     
+    setSaveMessage(null);
     try {
       const script = {
         title: result.title,
@@ -373,18 +374,20 @@ export default function ScriptArchitect({ initialTopic, onTopicUsed, channelCont
         videoFormat: generatedConfig.videoFormat,
         targetLength: generatedConfig.targetLength,
         content: buildScriptText(),
-        savedAt: new Date().toISOString(),
       };
       
-      const scripts = JSON.parse(localStorage.getItem('savedScripts') || '[]');
-      scripts.push(script);
-      
-      // Keep only the 50 most recent scripts
-      if (scripts.length > 50) {
-        scripts.shift();
+      const response = await fetch('/api/user/scripts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(script),
+      });
+
+      if (!response.ok) {
+        setSaveMessage('error');
+        setTimeout(() => setSaveMessage(null), 2000);
+        return;
       }
-      
-      localStorage.setItem('savedScripts', JSON.stringify(scripts));
+
       setSaveMessage('success');
       setTimeout(() => setSaveMessage(null), 2000);
     } catch (error) {

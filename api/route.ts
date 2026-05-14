@@ -1577,6 +1577,89 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   }
 
+  if (path === 'api/user/scripts' && req.method === 'GET') {
+    const scriptsUserId = await resolveCoachHistoryUserId(req);
+    if (!scriptsUserId || !supabaseServer) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    try {
+      const { data, error } = await supabaseServer
+        .from('saved_content')
+        .select('id, title, data, created_at, updated_at')
+        .eq('user_id', scriptsUserId)
+        .eq('content_type', 'script')
+        .neq('title', '__saved_ideas__')
+        .order('updated_at', { ascending: false })
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Scripts fetch error:', error);
+        return res.status(500).json({ error: 'Failed to load scripts' });
+      }
+
+      const scripts = (data || []).map((row: any) => ({
+        id: row.id,
+        title: row.title,
+        topic: row.data?.topic || '',
+        videoFormat: row.data?.videoFormat || '',
+        targetLength: row.data?.targetLength || '',
+        content: row.data?.content || '',
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+      }));
+
+      return res.json({ scripts });
+    } catch (error) {
+      console.error('Scripts fetch exception:', error);
+      return res.status(500).json({ error: 'Failed to load scripts' });
+    }
+  }
+
+  if (path === 'api/user/scripts' && req.method === 'POST') {
+    const scriptsUserId = await resolveCoachHistoryUserId(req);
+    if (!scriptsUserId || !supabaseServer) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const body = readJsonBody(req);
+    const title = String(body?.title || '').trim();
+    const topic = String(body?.topic || '').trim();
+    const videoFormat = String(body?.videoFormat || '').trim();
+    const targetLength = String(body?.targetLength || '').trim();
+    const content = String(body?.content || '').trim();
+
+    if (!title || !content) {
+      return res.status(400).json({ error: 'title and content are required' });
+    }
+
+    try {
+      const { error: insertError } = await supabaseServer
+        .from('saved_content')
+        .insert({
+          user_id: scriptsUserId,
+          content_type: 'script',
+          title,
+          data: {
+            topic,
+            videoFormat,
+            targetLength,
+            content,
+          },
+        });
+
+      if (insertError) {
+        console.error('Script insert error:', insertError);
+        return res.status(500).json({ error: 'Failed to save script' });
+      }
+
+      return res.json({ success: true });
+    } catch (error) {
+      console.error('Script save exception:', error);
+      return res.status(500).json({ error: 'Failed to save script' });
+    }
+  }
+
   if (path === 'api/user/tracked-competitors' && req.method === 'GET') {
     const coachHistoryUserId = await resolveCoachHistoryUserId(req);
     if (!coachHistoryUserId || !supabaseServer) {
