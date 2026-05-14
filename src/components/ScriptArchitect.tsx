@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { generateVidVisionInsight } from '../services/geminiService';
 import { Type } from '@google/genai';
-import { Loader2, PenTool, Copy, Check, AlertTriangle, Eye, Zap, TrendingDown, ChevronDown } from 'lucide-react';
+import { Loader2, PenTool, Copy, Check, AlertTriangle, Eye, Zap, TrendingDown } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 interface ScriptArchitectProps {
@@ -406,16 +406,33 @@ export default function ScriptArchitect({ initialTopic, onTopicUsed, channelCont
                   className="flex-1 bg-zinc-950/80 border border-zinc-800/80 rounded-full px-4 py-2.5 text-zinc-100 shadow-sm shadow-black/20 transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50"
                   onKeyDown={(e) => e.key === 'Enter' && handleGenerate()}
                 />
-                <div className="relative">
-                  <select
-                    value={targetLengthUnit}
-                    onChange={(e) => setTargetLengthUnit(e.target.value as 'seconds' | 'minutes')}
-                    className="appearance-none bg-zinc-950/80 border border-zinc-800/80 rounded-full pl-4 pr-10 py-2.5 text-zinc-100 shadow-sm shadow-black/20 transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50"
+                <div className="inline-flex items-center gap-1 rounded-full border border-zinc-800/80 bg-zinc-950/80 p-1 shadow-sm shadow-black/20">
+                  <button
+                    type="button"
+                    onClick={() => setTargetLengthUnit('seconds')}
+                    className={cn(
+                      'rounded-full px-4 py-2 text-sm font-medium transition-all',
+                      targetLengthUnit === 'seconds'
+                        ? 'bg-indigo-600 text-white shadow-md shadow-indigo-950/40'
+                        : 'text-zinc-400 hover:text-zinc-100 hover:bg-white/5'
+                    )}
+                    aria-pressed={targetLengthUnit === 'seconds'}
                   >
-                    <option value="seconds">seconds</option>
-                    <option value="minutes">minutes</option>
-                  </select>
-                  <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+                    Seconds
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTargetLengthUnit('minutes')}
+                    className={cn(
+                      'rounded-full px-4 py-2 text-sm font-medium transition-all',
+                      targetLengthUnit === 'minutes'
+                        ? 'bg-indigo-600 text-white shadow-md shadow-indigo-950/40'
+                        : 'text-zinc-400 hover:text-zinc-100 hover:bg-white/5'
+                    )}
+                    aria-pressed={targetLengthUnit === 'minutes'}
+                  >
+                    Minutes
+                  </button>
                 </div>
               </div>
             </div>
