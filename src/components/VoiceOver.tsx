@@ -614,6 +614,34 @@ export default function VoiceOver() {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  // Build a safe filename from arbitrary text
+  const makeSafeFilename = (input: string | undefined | null) => {
+    if (!input) return '';
+    return input
+      .toLowerCase()
+      .replace(/\s+/g, '-')
+      .replace(/[^a-z0-9\-_.]/g, '')
+      .replace(/-+/g, '-')
+      .replace(/(^-|-$)/g, '')
+      .slice(0, 60);
+  };
+
+  const timestampForFilename = () => new Date().toISOString().replace(/[:.]/g, '-');
+
+  const getMainDownloadFilename = () => {
+    const snippet = script ? script.replace(/\s+/g, ' ').trim().slice(0, 40) : 'voice';
+    const safeSnippet = makeSafeFilename(snippet) || 'voice';
+    const safeVoice = makeSafeFilename(voice) || 'voice';
+    return `tube-vision-${safeVoice}-${safeSnippet}-${timestampForFilename()}.wav`;
+  };
+
+  const getTranslationDownloadFilename = (translation: Translation) => {
+    const snippet = translation.translatedText ? translation.translatedText.replace(/\s+/g, ' ').trim().slice(0, 40) : 'script';
+    const safeSnippet = makeSafeFilename(snippet) || 'script';
+    const lang = makeSafeFilename(translation.languageCode || translation.language || 'lang') || 'lang';
+    return `tube-vision-${lang}-${safeSnippet}-${timestampForFilename()}.wav`;
+  };
+
   const handleProgressClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!audioRef.current || !duration) return;
     const rect = e.currentTarget.getBoundingClientRect();
@@ -802,7 +830,7 @@ export default function VoiceOver() {
                         
                         <a 
                           href={audioUrl} 
-                          download="tube-vision-voice.wav"
+                          download={getMainDownloadFilename()}
                           className="w-10 h-10 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white flex items-center justify-center transition-colors shrink-0"
                           title="Download Audio"
                         >
@@ -1185,7 +1213,7 @@ export default function VoiceOver() {
                         </button>
                         <a
                           href={translation.audioUrl}
-                          download={`script-${translation.languageCode}.wav`}
+                          download={getTranslationDownloadFilename(translation)}
                           className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-white text-sm font-medium transition-all"
                         >
                           <Download className="w-4 h-4" />
