@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { generateVidVisionInsight } from '../services/geminiService';
 import { Type } from '@google/genai';
-import { Loader2, PenTool, Copy, Check, AlertTriangle, Eye, Zap, TrendingDown } from 'lucide-react';
+import { Loader2, PenTool, Copy, Check, AlertTriangle, Eye, Zap, TrendingDown, Download, Save } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 interface ScriptArchitectProps {
@@ -153,6 +153,7 @@ export default function ScriptArchitect({ initialTopic, onTopicUsed, channelCont
   const [generationError, setGenerationError] = useState<string | null>(null);
   const [generatedConfig, setGeneratedConfig] = useState<{ videoFormat: VideoFormat; targetLength: string } | null>(null);
   const [copied, setCopied] = useState(false);
+  const [saveMessage, setSaveMessage] = useState<'success' | 'error' | null>(null);
 
   // Retention Doctor state
   const [retentionAnalysis, setRetentionAnalysis] = useState<RetentionAnalysis | null>(null);
@@ -315,6 +316,15 @@ export default function ScriptArchitect({ initialTopic, onTopicUsed, channelCont
   const copyToClipboard = () => {
     if (!result) return;
 
+    const text = buildScriptText();
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const buildScriptText = () => {
+    if (!result) return '';
+    
     const scriptFormatLabel = generatedConfig?.videoFormat === 'short' ? 'Short-form' : 'Long-form';
     const scriptLengthLabel = generatedConfig?.targetLength || 'Not specified';
     const hookRange = generatedConfig?.videoFormat === 'short' ? '0:00 - 0:03' : '0:00 - 0:30';
@@ -333,10 +343,55 @@ export default function ScriptArchitect({ initialTopic, onTopicUsed, channelCont
     
     text += `## CALL TO ACTION\n${result.cta}\n\n`;
     text += `## OUTRO\n${result.outro}`;
+    
+    return text;
+  };
 
-    navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const downloadScript = () => {
+    if (!result) return;
+    
+    const text = buildScriptText();
+    const timestamp = new Date().toISOString().slice(0, 10);
+    const filename = `script-${result.title.toLowerCase().replace(/\s+/g, '-')}-${timestamp}.txt`;
+    
+    const element = document.createElement('a');
+    element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
+    element.setAttribute('download', filename);
+    element.style.display = 'none';
+    document.body.appendChild(element);
+    element.click();
+    document.body.removeChild(element);
+  };
+
+  const saveScriptToStorage = () => {
+    if (!result || !generatedConfig) return;
+    
+    try {
+      const script = {
+        title: result.title,
+        topic: topic,
+        videoFormat: generatedConfig.videoFormat,
+        targetLength: generatedConfig.targetLength,
+        content: buildScriptText(),
+        savedAt: new Date().toISOString(),
+      };
+      
+      const scripts = JSON.parse(localStorage.getItem('savedScripts') || '[]');
+      scripts.push(script);
+      
+      // Keep only the 50 most recent scripts
+      if (scripts.length > 50) {
+        scripts.shift();
+      }
+      
+      localStorage.setItem('savedScripts', JSON.stringify(scripts));
+      setSaveMessage('success');
+      setTimeout(() => setSaveMessage(null), 2000);
+    } catch (error) {
+      console.error('Failed to save script:', error);
+      setSaveMessage('error');
+      setTimeout(() => setSaveMessage(null), 2000);
+    }
   };
 
   return (
@@ -466,13 +521,31 @@ export default function ScriptArchitect({ initialTopic, onTopicUsed, channelCont
                 </p>
               )}
             </div>
-            <button 
-              onClick={copyToClipboard}
-              className="flex items-center gap-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-            >
-              {copied ? <Check size={16} className="text-emerald-400" /> : <Copy size={16} />}
-              {copied ? 'Copied!' : 'Copy Full Script'}
-            </button>
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={copyToClipboard}
+                className="flex items-center gap-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+              >
+                {copied ? <Check size={16} className="text-emerald-400" /> : <Copy size={16} />}
+                {copied ? 'Copied!' : 'Copy'}
+              </button>
+              <button 
+                onClick={downloadScript}
+                className="flex items-center gap-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                title="Download as .txt file"
+              >
+                <Download size={16} />
+                Download
+              </button>
+              <button 
+                onClick={saveScriptToStorage}
+                className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                title="Save to browser storage"
+              >
+                {saveMessage === 'success' ? <Check size={16} className="text-emerald-400" /> : <Save size={16} />}
+                {saveMessage === 'success' ? 'Saved!' : 'Save'}
+              </button>
+            </div>
           </div>
           
           <div className="p-6 space-y-8">
