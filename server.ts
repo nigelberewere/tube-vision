@@ -1591,6 +1591,91 @@ For every video provided, evaluate segments based on:
     }
   });
 
+  app.get("/api/user/scripts", async (req, res) => {
+    const scriptsUserId = await resolveCoachHistoryUserId(req);
+    if (!scriptsUserId) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
+    try {
+      const { data, error } = await supabaseServer
+        .from("saved_content")
+        .select("id, title, data, created_at, updated_at")
+        .eq("user_id", scriptsUserId)
+        .eq("content_type", "script")
+        .neq("title", "__saved_ideas__")
+        .order("updated_at", { ascending: false })
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.error("Scripts fetch error:", error);
+        return res.status(500).json({ error: "Failed to load scripts" });
+      }
+
+      const scripts = (data || []).map((row: any) => ({
+        id: row.id,
+        title: row.title,
+        topic: row.data?.topic || "",
+        videoFormat: row.data?.videoFormat || "",
+        targetLength: row.data?.targetLength || "",
+        content: row.data?.content || "",
+        scriptResult: row.data?.scriptResult || null,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+      }));
+
+      res.json({ scripts });
+    } catch (error) {
+      console.error("Scripts fetch exception:", error);
+      res.status(500).json({ error: "Failed to load scripts" });
+    }
+  });
+
+  app.post("/api/user/scripts", async (req, res) => {
+    const scriptsUserId = await resolveCoachHistoryUserId(req);
+    if (!scriptsUserId) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
+    const title = String(req.body?.title || "").trim();
+    const topic = String(req.body?.topic || "").trim();
+    const videoFormat = String(req.body?.videoFormat || "").trim();
+    const targetLength = String(req.body?.targetLength || "").trim();
+    const content = String(req.body?.content || "").trim();
+    const scriptResult = req.body?.scriptResult && typeof req.body.scriptResult === "object" ? req.body.scriptResult : null;
+
+    if (!title || !content) {
+      return res.status(400).json({ error: "title and content are required" });
+    }
+
+    try {
+      const { error: insertError } = await supabaseServer
+        .from("saved_content")
+        .insert({
+          user_id: scriptsUserId,
+          content_type: "script",
+          title,
+          data: {
+            topic,
+            videoFormat,
+            targetLength,
+            content,
+            scriptResult,
+          },
+        });
+
+      if (insertError) {
+        console.error("Script insert error:", insertError);
+        return res.status(500).json({ error: "Failed to save script" });
+      }
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Script save exception:", error);
+      res.status(500).json({ error: "Failed to save script" });
+    }
+  });
+
   app.get("/api/script/daily-placeholder", async (req, res) => {
     const user = await getActiveYouTubeUser(req);
 

@@ -1605,6 +1605,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         videoFormat: row.data?.videoFormat || '',
         targetLength: row.data?.targetLength || '',
         content: row.data?.content || '',
+        scriptResult: row.data?.scriptResult || null,
         createdAt: row.created_at,
         updatedAt: row.updated_at,
       }));
@@ -1628,6 +1629,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const videoFormat = String(body?.videoFormat || '').trim();
     const targetLength = String(body?.targetLength || '').trim();
     const content = String(body?.content || '').trim();
+    const scriptResult = body?.scriptResult && typeof body.scriptResult === 'object' ? body.scriptResult : null;
 
     if (!title || !content) {
       return res.status(400).json({ error: 'title and content are required' });
@@ -1645,6 +1647,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             videoFormat,
             targetLength,
             content,
+            scriptResult,
           },
         });
 

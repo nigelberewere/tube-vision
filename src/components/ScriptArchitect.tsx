@@ -53,6 +53,7 @@ interface SavedScript {
   videoFormat: string;
   targetLength: string;
   content: string;
+  scriptResult: ScriptResult | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -380,7 +381,7 @@ export default function ScriptArchitect({ initialTopic, onTopicUsed, channelCont
     document.body.removeChild(element);
   };
 
-  const saveScriptToStorage = async () => {
+  const saveScriptToAccount = async () => {
     if (!result || !generatedConfig) return;
     
     setSaveMessage(null);
@@ -391,6 +392,7 @@ export default function ScriptArchitect({ initialTopic, onTopicUsed, channelCont
         videoFormat: generatedConfig.videoFormat,
         targetLength: generatedConfig.targetLength,
         content: buildScriptText(),
+        scriptResult: result,
       };
       
       const response = await fetch('/api/user/scripts', {
@@ -439,14 +441,22 @@ export default function ScriptArchitect({ initialTopic, onTopicUsed, channelCont
     setVideoFormat(script.videoFormat as VideoFormat);
     setTargetLengthValue(script.targetLength.split(' ')[0]);
     setTargetLengthUnit(script.targetLength.includes('minute') ? 'minutes' : 'seconds');
-    
-    // Parse the content back to extract the result
-    // The content is in the format we build, so we extract sections
-    const lines = script.content.split('\n').filter((line: string) => line.trim());
-    
-    // For now, just show a message that the script was loaded
-    // In a full implementation, you'd parse and restore the full result object
-    console.log('Loaded script:', script.title);
+
+    if (script.scriptResult) {
+      setResult(script.scriptResult);
+      setGeneratedConfig({
+        videoFormat: script.videoFormat === 'short' ? 'short' : 'long',
+        targetLength: script.targetLength,
+      });
+      setGenerationError(null);
+    } else {
+      setResult(null);
+      setGeneratedConfig({
+        videoFormat: script.videoFormat === 'short' ? 'short' : 'long',
+        targetLength: script.targetLength,
+      });
+      setGenerationError('This saved script does not include full generated sections. Please regenerate from the loaded inputs.');
+    }
     
     setShowSavedScripts(false);
   };
@@ -609,9 +619,9 @@ export default function ScriptArchitect({ initialTopic, onTopicUsed, channelCont
                 Download
               </button>
               <button 
-                onClick={saveScriptToStorage}
+                onClick={saveScriptToAccount}
                 className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-                title="Save to browser storage"
+                title="Save to account"
               >
                 {saveMessage === 'success' ? <Check size={16} className="text-emerald-400" /> : <Save size={16} />}
                 {saveMessage === 'success' ? 'Saved!' : 'Save'}
