@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { generateVidVisionInsight } from '../services/geminiService';
 import { Type } from '@google/genai';
-import { Loader2, PenTool, Copy, Check, AlertTriangle, Eye, Zap, TrendingDown, Download, Save } from 'lucide-react';
+import { Loader2, PenTool, Copy, Check, AlertTriangle, Eye, Zap, TrendingDown, Download, Save, X, Clock } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 interface ScriptArchitectProps {
@@ -44,6 +44,17 @@ interface RetentionAnalysis {
   issues: RetentionIssue[];
   strengths: string[];
   summary: string;
+}
+
+interface SavedScript {
+  id: string;
+  title: string;
+  topic: string;
+  videoFormat: string;
+  targetLength: string;
+  content: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 const DEFAULT_TOPIC_PLACEHOLDER = 'e.g., The history of mechanical keyboards';
@@ -154,6 +165,12 @@ export default function ScriptArchitect({ initialTopic, onTopicUsed, channelCont
   const [generatedConfig, setGeneratedConfig] = useState<{ videoFormat: VideoFormat; targetLength: string } | null>(null);
   const [copied, setCopied] = useState(false);
   const [saveMessage, setSaveMessage] = useState<'success' | 'error' | null>(null);
+
+  // Saved scripts modal state
+  const [showSavedScripts, setShowSavedScripts] = useState(false);
+  const [savedScripts, setSavedScripts] = useState<SavedScript[]>([]);
+  const [loadingSavedScripts, setLoadingSavedScripts] = useState(false);
+  const [savedScriptsError, setSavedScriptsError] = useState<string | null>(null);
 
   // Retention Doctor state
   const [retentionAnalysis, setRetentionAnalysis] = useState<RetentionAnalysis | null>(null);
@@ -397,6 +414,48 @@ export default function ScriptArchitect({ initialTopic, onTopicUsed, channelCont
     }
   };
 
+  const fetchSavedScripts = async () => {
+    setLoadingSavedScripts(true);
+    setSavedScriptsError(null);
+    try {
+      const response = await fetch('/api/user/scripts');
+      if (!response.ok) {
+        setSavedScriptsError('Failed to load saved scripts');
+        return;
+      }
+
+      const data = await response.json();
+      setSavedScripts(Array.isArray(data?.scripts) ? data.scripts : []);
+    } catch (error) {
+      console.error('Failed to fetch saved scripts:', error);
+      setSavedScriptsError('Failed to load saved scripts');
+    } finally {
+      setLoadingSavedScripts(false);
+    }
+  };
+
+  const loadSavedScript = (script: SavedScript) => {
+    setTopic(script.topic);
+    setVideoFormat(script.videoFormat as VideoFormat);
+    setTargetLengthValue(script.targetLength.split(' ')[0]);
+    setTargetLengthUnit(script.targetLength.includes('minute') ? 'minutes' : 'seconds');
+    
+    // Parse the content back to extract the result
+    // The content is in the format we build, so we extract sections
+    const lines = script.content.split('\n').filter((line: string) => line.trim());
+    
+    // For now, just show a message that the script was loaded
+    // In a full implementation, you'd parse and restore the full result object
+    console.log('Loaded script:', script.title);
+    
+    setShowSavedScripts(false);
+  };
+
+  const openSavedScripts = () => {
+    setShowSavedScripts(true);
+    fetchSavedScripts();
+  };
+
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       <div>
@@ -502,14 +561,23 @@ export default function ScriptArchitect({ initialTopic, onTopicUsed, channelCont
             <p className="text-sm text-rose-400">{generationError}</p>
           )}
 
-          <button
-            onClick={handleGenerate}
-            disabled={loading || !topic.trim() || !videoFormat || !targetLengthValue.trim()}
-            className="w-full md:w-auto bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-6 py-2.5 rounded-lg font-medium flex items-center justify-center gap-2 transition-colors"
-          >
-            {loading ? <Loader2 size={18} className="animate-spin" /> : <PenTool size={18} />}
-            Draft Script
-          </button>
+          <div className="flex gap-3">
+            <button
+              onClick={handleGenerate}
+              disabled={loading || !topic.trim() || !videoFormat || !targetLengthValue.trim()}
+              className="w-full md:w-auto bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-6 py-2.5 rounded-lg font-medium flex items-center justify-center gap-2 transition-colors"
+            >
+              {loading ? <Loader2 size={18} className="animate-spin" /> : <PenTool size={18} />}
+              Draft Script
+            </button>
+            <button
+              onClick={openSavedScripts}
+              className="md:w-auto bg-zinc-800 hover:bg-zinc-700 text-zinc-200 px-6 py-2.5 rounded-lg font-medium flex items-center justify-center gap-2 transition-colors"
+            >
+              <Clock size={18} />
+              Saved Scripts
+            </button>
+          </div>
         </div>
       </div>
 
@@ -594,6 +662,74 @@ export default function ScriptArchitect({ initialTopic, onTopicUsed, channelCont
               <h3 className="text-sm font-bold tracking-wider text-zinc-400 uppercase mb-2">Outro</h3>
               <p className="text-zinc-300 leading-relaxed">{result.outro}</p>
             </section>
+          </div>
+        </div>
+      )}
+
+      {/* Saved Scripts Modal */}
+      {showSavedScripts && (
+        <div className="fixed inset-0 z-50 overflow-hidden">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => setShowSavedScripts(false)}
+          />
+
+          {/* Sidebar */}
+          <div className="absolute right-0 top-0 h-full w-full max-w-md bg-zinc-950 border-l border-zinc-800 shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
+            {/* Header */}
+            <div className="px-6 py-4 border-b border-zinc-800 flex items-center justify-between">
+              <h2 className="text-lg font-bold text-zinc-100">Saved Scripts</h2>
+              <button
+                onClick={() => setShowSavedScripts(false)}
+                className="text-zinc-400 hover:text-zinc-100 transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto">
+              {loadingSavedScripts ? (
+                <div className="flex items-center justify-center h-32">
+                  <Loader2 size={24} className="animate-spin text-indigo-500" />
+                </div>
+              ) : savedScriptsError ? (
+                <div className="p-6 text-center">
+                  <p className="text-sm text-rose-400">{savedScriptsError}</p>
+                </div>
+              ) : savedScripts.length === 0 ? (
+                <div className="p-6 text-center">
+                  <p className="text-sm text-zinc-400">No saved scripts yet</p>
+                </div>
+              ) : (
+                <div className="space-y-2 p-4">
+                  {savedScripts.map((script) => (
+                    <button
+                      key={script.id}
+                      onClick={() => loadSavedScript(script)}
+                      className="w-full text-left p-4 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 transition-colors group"
+                    >
+                      <h3 className="font-medium text-zinc-100 group-hover:text-indigo-400 truncate">
+                        {script.title}
+                      </h3>
+                      <p className="text-xs text-zinc-500 mt-1 truncate">{script.topic}</p>
+                      <div className="flex items-center gap-2 mt-2 text-xs text-zinc-400">
+                        <span className="px-2 py-1 bg-zinc-800 rounded">
+                          {script.videoFormat === 'short' ? 'Short' : 'Long'}
+                        </span>
+                        <span className="px-2 py-1 bg-zinc-800 rounded">
+                          {script.targetLength}
+                        </span>
+                      </div>
+                      <p className="text-xs text-zinc-500 mt-2">
+                        {new Date(script.updatedAt).toLocaleDateString()}
+                      </p>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}

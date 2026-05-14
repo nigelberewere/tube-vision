@@ -18,9 +18,11 @@ import { GuidePage, type GuideSlug } from "@/src/components/GuidePage";
 import { Hero } from "@/src/components/Hero";
 import { LegalViewer } from "@/src/components/LegalViewer";
 import { Navigation } from "@/src/components/Navigation";
+import { NotFoundPage } from "@/src/components/NotFoundPage";
 import { Pricing } from "@/src/components/Pricing";
 import { UseCasePage, type UseCaseSlug } from "@/src/components/UseCasePage";
 import { getAuthUrl, getDashboardUrl } from "@/src/lib/config";
+import { getBlogPostBySlug } from "@/src/lib/content";
 import { readSharedAuthState, type SharedAuthState } from "@/src/lib/sharedAuthCookie";
 import { cn } from "@/src/lib/utils";
 
@@ -40,7 +42,8 @@ type Page =
   | "faq"
   | "blog"
   | "blog_post"
-  | "free_tools";
+  | "free_tools"
+  | "not_found";
 
 const FEATURE_ROUTE_MAP = {
   "script-architect": "script-architect",
@@ -99,10 +102,11 @@ function getUseCaseSlugFromPath(pathname: string): UseCaseSlug | null {
 function getBlogPostSlugFromPath(pathname: string): string | null {
   const match = pathname.match(/^\/blog\/([^/]+)$/);
   if (!match) return null;
-  return match[1];
+  return getBlogPostBySlug(match[1]) ? match[1] : null;
 }
 
 function getPageFromPath(pathname: string): Page {
+  if (pathname === "/") return "home";
   if (pathname === "/privacy") return "privacy";
   if (pathname === "/terms") return "terms";
   if (getFeatureSlugFromPath(pathname)) return "feature";
@@ -114,7 +118,7 @@ function getPageFromPath(pathname: string): Page {
   if (pathname === "/blog") return "blog";
   if (getBlogPostSlugFromPath(pathname)) return "blog_post";
   if (pathname === "/free-tools") return "free_tools";
-  return "home";
+  return "not_found";
 }
 
 export default function App() {
@@ -268,6 +272,15 @@ export default function App() {
     mainContent = <BlogPost slug={currentBlogPostSlug} isDark={isDark} isAuthenticated={isAuthenticated} onBack={goToBlog} onConnect={openDashboardAuth} />;
   } else if (page === "free_tools") {
     mainContent = <FreeToolsPage isDark={isDark} isAuthenticated={isAuthenticated} onBack={goHome} onConnect={openDashboardAuth} />;
+  } else if (page === "not_found") {
+    mainContent = (
+      <NotFoundPage
+        isDark={isDark}
+        isAuthenticated={isAuthenticated}
+        onConnect={openDashboardAuth}
+        onNavigateInternal={navigateToPath}
+      />
+    );
   } else {
     mainContent = (
       <>

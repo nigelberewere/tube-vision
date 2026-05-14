@@ -12,20 +12,305 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="shortcut icon" href="/favicon.svg" />
     <link rel="canonical" href="https://janso.studio/404.html" />
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: #050505;
+        color: #e2e8f0;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        min-height: 100vh;
+        margin: 0;
+        background:
+          radial-gradient(circle at 12% 18%, rgba(99, 102, 241, 0.22), transparent 28%),
+          radial-gradient(circle at 88% 14%, rgba(239, 68, 68, 0.2), transparent 30%),
+          radial-gradient(circle at 52% 82%, rgba(16, 185, 129, 0.16), transparent 32%),
+          #050505;
+      }
+
+      a {
+        color: inherit;
+        text-decoration: none;
+      }
+
+      .shell {
+        display: grid;
+        min-height: 100vh;
+        padding: 24px;
+      }
+
+      .nav,
+      .content {
+        width: min(1120px, 100%);
+        margin-inline: auto;
+      }
+
+      .nav {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        height: max-content;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 18px;
+        padding: 14px 18px;
+        background: rgba(255, 255, 255, 0.04);
+        backdrop-filter: blur(18px);
+      }
+
+      .brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        font-weight: 700;
+      }
+
+      .brand img {
+        width: 36px;
+        height: 36px;
+        border-radius: 12px;
+      }
+
+      .nav-link {
+        color: #cbd5e1;
+        font-size: 14px;
+        transition: color 160ms ease;
+      }
+
+      .nav-link:hover {
+        color: #fff;
+      }
+
+      .content {
+        display: grid;
+        grid-template-columns: 0.95fr 1.05fr;
+        gap: 48px;
+        align-items: center;
+        padding-block: 64px;
+      }
+
+      .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        width: max-content;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 999px;
+        padding: 6px 12px;
+        background: rgba(255, 255, 255, 0.05);
+        color: #f8fafc;
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: #ef4444;
+      }
+
+      h1 {
+        max-width: 680px;
+        margin: 26px 0 18px;
+        color: #f8fafc;
+        font-size: clamp(42px, 8vw, 72px);
+        line-height: 0.96;
+        letter-spacing: 0;
+      }
+
+      p {
+        margin: 0;
+        color: #cbd5e1;
+        font-size: 18px;
+        line-height: 1.7;
+      }
+
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-top: 30px;
+      }
+
+      .button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 46px;
+        border-radius: 14px;
+        padding: 0 18px;
+        font-size: 14px;
+        font-weight: 800;
+      }
+
+      .button-primary {
+        background: #fff;
+        color: #050505;
+      }
+
+      .button-secondary {
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(255, 255, 255, 0.04);
+        color: #f8fafc;
+      }
+
+      .panel {
+        position: relative;
+        overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 28px;
+        padding: 24px;
+        background: rgba(0, 0, 0, 0.35);
+      }
+
+      .tiles {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 8px;
+      }
+
+      .tile {
+        aspect-ratio: 16 / 9;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.04);
+      }
+
+      .tile.is-missing {
+        border-color: rgba(248, 113, 113, 0.55);
+        background: rgba(239, 68, 68, 0.2);
+      }
+
+      .links {
+        display: grid;
+        gap: 12px;
+        margin-top: 24px;
+      }
+
+      .card {
+        display: block;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 18px;
+        padding: 16px;
+        background: rgba(255, 255, 255, 0.03);
+        transition:
+          background 160ms ease,
+          border-color 160ms ease,
+          transform 160ms ease;
+      }
+
+      .card:hover {
+        transform: translateY(-1px);
+        border-color: rgba(255, 255, 255, 0.2);
+        background: rgba(255, 255, 255, 0.07);
+      }
+
+      .card strong {
+        display: block;
+        color: #f8fafc;
+        font-size: 15px;
+      }
+
+      .card span {
+        display: block;
+        margin-top: 5px;
+        color: #94a3b8;
+        font-size: 14px;
+        line-height: 1.55;
+      }
+
+      @media (max-width: 820px) {
+        .shell {
+          padding: 16px;
+        }
+
+        .content {
+          grid-template-columns: 1fr;
+          gap: 30px;
+          padding-block: 44px;
+        }
+
+        .nav {
+          border-radius: 16px;
+        }
+
+        .nav-link {
+          display: none;
+        }
+
+        p {
+          font-size: 16px;
+        }
+      }
+    </style>
   </head>
   <body>
-    <main>
-      <h1>Page not found</h1>
-      <p>The page you requested is not available.</p>
-      <p>
-        <a href="/">Go to the homepage</a>
-      </p>
-      <ul>
-        <li><a href="/features/analytics-dashboard">Analytics Dashboard</a></li>
-        <li><a href="/features/youtube-seo">YouTube SEO</a></li>
-        <li><a href="/blog">Blog</a></li>
-        <li><a href="/contact">Contact</a></li>
-      </ul>
-    </main>
+    <div class="shell">
+      <nav class="nav" aria-label="Primary">
+        <a class="brand" href="/">
+          <img src="/favicon.svg" alt="" />
+          <span>Janso Studio</span>
+        </a>
+        <a class="nav-link" href="/contact">Contact support</a>
+      </nav>
+
+      <main class="content">
+        <section>
+          <div class="eyebrow"><span class="dot"></span>404</div>
+          <h1>This page missed the publish queue.</h1>
+          <p>
+            The link may be outdated, mistyped, or moved during a site update. Head back home or jump
+            into a working creator workflow.
+          </p>
+          <div class="actions">
+            <a class="button button-primary" href="/">Go home</a>
+            <a class="button button-secondary" href="https://app.janso.studio/">Open dashboard</a>
+          </div>
+        </section>
+
+        <section class="panel" aria-label="Helpful destinations">
+          <div class="tiles" aria-hidden="true">
+            <div class="tile"></div>
+            <div class="tile"></div>
+            <div class="tile"></div>
+            <div class="tile"></div>
+            <div class="tile"></div>
+            <div class="tile"></div>
+            <div class="tile is-missing"></div>
+            <div class="tile"></div>
+            <div class="tile"></div>
+            <div class="tile"></div>
+            <div class="tile"></div>
+            <div class="tile is-missing"></div>
+            <div class="tile"></div>
+            <div class="tile"></div>
+            <div class="tile"></div>
+            <div class="tile"></div>
+          </div>
+
+          <div class="links">
+            <a class="card" href="/features/script-architect">
+              <strong>Explore features</strong>
+              <span>Script, SEO, clips, voiceover, analytics, and planning tools.</span>
+            </a>
+            <a class="card" href="/free-tools">
+              <strong>Try free tools</strong>
+              <span>Generate video ideas and keyword angles before signing in.</span>
+            </a>
+            <a class="card" href="/blog">
+              <strong>Read the Growth Hub</strong>
+              <span>Creator guides for scripts, Shorts, thumbnails, and SEO.</span>
+            </a>
+          </div>
+        </section>
+      </main>
+    </div>
   </body>
 </html>
