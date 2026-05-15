@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { GoogleGenAI, Modality } from '@google/genai';
 import { Play, Square, Download, Loader2, Volume2, Sparkles, Pause, Tags, Plus, Wand2, Sliders, Trash2, Globe, Languages, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { useVoiceOverState } from '../lib/VoiceOverContext';
 
 const VOICES = ['Algenib', 'Kore', 'Puck', 'Charon', 'Fenrir', 'Zephyr', 'Aoede', 'Orus'];
 const TAGS = [
@@ -148,15 +149,12 @@ async function getVoiceOverModel(isTTS: boolean = false): Promise<string> {
 }
 
 export default function VoiceOver() {
-  const [script, setScript] = useState(DEFAULT_SCRIPT_PLACEHOLDER);
+  // Get persistent voiceover state from context
+  const { voiceOverState, updateVoiceOverState } = useVoiceOverState();
+  
   const [scriptPlaceholder, setScriptPlaceholder] = useState(DEFAULT_SCRIPT_PLACEHOLDER);
-  const [voice, setVoice] = useState(VOICES[0]);
-  const [pitch, setPitch] = useState(0);
-  const [speed, setSpeed] = useState(1.0);
-  const [volume, setVolume] = useState(1.0);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSmartTagging, setIsSmartTagging] = useState(false);
-  const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [flashEditor, setFlashEditor] = useState(false);
@@ -167,7 +165,6 @@ export default function VoiceOver() {
   const [audioDescription, setAudioDescription] = useState<string>('');
   
   // Multi-language dubbing state
-  const [sourceLanguage, setSourceLanguage] = useState('en');
   const [translations, setTranslations] = useState<Translation[]>([]);
   const [isTranslating, setIsTranslating] = useState(false);
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>([]);
@@ -188,7 +185,7 @@ export default function VoiceOver() {
     setScriptPlaceholder(trimmedStarterScript);
 
     if (canSyncStarterScriptRef.current) {
-      setScript(trimmedStarterScript);
+      updateVoiceOverState({ script: trimmedStarterScript });
     }
   };
 
@@ -197,7 +194,7 @@ export default function VoiceOver() {
       textAreaRef.current.style.height = 'auto';
       textAreaRef.current.style.height = `${textAreaRef.current.scrollHeight}px`;
     }
-  }, [script]);
+  }, [voiceOverState.script]);
 
   useEffect(() => {
     let isCancelled = false;
@@ -273,25 +270,25 @@ export default function VoiceOver() {
       audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
       audio.removeEventListener('timeupdate', handleTimeUpdate);
     };
-  }, [audioUrl]);
+  }, [voiceOverState.audioUrl]);
 
   // Apply speed, volume, and pitch settings to the DOM element directly
   // since the Gemini TTS API does not natively support these parameters in its SDK config yet.
   useEffect(() => {
     if (audioRef.current) {
-      audioRef.current.volume = Math.min(1.0, Math.max(0.0, volume));
+      audioRef.current.volume = Math.min(1.0, Math.max(0.0, voiceOverState.volume));
       
       // Basic pitch hacking via playback rate if requested natively by the browser
       if ('preservesPitch' in audioRef.current) {
-        audioRef.current.preservesPitch = pitch === 0;
+        audioRef.current.preservesPitch = voiceOverState.pitch === 0;
       }
       
       // If pitch is altered, we bend the playback rate slightly to achieve the chipmunk/deep effect
       // Otherwise, we strictly honor the speed setting.
-      const pitchMultiplier = pitch !== 0 ? (1 + (pitch * 0.3)) : 1.0;
-      audioRef.current.playbackRate = Math.max(0.1, speed * pitchMultiplier);
+      const pitchMultiplier = voiceOverState.pitch !== 0 ? (1 + (voiceOverState.pitch * 0.3)) : 1.0;
+      audioRef.current.playbackRate = Math.max(0.1, voiceOverState.speed * pitchMultiplier);
     }
-  }, [speed, volume, pitch, audioUrl]);
+  }, [voiceOverState.speed, voiceOverState.volume, voiceOverState.pitch, voiceOverState.audioUrl]);
 
   const handlePreviewVoice = async (e: React.MouseEvent, voiceName: string) => {
     e.stopPropagation();
@@ -346,15 +343,15 @@ export default function VoiceOver() {
     canSyncStarterScriptRef.current = false;
     const textArea = textAreaRef.current;
     if (!textArea) {
-      setScript(prev => prev + ' ' + tag);
+      updateVoiceOverState({ script: voiceOverState.script + ' ' + tag });
       return;
     }
 
     const start = textArea.selectionStart;
     const end = textArea.selectionEnd;
-    const newText = script.substring(0, start) + tag + script.substring(end);
+    const newText = voiceOverState.script.substring(0, start) + tag + voiceOverState.script.substring(end);
     
-    setScript(newText);
+    updateVoiceOverState({ script: newText });
     
     setFlashEditor(true);
     setTimeout(() => setFlashEditor(false), 300);
@@ -366,7 +363,7 @@ export default function VoiceOver() {
   };
 
   const handleSmartTagging = async () => {
-    if (!script.trim()) return;
+    if (!voiceOverState.script.trim()) return;
     canSyncStarterScriptRef.current = false;
     setIsSmartTagging(true);
     setError(null);
@@ -376,14 +373,14 @@ export default function VoiceOver() {
       const model = await getVoiceOverModel(false);
       const response = await ai.models.generateContent({
         model,
-        contents: script,
+        contents: voiceOverState.script,
         config: {
           systemInstruction: "Analyze this script and identify the most dramatic, emotional, tense, or expressive moments. Automatically wrap the text in appropriate expressive tags like [Whispering], [Serious], [Excited], [Sad], [Angry], [Happy], [Breath], or [Pause 1s] to enhance the vocal delivery. Return only the tagged script without any additional commentary."
         }
       });
       
       if (response.text) {
-        setScript(response.text.trim());
+        updateVoiceOverState({ script: response.text.trim() });
       }
     } catch (err: any) {
       console.error("Smart Tagging Error:", err);
@@ -394,7 +391,7 @@ export default function VoiceOver() {
   };
 
   const handleTranslateScript = async (targetLanguageCode: string) => {
-    if (!script.trim()) return;
+    if (!voiceOverState.script.trim()) return;
     setIsTranslating(true);
     setError(null);
     
@@ -405,9 +402,9 @@ export default function VoiceOver() {
       
       const response = await ai.models.generateContent({
         model,
-        contents: script,
+        contents: voiceOverState.script,
         config: {
-          systemInstruction: `Translate this script from ${LANGUAGES.find(l => l.code === sourceLanguage)?.name} to ${targetLang?.name}. 
+          systemInstruction: `Translate this script from ${LANGUAGES.find(l => l.code === voiceOverState.sourceLanguage)?.name} to ${targetLang?.name}. 
           Preserve ALL emotional tags (text in square brackets like [Whispering], [Excited], [Pause 1s]) exactly as they are - do NOT translate the tags themselves.
           Only translate the actual dialogue text between tags.
           Return ONLY the translated script with preserved tags, no additional commentary.`
@@ -463,7 +460,7 @@ export default function VoiceOver() {
     try {
       const ai = await getAIClient();
       const targetLang = LANGUAGES.find(l => l.code === languageCode);
-      const recommendedVoice = targetLang?.voice || voice;
+      const recommendedVoice = targetLang?.voice || voiceOverState.voice;
       
       // Keep TTS requests as plain transcript text to avoid modality mismatches
       // with audio-only models (for example, gemini-2.5-flash-preview-tts).
@@ -537,11 +534,11 @@ export default function VoiceOver() {
   };
 
   const handleGenerate = async () => {
-    if (!script.trim()) return;
+    if (!voiceOverState.script.trim()) return;
     
     setIsGenerating(true);
     setError(null);
-    setAudioUrl(null);
+    updateVoiceOverState({ audioUrl: null });
     setAudioDescription('');
     setIsPlaying(false);
     setCurrentTime(0);
@@ -550,13 +547,13 @@ export default function VoiceOver() {
     try {
       const ai = await getAIClient();
       
-      const pitchInstruction = pitch !== 0 ? ` Adjust pitch to be ${pitch > 0 ? 'higher' : 'deeper'}.` : '';
-      const speedInstruction = speed !== 1.0 ? ` Speak at ${speed}x speed.` : '';
-      const volumeInstruction = volume !== 1.0 ? ` Speak ${volume > 1.0 ? 'louder' : 'softer'}.` : '';
+      const pitchInstruction = voiceOverState.pitch !== 0 ? ` Adjust pitch to be ${voiceOverState.pitch > 0 ? 'higher' : 'deeper'}.` : '';
+      const speedInstruction = voiceOverState.speed !== 1.0 ? ` Speak at ${voiceOverState.speed}x speed.` : '';
+      const volumeInstruction = voiceOverState.volume !== 1.0 ? ` Speak ${voiceOverState.volume > 1.0 ? 'louder' : 'softer'}.` : '';
       
       const instructions = [pitchInstruction, speedInstruction, volumeInstruction].filter(Boolean).join('');
       const tagInstruction = " IMPORTANT: Bracketed tags like [Whisper], [Laugh], or [Sad] apply ONLY to the sentence or paragraph immediately following them. Return to normal speaking for subsequent sentences unless another tag is present.";
-      const prompt = `Say expressively${instructions}.${tagInstruction} Text: ${script}`;
+      const prompt = `Say expressively${instructions}.${tagInstruction} Text: ${voiceOverState.script}`;
       
       const model = await getVoiceOverModel(true);
       const response = await ai.models.generateContent({
@@ -566,7 +563,7 @@ export default function VoiceOver() {
           responseModalities: [Modality.AUDIO],
           speechConfig: {
             voiceConfig: {
-              prebuiltVoiceConfig: { voiceName: voice },
+              prebuiltVoiceConfig: { voiceName: voiceOverState.voice },
             },
           },
         },
@@ -577,10 +574,10 @@ export default function VoiceOver() {
       if (base64Audio) {
         const blob = createWavFile(base64Audio, 24000);
         const url = URL.createObjectURL(blob);
-        setAudioUrl(url);
+        updateVoiceOverState({ audioUrl: url });
         
         // Generate description for filename in background
-        const desc = await generateDescription(script);
+        const desc = await generateDescription(voiceOverState.script);
         setAudioDescription(desc);
       } else {
         throw new Error("No audio data returned from the model.");
@@ -602,7 +599,7 @@ export default function VoiceOver() {
   };
 
   const togglePlay = () => {
-    if (!audioRef.current || !audioUrl) return;
+    if (!audioRef.current || !voiceOverState.audioUrl) return;
     
     if (isPlaying) {
       audioRef.current.pause();
@@ -732,9 +729,9 @@ export default function VoiceOver() {
                     whileTap={{ scale: 0.95 }}
                     onClick={() => {
                       canSyncStarterScriptRef.current = false;
-                      setScript('');
+                      updateVoiceOverState({ script: '' });
                     }}
-                    disabled={!script.trim()}
+                    disabled={!voiceOverState.script.trim()}
                     className="text-[10px] sm:text-xs font-medium text-slate-400 hover:text-white px-2 sm:px-3 py-1.5 sm:py-2 rounded-xl flex items-center gap-1.5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed bg-white/5 hover:bg-white/10"
                   >
                     <Trash2 className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
@@ -744,7 +741,7 @@ export default function VoiceOver() {
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={handleSmartTagging}
-                    disabled={isSmartTagging || !script.trim()}
+                    disabled={isSmartTagging || !voiceOverState.script.trim()}
                     className="text-[10px] sm:text-xs font-medium text-white bg-white/10 hover:bg-white/20 px-2 sm:px-4 py-1.5 sm:py-2 rounded-xl flex items-center gap-1.5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed border border-white/5"
                   >
                     {isSmartTagging ? <Loader2 className="w-3 h-3 sm:w-3.5 sm:h-3.5 animate-spin" /> : <Wand2 className="w-3 h-3 sm:w-3.5 sm:h-3.5" />}
@@ -763,10 +760,10 @@ export default function VoiceOver() {
                   className="absolute inset-0 p-3 sm:p-6 text-sm sm:text-lg leading-relaxed whitespace-pre-wrap break-words pointer-events-none text-slate-300 overflow-hidden font-mono"
                   aria-hidden="true"
                 >
-                  {script ? (
+                  {voiceOverState.script ? (
                     <>
-                      {renderHighlightedText(script)}
-                      {script.endsWith('\n') ? <br/> : null}
+                      {renderHighlightedText(voiceOverState.script)}
+                      {voiceOverState.script.endsWith('\n') ? <br/> : null}
                     </>
                   ) : (
                     renderHighlightedText(scriptPlaceholder, true)
@@ -774,10 +771,10 @@ export default function VoiceOver() {
                 </div>
                 <textarea
                   ref={textAreaRef}
-                  value={script}
+                  value={voiceOverState.script}
                   onChange={(e) => {
                     canSyncStarterScriptRef.current = false;
-                    setScript(e.target.value);
+                    updateVoiceOverState({ script: e.target.value });
                     e.target.style.height = 'auto';
                     e.target.style.height = `${e.target.scrollHeight}px`;
                   }}
@@ -806,7 +803,7 @@ export default function VoiceOver() {
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={handleGenerate}
-                  disabled={isGenerating || !script.trim()}
+                  disabled={isGenerating || !voiceOverState.script.trim()}
                   className="bg-white text-black hover:bg-slate-200 font-medium text-xs sm:text-sm py-2.5 sm:py-3 px-4 sm:px-6 rounded-xl flex items-center justify-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed order-2 sm:order-1 w-full sm:w-auto"
                 >
                   {isGenerating ? (
@@ -824,7 +821,7 @@ export default function VoiceOver() {
                 
                 {/* Audio Player */}
                 <AnimatePresence>
-                  {audioUrl && (
+                  {voiceOverState.audioUrl && (
                     <motion.div 
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
@@ -864,7 +861,7 @@ export default function VoiceOver() {
                         </div>
                         
                         <a 
-                          href={audioUrl} 
+                          href={voiceOverState.audioUrl || undefined} 
                           download={getMainDownloadFilename()}
                           className="w-10 h-10 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white flex items-center justify-center transition-colors shrink-0"
                           title="Download Audio"
@@ -936,9 +933,9 @@ export default function VoiceOver() {
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   key={v}
-                  onClick={() => setVoice(v)}
+                  onClick={() => updateVoiceOverState({ voice: v })}
                   className={`px-4 py-3 rounded-xl text-sm font-medium transition-colors border flex items-center justify-between group ${
-                    voice === v
+                    voiceOverState.voice === v
                       ? 'bg-white/10 text-white border-white/20'
                       : 'bg-transparent border-transparent text-slate-400 hover:bg-white/5 hover:text-slate-200'
                   }`}
@@ -949,7 +946,7 @@ export default function VoiceOver() {
                     className={`p-1.5 rounded-lg transition-colors ${
                       playingPreview === v || previewingVoice === v
                         ? 'text-black bg-white'
-                        : voice === v
+                        : voiceOverState.voice === v
                           ? 'text-white hover:bg-white/20'
                           : 'text-slate-500 hover:bg-white/10 hover:text-white opacity-0 group-hover:opacity-100'
                     }`}
@@ -982,15 +979,15 @@ export default function VoiceOver() {
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
                   <label className="text-sm font-medium text-slate-300">Pitch</label>
-                  <span className="text-xs font-mono text-slate-500 bg-black/20 px-2 py-1 rounded-md">{pitch > 0 ? '+' : ''}{pitch.toFixed(1)}</span>
+                  <span className="text-xs font-mono text-slate-500 bg-black/20 px-2 py-1 rounded-md">{voiceOverState.pitch > 0 ? '+' : ''}{voiceOverState.pitch.toFixed(1)}</span>
                 </div>
                 <input
                   type="range"
                   min="-1.0"
                   max="1.0"
                   step="0.1"
-                  value={pitch}
-                  onChange={(e) => setPitch(parseFloat(e.target.value))}
+                  value={voiceOverState.pitch}
+                  onChange={(e) => updateVoiceOverState({ pitch: parseFloat(e.target.value) })}
                   className="w-full h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-white hover:accent-slate-200 transition-colors"
                 />
                 <div className="flex justify-between mt-2">
@@ -1003,15 +1000,15 @@ export default function VoiceOver() {
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
                   <label className="text-sm font-medium text-slate-300">Speed</label>
-                  <span className="text-xs font-mono text-slate-500 bg-black/20 px-2 py-1 rounded-md">{speed.toFixed(1)}x</span>
+                  <span className="text-xs font-mono text-slate-500 bg-black/20 px-2 py-1 rounded-md">{voiceOverState.speed.toFixed(1)}x</span>
                 </div>
                 <input
                   type="range"
                   min="0.5"
                   max="2.0"
                   step="0.1"
-                  value={speed}
-                  onChange={(e) => setSpeed(parseFloat(e.target.value))}
+                  value={voiceOverState.speed}
+                  onChange={(e) => updateVoiceOverState({ speed: parseFloat(e.target.value) })}
                   className="w-full h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-white hover:accent-slate-200 transition-colors"
                 />
                 <div className="relative mt-2 h-4 text-[10px] font-bold text-slate-500">
@@ -1024,15 +1021,15 @@ export default function VoiceOver() {
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
                   <label className="text-sm font-medium text-slate-300">Volume</label>
-                  <span className="text-xs font-mono text-slate-500 bg-black/20 px-2 py-1 rounded-md">{Math.round(volume * 100)}%</span>
+                  <span className="text-xs font-mono text-slate-500 bg-black/20 px-2 py-1 rounded-md">{Math.round(voiceOverState.volume * 100)}%</span>
                 </div>
                 <input
                   type="range"
                   min="0.5"
                   max="1.5"
                   step="0.1"
-                  value={volume}
-                  onChange={(e) => setVolume(parseFloat(e.target.value))}
+                  value={voiceOverState.volume}
+                  onChange={(e) => updateVoiceOverState({ volume: parseFloat(e.target.value) })}
                   className="w-full h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-white hover:accent-slate-200 transition-colors"
                 />
                 <div className="flex justify-between mt-2">
@@ -1086,7 +1083,7 @@ export default function VoiceOver() {
           </div>
           
           <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2 sm:gap-3">
-            {LANGUAGES.filter(l => l.code !== sourceLanguage).map((lang) => {
+            {LANGUAGES.filter(l => l.code !== voiceOverState.sourceLanguage).map((lang) => {
               const isSelected = selectedLanguages.includes(lang.code);
               return (
                 <motion.button
@@ -1124,7 +1121,7 @@ export default function VoiceOver() {
           >
             <button
               onClick={handleBatchTranslate}
-              disabled={isTranslating || !script.trim()}
+              disabled={isTranslating || !voiceOverState.script.trim()}
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-medium text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isTranslating ? (
@@ -1222,12 +1219,12 @@ export default function VoiceOver() {
                                 audio.pause();
                               } else {
                                 // Apply speed, volume, and pitch to dubbed audio too!
-                                audio.volume = Math.min(1.0, Math.max(0.0, volume));
+                                audio.volume = Math.min(1.0, Math.max(0.0, voiceOverState.volume));
                                 if ('preservesPitch' in audio) {
-                                  audio.preservesPitch = pitch === 0;
+                                  audio.preservesPitch = voiceOverState.pitch === 0;
                                 }
-                                const pitchMultiplier = pitch !== 0 ? (1 + (pitch * 0.3)) : 1.0;
-                                audio.playbackRate = Math.max(0.1, speed * pitchMultiplier);
+                                const pitchMultiplier = voiceOverState.pitch !== 0 ? (1 + (voiceOverState.pitch * 0.3)) : 1.0;
+                                audio.playbackRate = Math.max(0.1, voiceOverState.speed * pitchMultiplier);
                                 
                                 audio.play();
                               }
@@ -1264,7 +1261,7 @@ export default function VoiceOver() {
         )}
       </motion.div>
 
-      <audio ref={audioRef} src={audioUrl || undefined} className="hidden" />
+      <audio ref={audioRef} src={voiceOverState.audioUrl || undefined} className="hidden" />
     </div>
   );
 }
