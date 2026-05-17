@@ -71,6 +71,11 @@ Rules:
 - Keep language natural and spoken, optimized for retention.
 - Respect the requested format (short or long-form) and target final length.`;
 
+// Average speaking rate for Neural Voice Studio (words per minute).
+// Tune this value if you find audio runtime consistently differs from expected.
+const NEURAL_VOICE_WPM = 165; // words per minute
+const WPM_TOLERANCE_PCT = 0.08; // allow ±8% variance (approx ±1 minute on ~13 minutes)
+
 function sanitizeText(value: unknown): string {
   if (typeof value !== 'string') {
     return '';
@@ -289,14 +294,22 @@ export default function ScriptArchitect({ initialTopic, onTopicUsed, channelCont
         ? 'Limit body sections to 2-3 compact sections.'
         : 'Use 4-6 clear body sections with rising value.';
 
+      // Compute estimated spoken word target based on requested final length
+      const parsedLengthValue = Number(targetLengthValue) || 0;
+      const targetMinutesNumeric = targetLengthUnit === 'minutes' ? parsedLengthValue : parsedLengthValue / 60;
+      const estimatedWords = Math.max(40, Math.round((isNaN(targetMinutesNumeric) ? 0 : targetMinutesNumeric) * NEURAL_VOICE_WPM));
+      const toleranceWords = Math.max(5, Math.round(estimatedWords * WPM_TOLERANCE_PCT));
+
       const prompt = `Act as a master YouTube scriptwriter. Write a highly engaging, retention-optimized script for a ${formatLabel} about: "${trimmedTopic}".
 
       Strict requirements:
       - Required final script length: ${trimmedTargetLength}
+      - Target spoken word count: ${estimatedWords} words (± ${toleranceWords} words, ${Math.round(WPM_TOLERANCE_PCT * 100)}% tolerance).
+      - Neural Voice average speaking rate: ${NEURAL_VOICE_WPM} words per minute — use this to match runtime.
       - ${pacingGuidance}
       - ${bodySectionGuidance}
       - Include a strong hook, clear transitions, visual cues for the editor, and a compelling call to action.
-      - Ensure the final spoken script fits the required final length.
+      - Ensure the final spoken script fits the required final length by matching the target word count above.
       - Do not include hashtags, tag lists, SEO metadata, or keyword dumps.
       - App name is "Janso Studio" and must never be treated as the creator's channel identity.
       - Connected creator channel name: ${connectedChannelName || 'Not connected'}
