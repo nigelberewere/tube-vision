@@ -539,7 +539,7 @@ export default function ScriptArchitect({ initialTopic, onTopicUsed, channelCont
               <label className="block text-sm font-medium text-zinc-300 mb-2">
                 Required Final Length
               </label>
-              <div className="flex gap-2">
+              <div className="flex flex-col md:flex-row gap-2">
                 <input
                   type="number"
                   value={targetLengthValue}
@@ -553,27 +553,29 @@ export default function ScriptArchitect({ initialTopic, onTopicUsed, channelCont
                     type="button"
                     onClick={() => setTargetLengthUnit('seconds')}
                     className={cn(
-                      'rounded-full px-4 py-2 text-sm font-medium transition-all',
+                      'rounded-full px-2 md:px-4 py-2 text-xs md:text-sm font-medium transition-all',
                       targetLengthUnit === 'seconds'
                         ? 'bg-indigo-600 text-white shadow-md shadow-indigo-950/40'
                         : 'text-zinc-400 hover:text-zinc-100 hover:bg-white/5'
                     )}
                     aria-pressed={targetLengthUnit === 'seconds'}
                   >
-                    Seconds
+                    <span className="md:hidden">Sec</span>
+                    <span className="hidden md:inline">Seconds</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => setTargetLengthUnit('minutes')}
                     className={cn(
-                      'rounded-full px-4 py-2 text-sm font-medium transition-all',
+                      'rounded-full px-2 md:px-4 py-2 text-xs md:text-sm font-medium transition-all',
                       targetLengthUnit === 'minutes'
                         ? 'bg-indigo-600 text-white shadow-md shadow-indigo-950/40'
                         : 'text-zinc-400 hover:text-zinc-100 hover:bg-white/5'
                     )}
                     aria-pressed={targetLengthUnit === 'minutes'}
                   >
-                    Minutes
+                    <span className="md:hidden">Min</span>
+                    <span className="hidden md:inline">Minutes</span>
                   </button>
                 </div>
               </div>
@@ -584,18 +586,18 @@ export default function ScriptArchitect({ initialTopic, onTopicUsed, channelCont
             <p className="text-sm text-rose-400">{generationError}</p>
           )}
 
-          <div className="flex gap-3">
+          <div className="flex flex-col md:flex-row gap-3">
             <button
               onClick={handleGenerate}
               disabled={loading || !topic.trim() || !videoFormat || !targetLengthValue.trim()}
-              className="w-full md:w-auto bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-6 py-2.5 rounded-lg font-medium flex items-center justify-center gap-2 transition-colors"
+              className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-6 py-2.5 rounded-lg font-medium flex items-center justify-center gap-2 transition-colors"
             >
               {loading ? <Loader2 size={18} className="animate-spin" /> : <PenTool size={18} />}
               Draft Script
             </button>
             <button
               onClick={openSavedScripts}
-              className="md:w-auto bg-zinc-800 hover:bg-zinc-700 text-zinc-200 px-6 py-2.5 rounded-lg font-medium flex items-center justify-center gap-2 transition-colors"
+              className="w-full md:w-auto bg-zinc-800 hover:bg-zinc-700 text-zinc-200 px-6 py-2.5 rounded-lg font-medium flex items-center justify-center gap-2 transition-colors"
             >
               <Clock size={18} />
               Saved Scripts
@@ -615,29 +617,29 @@ export default function ScriptArchitect({ initialTopic, onTopicUsed, channelCont
                 </p>
               )}
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <button 
                 onClick={copyToClipboard}
-                className="flex items-center gap-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                className="flex items-center gap-1 md:gap-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 px-2 md:px-4 py-2 rounded-lg text-xs md:text-sm font-medium transition-colors"
               >
                 {copied ? <Check size={16} className="text-emerald-400" /> : <Copy size={16} />}
-                {copied ? 'Copied!' : 'Copy'}
+                <span className="hidden sm:inline">{copied ? 'Copied!' : 'Copy'}</span>
               </button>
               <button 
                 onClick={downloadScript}
-                className="flex items-center gap-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                className="flex items-center gap-1 md:gap-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 px-2 md:px-4 py-2 rounded-lg text-xs md:text-sm font-medium transition-colors"
                 title="Download as .txt file"
               >
                 <Download size={16} />
-                Download
+                <span className="hidden sm:inline">Download</span>
               </button>
               <button 
                 onClick={saveScriptToAccount}
-                className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                className="flex items-center gap-1 md:gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-2 md:px-4 py-2 rounded-lg text-xs md:text-sm font-medium transition-colors"
                 title="Save to account"
               >
                 {saveMessage === 'success' ? <Check size={16} className="text-emerald-400" /> : <Save size={16} />}
-                {saveMessage === 'success' ? 'Saved!' : 'Save'}
+                <span className="hidden sm:inline">{saveMessage === 'success' ? 'Saved!' : 'Save'}</span>
               </button>
             </div>
           </div>
