@@ -1216,8 +1216,8 @@ export default function App() {
         </div>
 
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-          <nav className="min-h-0 flex-1 overflow-y-scroll p-2 pr-1 sm:p-4 sm:pr-2 pb-96">
-            <div className="space-y-4 sm:space-y-5">
+          <nav className="overflow-y-auto p-2 pr-1 sm:p-4 sm:pr-2 flex-1 min-h-0">
+            <div className="space-y-4 pb-20 sm:space-y-5">
             <div className="space-y-1">
               <p className="px-2 text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">Overview</p>
               {overviewTabs.map((tab) => {
