@@ -218,16 +218,6 @@ export async function generateThumbnailImage(
       }
     }
 
-    const errorMsg = lastError instanceof Error ? lastError.message : String(lastError);
-    const hasImageAccess = !errorMsg.includes("429") && !errorMsg.includes("PERMISSION_DENIED");
-    
-    if (!hasImageAccess) {
-      throw new Error(
-        "Image generation access required. Your Gemini API key may not have image generation (Imagen) enabled. " +
-        "Enable billing on your GCP project and ensure image generation APIs are active."
-      );
-    }
-    
     throw lastError || new Error("No supported image model produced a thumbnail.");
   } catch (error) {
     const classified = classifyGeminiError(error);

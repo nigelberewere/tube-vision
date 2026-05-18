@@ -57,6 +57,23 @@ export function classifyGeminiError(error: unknown): ClassifiedError {
     };
   }
   
+  // Permission denied or API not enabled
+  if (
+    errorStr.includes('permission') ||
+    errorStr.includes('permission_denied') ||
+    errorStr.includes('permission denied') ||
+    errorStr.includes('not enabled') ||
+    errorStr.includes('not found') && errorStr.includes('models') ||
+    errorStr.includes('403')
+  ) {
+    return {
+      type: 'invalid_key',
+      message: errorMessage,
+      userMessage: 'Imagen API not enabled or unavailable. Enable image generation APIs in your Google Cloud Console and ensure billing is set up on your project.',
+      retryable: false,
+    };
+  }
+
   // Rate limited
   if (
     errorStr.includes('rate limit') ||
