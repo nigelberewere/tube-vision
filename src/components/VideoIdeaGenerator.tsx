@@ -57,12 +57,6 @@ export default function VideoIdeaGenerator({ channelContext, onNavigateToScript 
   const [loadingTrends, setLoadingTrends] = useState(false);
   const [savedIdeas, setSavedIdeas] = useState<VideoIdea[]>([]);
   const [viewMode, setViewMode] = useState<'generated' | 'saved'>('generated');
-  const savedIdeasHeaders = authSession?.access_token
-    ? {
-        Authorization: `Bearer ${authSession.access_token}`,
-        'X-Supabase-Auth': authSession.access_token,
-      }
-    : undefined;
 
   // Load saved ideas from localStorage first, then refresh from the backend.
   useEffect(() => {
@@ -75,9 +69,16 @@ export default function VideoIdeaGenerator({ channelContext, onNavigateToScript 
       }
     }
 
+    const headers = authSession?.access_token
+      ? {
+          Authorization: `Bearer ${authSession.access_token}`,
+          'X-Supabase-Auth': authSession.access_token,
+        }
+      : undefined;
+
     fetch('/api/user/saved-ideas', {
       credentials: 'include',
-      headers: savedIdeasHeaders,
+      headers,
     })
       .then(async (response) => {
         if (!response.ok) {
@@ -93,18 +94,24 @@ export default function VideoIdeaGenerator({ channelContext, onNavigateToScript 
       .catch((error) => {
         console.error('Failed to load saved ideas from backend:', error);
       });
-  }, [savedIdeasHeaders]);
+  }, [authSession?.access_token]);
 
   const persistSavedIdeas = (nextSavedIdeas: VideoIdea[]) => {
     setSavedIdeas(nextSavedIdeas);
     localStorage.setItem(SAVED_IDEAS_KEY, JSON.stringify(nextSavedIdeas));
+    
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+    };
+    if (authSession?.access_token) {
+      headers['Authorization'] = `Bearer ${authSession.access_token}`;
+      headers['X-Supabase-Auth'] = authSession.access_token;
+    }
+    
     fetch('/api/user/saved-ideas', {
       method: 'PUT',
       credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(savedIdeasHeaders || {}),
-      },
+      headers,
       body: JSON.stringify({ savedIdeas: nextSavedIdeas }),
     }).catch((error) => {
       console.error('Failed to save ideas to backend:', error);
