@@ -184,6 +184,7 @@ export default function ScriptArchitect({ initialTopic, onTopicUsed, channelCont
   const [retentionError, setRetentionError] = useState<string | null>(null);
 
   const connectedChannelName = String(channelContext?.title || '').trim();
+  const [skillInstruction, setSkillInstruction] = useState<string | null>(null);
   
   // Computed target length string for display and API
   const targetLength = targetLengthValue ? `${targetLengthValue} ${targetLengthUnit}` : '';
@@ -195,6 +196,36 @@ export default function ScriptArchitect({ initialTopic, onTopicUsed, channelCont
       onTopicUsed?.();
     }
   }, [initialTopic, onTopicUsed]);
+
+  // Load external skill instruction (if present in public/skills)
+  useEffect(() => {
+    let isCancelled = false;
+
+    const tryLoadSkill = async () => {
+      const candidates = [
+        '/skills/youtube-script-writer/SKILL.md',
+        '/skills/youtube-script-writer/youtube-script-writer/SKILL.md',
+      ];
+
+      for (const path of candidates) {
+        try {
+          const res = await fetch(path);
+          if (!res.ok) continue;
+          const txt = await res.text();
+          if (!isCancelled) setSkillInstruction(txt);
+          return;
+        } catch (_) {
+          // try next
+        }
+      }
+    };
+
+    tryLoadSkill();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     let isCancelled = false;
@@ -317,8 +348,10 @@ export default function ScriptArchitect({ initialTopic, onTopicUsed, channelCont
       - Never use "Janso Studio" as an audience nickname unless the connected channel name itself is exactly Janso Studio.
       - Return only JSON matching the schema.`;
       
+      const systemInstr = skillInstruction || SCRIPT_ARCHITECT_SYSTEM_INSTRUCTION;
+
       const response = await generateVidVisionInsight(prompt, schema, {
-        systemInstruction: SCRIPT_ARCHITECT_SYSTEM_INSTRUCTION,
+        systemInstruction: systemInstr,
       });
 
       if (response) {
