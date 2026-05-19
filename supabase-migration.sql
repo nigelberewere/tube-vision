@@ -244,25 +244,13 @@ ALTER TABLE public.channel_snapshots ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users can view own channel snapshots"
   ON public.channel_snapshots
   FOR SELECT
-  USING (
-    EXISTS (
-      SELECT 1 FROM public.youtube_accounts
-      WHERE youtube_accounts.user_id = auth.uid()
-      AND youtube_accounts.channel_id = channel_snapshots.channel_id
-    )
-  );
+  USING (auth.uid() = user_id);
 
 -- RLS Policy: Users can insert snapshots for their channels
 CREATE POLICY "Users can insert own channel snapshots"
   ON public.channel_snapshots
   FOR INSERT
-  WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM public.youtube_accounts
-      WHERE youtube_accounts.user_id = auth.uid()
-      AND youtube_accounts.channel_id = channel_snapshots.channel_id
-    )
-  );
+  WITH CHECK (auth.uid() = user_id);
 
 -- ----------------------------------------------------------------------------
 -- 5. YOUTUBE_API_CACHE TABLE
@@ -291,6 +279,14 @@ CREATE INDEX IF NOT EXISTS idx_youtube_api_cache_endpoint
 
 -- With service-role access from backend only, this prevents direct browser access.
 ALTER TABLE public.youtube_api_cache ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policy: Allow service role full access to cache
+CREATE POLICY "Service role has full access to cache"
+  ON public.youtube_api_cache
+  FOR ALL
+  TO service_role
+  USING (true)
+  WITH CHECK (true);
 
 -- ----------------------------------------------------------------------------
 -- 6. STORAGE BUCKETS

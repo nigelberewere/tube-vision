@@ -1313,7 +1313,7 @@ export default function App() {
 
           <div
             className={cn(
-              'mt-auto shrink-0 border-t px-4 pt-3 pb-[calc(0.85rem+env(safe-area-inset-bottom))]',
+              'mt-auto shrink-0 border-t px-4 pt-3 pb-[calc(1.75rem+env(safe-area-inset-bottom))]',
               theme === 'light' ? 'border-slate-200 bg-slate-50' : 'border-white/10 bg-[#0a0a0a]'
             )}
           >
