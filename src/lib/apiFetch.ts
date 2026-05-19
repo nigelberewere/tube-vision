@@ -13,7 +13,7 @@ type CachedFetchEntry<T> = {
   value?: T;
 };
 
-type CachedJsonFetchOptions = RequestInit & {
+export type CachedJsonFetchOptions = RequestInit & {
   ttlMs?: number;
   cacheKey?: string;
   bypassCache?: boolean;

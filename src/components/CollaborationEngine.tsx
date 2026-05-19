@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { generateVidVisionInsight } from '../services/geminiService';
 import { Type } from '@google/genai';
 import { Loader2, Users, Mail, Copy, Check, ExternalLink, Play, TrendingUp } from 'lucide-react';
-import { fetchCachedJson } from '../lib/apiFetch';
+import { useApiQuery } from '../hooks/useApiQuery';
 
 interface Creator {
   id: string;
@@ -52,81 +52,55 @@ function normalizeChannelPayload(payload: any): Creator | null {
 }
 
 export default function CollaborationEngine() {
-  const [loading, setLoading] = useState(false);
   const [searching, setSearching] = useState(false);
-  const [userChannel, setUserChannel] = useState<Creator | null>(null);
   const [matches, setMatches] = useState<CreatorMatch[]>([]);
-  const [error, setError] = useState<string | null>(null);
+  const [searchError, setSearchError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
-  const [Filters, setFilters] = useState<SearchFilters>({
+  const [filters, setFilters] = useState<SearchFilters>({
     subscriberRange: 'exact',
     contentCategory: ''
   });
   const [expandedCreatorId, setExpandedCreatorId] = useState<string | null>(null);
 
-  // Load user's channel info
+  // Load user's channel info using useApiQuery hook
+  const { data: userChannel, loading, error: channelError } = useApiQuery<any>(
+    '/api/user/channel',
+    { ttlMs: 2 * 60 * 1000 }
+  );
+
+  const normalizedUserChannel = userChannel ? normalizeChannelPayload(userChannel) : null;
+
+  // Extract category from channel description if available
   useEffect(() => {
-    const loadUserChannel = async () => {
-      try {
-        setLoading(true);
-        const response = await fetchCachedJson<any>('/api/user/channel', { ttlMs: 2 * 60 * 1000 });
-        if (response.ok) {
-          const data = response.data;
-          const normalized = normalizeChannelPayload(data);
-          if (!normalized?.id) {
-            setError('Unable to load your channel info. Please reconnect your account.');
-            setUserChannel(null);
-            return;
-          }
-
-          setUserChannel(normalized);
-          
-          // Extract category from channel description if available
-          const categoryMatch = normalized.description?.match(/(?:channel|niche|category)[:—\s]*([^,.\n]+)/i);
-          if (categoryMatch) {
-            setFilters(prev => ({ ...prev, contentCategory: categoryMatch[1].trim() }));
-          }
-        } else if (response.status === 401) {
-          setError('Please connect your YouTube account to use Collaboration Engine.');
-          setUserChannel(null);
-        } else {
-          setError('Failed to load your channel info. Please try again.');
-        }
-      } catch (err) {
-        console.error('Failed to load user channel:', err);
-        setError('Failed to load your channel info. Please try again.');
-      } finally {
-        setLoading(false);
+    if (normalizedUserChannel?.description) {
+      const categoryMatch = normalizedUserChannel.description.match(/(?:channel|niche|category)[:—\s]*([^,.\n]+)/i);
+      if (categoryMatch) {
+        setFilters(prev => ({ ...prev, contentCategory: categoryMatch[1].trim() }));
       }
-    };
-
-    loadUserChannel();
-  }, []);
+    }
+  }, [normalizedUserChannel?.description]);
 
   const handleFindCollaborators = async () => {
-    if (!userChannel) {
-      setError('Unable to load your channel info');
+    if (!normalizedUserChannel) {
       return;
     }
 
-    if (!Filters.contentCategory.trim()) {
-      setError('Please specify a content category/niche');
+    if (!filters.contentCategory.trim()) {
       return;
     }
 
-    setError(null);
     setMatches([]);
     setSearching(true);
 
     try {
       // Calculate subscriber range
-      const userSubs = parseInt(userChannel.statistics.subscriberCount || '0');
+      const userSubs = parseInt(normalizedUserChannel.statistics.subscriberCount || '0');
       let minSubs: number, maxSubs: number;
 
-      if (Filters.subscriberRange === 'exact') {
+      if (filters.subscriberRange === 'exact') {
         minSubs = Math.max(Math.floor(userSubs * 0.7), 100);
         maxSubs = Math.ceil(userSubs * 1.5);
-      } else if (Filters.subscriberRange === 'wider') {
+      } else if (filters.subscriberRange === 'wider') {
         minSubs = Math.max(Math.floor(userSubs * 0.3), 100);
         maxSubs = Math.ceil(userSubs * 3);
       } else {
@@ -139,7 +113,7 @@ export default function CollaborationEngine() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          niche: Filters.contentCategory,
+          niche: filters.contentCategory,
           minSubscribers: minSubs,
           maxSubscribers: maxSubs,
           maxResults: 15
@@ -154,7 +128,6 @@ export default function CollaborationEngine() {
       const { creators } = await searchResponse.json();
 
       if (!creators || creators.length === 0) {
-        setError('No collaborators found in your niche range. Try adjusting filters.');
         setSearching(false);
         return;
       }
@@ -202,10 +175,10 @@ export default function CollaborationEngine() {
 
             const emailPrompt = `Draft a personalized collaboration outreach email from a YouTube creator to ${creator.title}.
 
-Your Channel: ${userChannel.title}
-- Subscribers: ${parseInt(userChannel.statistics.subscriberCount).toLocaleString()}
-- Niche: ${Filters.contentCategory}
-- Description: ${userChannel.description?.substring(0, 100)}
+Your Channel: ${normalizedUserChannel.title}
+- Subscribers: ${parseInt(normalizedUserChannel.statistics.subscriberCount).toLocaleString()}
+- Niche: ${filters.contentCategory}
+- Description: ${normalizedUserChannel.description?.substring(0, 100)}
 
 Their Channel: ${creator.title}
 - Subscribers: ${parseInt(creator.statistics.subscriberCount).toLocaleString()}
@@ -262,7 +235,7 @@ Return ONLY valid JSON matching the schema.`;
       setMatches(creatorMatches);
     } catch (err: any) {
       console.error(err);
-      setError(err?.message || 'Failed to find collaborators. Please try again.');
+      setSearchError(err?.message || 'Failed to find collaborators. Please try again.');
     } finally {
       setSearching(false);
     }
@@ -322,18 +295,26 @@ Return ONLY valid JSON matching the schema.`;
             <label className="block text-sm font-medium text-zinc-300 mb-2">
               Your Channel
             </label>
-            {userChannel ? (
+            {loading ? (
+              <div className="bg-zinc-800 border border-zinc-700 rounded-lg p-4 text-zinc-400">
+                Loading channel info...
+              </div>
+            ) : channelError ? (
+              <div className="bg-zinc-800 border border-zinc-700 rounded-lg p-4 text-red-400">
+                Failed to load your channel. Please reconnect your YouTube account.
+              </div>
+            ) : normalizedUserChannel ? (
               <div className="bg-zinc-800 border border-zinc-700 rounded-lg p-4 flex items-center gap-4">
                 <img
-                  src={userChannel.thumbnails?.default?.url || '/favicon.svg'}
-                  alt={userChannel.title}
+                  src={normalizedUserChannel.thumbnails?.default?.url || '/favicon.svg'}
+                  alt={normalizedUserChannel.title}
                   className="w-16 h-16 rounded-lg object-cover"
                 />
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-white truncate">{userChannel.title}</h3>
+                  <h3 className="font-semibold text-white truncate">{normalizedUserChannel.title}</h3>
                   <div className="flex gap-4 text-sm text-zinc-400 mt-1">
-                    <span>{parseInt(userChannel.statistics.subscriberCount).toLocaleString()} subscribers</span>
-                    <span>{parseInt(userChannel.statistics.videoCount).toLocaleString()} videos</span>
+                    <span>{parseInt(normalizedUserChannel.statistics.subscriberCount).toLocaleString()} subscribers</span>
+                    <span>{parseInt(normalizedUserChannel.statistics.videoCount).toLocaleString()} videos</span>
                   </div>
                 </div>
               </div>
@@ -351,7 +332,7 @@ Return ONLY valid JSON matching the schema.`;
               </label>
               <input
                 type="text"
-                value={Filters.contentCategory}
+                value={filters.contentCategory}
                 onChange={(e) => setFilters(prev => ({ ...prev, contentCategory: e.target.value }))}
                 placeholder="e.g., Tech Reviews, Gaming, Cooking"
                 className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 sm:px-4 py-2 text-xs sm:text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-indigo-500"
@@ -363,7 +344,7 @@ Return ONLY valid JSON matching the schema.`;
                 Subscriber Range
               </label>
               <select
-                value={Filters.subscriberRange}
+                value={filters.subscriberRange}
                 onChange={(e) => setFilters(prev => ({ ...prev, subscriberRange: e.target.value as any }))}
                 className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 sm:px-4 py-2 text-xs sm:text-sm text-white focus:outline-none focus:border-indigo-500"
               >
@@ -376,7 +357,7 @@ Return ONLY valid JSON matching the schema.`;
 
           <button
             onClick={handleFindCollaborators}
-            disabled={searching || !userChannel || !Filters.contentCategory.trim()}
+            disabled={searching || !normalizedUserChannel || !filters.contentCategory.trim()}
             className="w-full h-12 bg-indigo-500 hover:bg-indigo-600 disabled:bg-indigo-900 disabled:text-zinc-600 text-white font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
           >
             {searching ? (
@@ -395,9 +376,9 @@ Return ONLY valid JSON matching the schema.`;
       </div>
 
       {/* Error */}
-      {error && (
+      {searchError && (
         <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-lg text-sm text-red-300">
-          {error}
+          {searchError}
         </div>
       )}
 

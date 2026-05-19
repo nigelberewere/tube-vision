@@ -351,6 +351,8 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
   const [messages, setMessages] = useState<Message[]>([createWelcomeMessage(channelContext)]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState<string | null>(null);
   const [loadingInsightAlert, setLoadingInsightAlert] = useState(false);
   const [insightAlert, setInsightAlert] = useState<InsightAlert | null>(null);
   const [lastAlertCheckAt, setLastAlertCheckAt] = useState<string | null>(null);
@@ -558,6 +560,7 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
       setActiveConversationId(initialConversation.id);
       setMessages(initialConversation.messages);
       hydratedHistoryKeyRef.current = primaryHistoryStorageKey;
+      setHistoryLoading(false);
     };
 
     const loadStoredConversationSet = (nextConversations: ConversationRecord[]) => {
@@ -571,9 +574,12 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
         messages: nextConversations[0].messages,
       });
       hydratedHistoryKeyRef.current = primaryHistoryStorageKey;
+      setHistoryLoading(false);
+      setHistoryError(null);
     };
 
     if (serverHistoryHeaders) {
+      setHistoryLoading(true);
       fetch('/api/user/coach-history', {
         credentials: 'include',
         headers: serverHistoryHeaders,
@@ -598,7 +604,9 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
             setInitialConversation();
           }
         })
-        .catch(() => {
+        .catch((error) => {
+          console.error('Failed to load coach history from server:', error);
+          setHistoryError('Failed to sync history (using local data)');
           if (stored.length > 0) {
             loadStoredConversationSet(stored);
           } else {
@@ -1235,7 +1243,26 @@ export default function AICoach({ channelContext, userProfile }: AICoachProps) {
 
         {historyOpen && (
           <div className="px-3 md:px-4 py-2 md:py-3 border-b border-zinc-800 bg-zinc-950/60 max-h-48 md:max-h-56 overflow-y-auto">
-            {conversations.length === 0 ? (
+            {historyLoading ? (
+              <div className="space-y-1 md:space-y-2">
+                {[1, 2, 3].map((i) => (
+                  <div
+                    key={i}
+                    className="flex items-start gap-2 rounded-lg border border-zinc-800 bg-zinc-900/60 px-2 py-1.5 md:py-2 animate-pulse"
+                  >
+                    <div className="flex-1 min-w-0 space-y-2">
+                      <div className="h-3 bg-zinc-800 rounded w-3/4" />
+                      <div className="h-2.5 bg-zinc-800 rounded w-1/2" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : historyError ? (
+              <div className="space-y-2">
+                <p className="text-xs text-amber-400/80">{historyError}</p>
+                <p className="text-[10px] text-zinc-500">Using local conversations only.</p>
+              </div>
+            ) : conversations.length === 0 ? (
               <p className="text-xs text-zinc-500">No saved conversations yet.</p>
             ) : (
               <div className="space-y-1 md:space-y-2">
