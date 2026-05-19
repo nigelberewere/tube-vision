@@ -244,56 +244,49 @@ export default function HomeDashboard({
     setError(null);
 
     try {
-      const [channelResponse, analyticsResponse, videosResponse, bestTimeResponse] = await Promise.all([
-        fetchCachedJson<ChannelResponse & ChannelInfo>('/api/user/channel', { ttlMs: 2 * 60 * 1000 }),
-        fetchCachedJson<AnalyticsPayload>('/api/user/analytics', { ttlMs: 10 * 60 * 1000 }),
-        fetchCachedJson<VideoItem[]>('/api/user/videos', { ttlMs: 5 * 60 * 1000 }),
-        fetchCachedJson<BestPostingTime>('/api/user/best-posting-time', { ttlMs: 10 * 60 * 1000 }),
-      ]);
+      // Use combined dashboard endpoint to fetch all 4 data sources in one request
+      // This reduces network overhead and ensures all data has consistent cache TTL
+      const dashboardResponse = await fetchCachedJson<{
+        channel: ChannelResponse & ChannelInfo;
+        analytics: AnalyticsPayload;
+        videos: VideoItem[];
+        bestPostingTime: BestPostingTime;
+      }>('/api/user/dashboard', { ttlMs: 5 * 60 * 1000 });
 
-      if (channelResponse.status === 401 || analyticsResponse.status === 401 || videosResponse.status === 401) {
+      if (dashboardResponse.status === 401) {
         setError('Reconnect your YouTube account to load your home metrics.');
         return;
       }
 
-      if (channelResponse.ok) {
-        const channelData = (channelResponse.data || null) as (ChannelResponse & ChannelInfo) | null;
-        setLiveChannel(channelData.channel ?? channelData ?? null);
+      if (!dashboardResponse.ok) {
+        setError('Failed to load dashboard data');
+        return;
       }
 
-      if (!analyticsResponse.ok) {
-        const errorData = analyticsResponse.data as any;
-        // Check if it's the YouTube Analytics API not enabled error
-        if (errorData.error && errorData.error.includes('youtubeanalytics.googleapis.com')) {
-          throw new Error('ANALYTICS_API_DISABLED');
+      const { channel, analytics, videos, bestPostingTime } = dashboardResponse.data || {};
+
+      // Process channel data
+      if (channel) {
+        const channelData = (channel || null) as (ChannelResponse & ChannelInfo) | null;
+        setLiveChannel(channelData?.channel ?? channelData ?? null);
+      }
+
+      // Process analytics data
+      if (analytics) {
+        if (analytics.daily?.error || analytics.hourly?.error) {
+          const message = analytics.daily?.error?.message || analytics.hourly?.error?.message;
+          throw new Error(message || 'YouTube Analytics returned an error for your channel.');
         }
-        throw new Error(errorData.error || 'Failed to fetch analytics for homepage.');
-      }
-
-      const analyticsData = (analyticsResponse.data || null) as AnalyticsPayload | null;
-      if (!analyticsData) {
+        setAnalytics(analytics);
+      } else {
         throw new Error('Failed to fetch analytics for homepage.');
       }
-      if (analyticsData.daily?.error || analyticsData.hourly?.error) {
-        const message = analyticsData.daily?.error?.message || analyticsData.hourly?.error?.message;
-        throw new Error(message || 'YouTube Analytics returned an error for your channel.');
-      }
 
-      setAnalytics(analyticsData);
+      // Process videos data
+      setVideos(videos || []);
 
-      if (videosResponse.ok) {
-        const videosData = (videosResponse.data || []) as VideoItem[];
-        setVideos(videosData || []);
-      } else {
-        setVideos([]);
-      }
-
-      if (bestTimeResponse.ok) {
-        const bestTimeData = (bestTimeResponse.data || null) as BestPostingTime | null;
-        setBestPostingTime(bestTimeData);
-      } else {
-        setBestPostingTime(null);
-      }
+      // Process best posting time data
+      setBestPostingTime(bestPostingTime || null);
     } catch (fetchError: any) {
       if (fetchError.message === 'ANALYTICS_API_DISABLED') {
         setError('ANALYTICS_API_DISABLED');

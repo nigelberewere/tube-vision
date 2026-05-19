@@ -64,14 +64,81 @@ interface InsightAlert {
 const JANSO_HISTORY_STORAGE_KEY = 'janso_chat_history_v1';
 const JANSO_DISMISSED_ALERTS_STORAGE_KEY = 'janso_dismissed_alerts_v1';
 const MAX_SAVED_CONVERSATIONS = 20;
-const coachConversationCache = new Map<
-  string,
-  {
-    conversations: ConversationRecord[];
-    activeConversationId: string;
-    messages: Message[];
+
+// LRU cache with TTL eviction for conversation data
+// Max 10 entries per user, expires after 1 hour
+class LRUCacheWithTTL<T> {
+  private map = new Map<string, { value: T; timestamp: number }>();
+  private maxSize: number;
+  private ttlMs: number;
+
+  constructor(maxSize = 10, ttlMs = 60 * 60 * 1000) {
+    this.maxSize = maxSize;
+    this.ttlMs = ttlMs;
   }
->();
+
+  set(key: string, value: T): void {
+    // Remove expired entries
+    this.evictExpired();
+
+    // If key already exists, remove it to update LRU order
+    if (this.map.has(key)) {
+      this.map.delete(key);
+    }
+
+    // Add new entry (most recently used)
+    this.map.set(key, { value, timestamp: Date.now() });
+
+    // Evict oldest if exceeds max size
+    if (this.map.size > this.maxSize) {
+      const oldestKey = this.map.keys().next().value;
+      if (oldestKey) {
+        this.map.delete(oldestKey);
+      }
+    }
+  }
+
+  get(key: string): T | undefined {
+    const entry = this.map.get(key);
+    if (!entry) return undefined;
+
+    // Check if expired
+    if (Date.now() - entry.timestamp > this.ttlMs) {
+      this.map.delete(key);
+      return undefined;
+    }
+
+    // Move to end (most recently used) by re-inserting
+    this.map.delete(key);
+    this.map.set(key, entry);
+
+    return entry.value;
+  }
+
+  private evictExpired(): void {
+    const now = Date.now();
+    for (const [key, entry] of this.map.entries()) {
+      if (now - entry.timestamp > this.ttlMs) {
+        this.map.delete(key);
+      }
+    }
+  }
+
+  clear(): void {
+    this.map.clear();
+  }
+
+  size(): number {
+    this.evictExpired();
+    return this.map.size;
+  }
+}
+
+const coachConversationCache = new LRUCacheWithTTL<{
+  conversations: ConversationRecord[];
+  activeConversationId: string;
+  messages: Message[];
+}>(10, 60 * 60 * 1000); // Max 10 entries, 1 hour TTL
 
 function buildScopedStorageKey(baseKey: string, userId?: string): string {
   const normalizedUserId = typeof userId === 'string' ? userId.trim() : '';

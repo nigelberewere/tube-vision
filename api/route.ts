@@ -2898,6 +2898,285 @@ Return JSON with:
     }
   }
 
+  // Combined dashboard endpoint - fetches channel, analytics, videos, and best posting time
+  // This reduces network overhead by combining 4 parallel calls into 1 response
+  if (path === 'api/user/dashboard') {
+    setPrivateCacheHeaders(res, 5 * 60, 10 * 60); // 5 min browser cache, 10 min CDN cache
+    const userData = await getActiveYouTubeUser(req);
+    if (!userData) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    try {
+      const authHeader = await getAuthHeaderForAccount(userData);
+
+      // Fetch all 4 data sources in parallel
+      const [channelResponse, analyticsResponse, videosResponse, bestTimeResponse] = await Promise.all([
+        // Channel data
+        (async () => {
+          try {
+            const { accounts, activeIndex } = await getUnifiedAccountsAndActiveIndex(req);
+            const user = accounts[activeIndex];
+            if (!user) return { ok: false, data: null, error: 'Not authenticated' };
+            const { tokens, ...safeUser } = user;
+            return { ok: true, data: safeUser, error: null };
+          } catch (err) {
+            return { ok: false, data: null, error: err instanceof Error ? err.message : 'Channel fetch failed' };
+          }
+        })(),
+
+        // Analytics data
+        (async () => {
+          try {
+            const endDate = new Date().toISOString().split('T')[0];
+            const startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+            const yesterdayDate = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+            const reportsResponse = await fetch(
+              `https://youtubeanalytics.googleapis.com/v2/reports?ids=channel==MINE&startDate=${startDate}&endDate=${endDate}&metrics=views,subscribersGained,subscribersLost,estimatedMinutesWatched&dimensions=day&sort=day`,
+              { headers: authHeader }
+            );
+            const reportsData = await reportsResponse.json();
+
+            if (reportsData.error) {
+              return { ok: false, data: { error: reportsData.error.message || 'Analytics API error' } };
+            }
+
+            let hourlyData = { rows: [] };
+            let todayHourlyData = { rows: [] };
+            let yesterdayHourlyData = { rows: [] };
+
+            try {
+              const [hourlyResponse, todayHourlyResponse, yesterdayHourlyResponse] = await Promise.all([
+                fetch(
+                  `https://youtubeanalytics.googleapis.com/v2/reports?ids=channel==MINE&startDate=${startDate}&endDate=${endDate}&metrics=views&dimensions=hour&sort=hour`,
+                  { headers: authHeader }
+                ),
+                fetch(
+                  `https://youtubeanalytics.googleapis.com/v2/reports?ids=channel==MINE&startDate=${endDate}&endDate=${endDate}&metrics=views&dimensions=hour&sort=hour`,
+                  { headers: authHeader }
+                ),
+                fetch(
+                  `https://youtubeanalytics.googleapis.com/v2/reports?ids=channel==MINE&startDate=${yesterdayDate}&endDate=${yesterdayDate}&metrics=views&dimensions=hour&sort=hour`,
+                  { headers: authHeader }
+                ),
+              ]);
+
+              const hourlyJson = await hourlyResponse.json();
+              const todayHourlyJson = await todayHourlyResponse.json();
+              const yesterdayHourlyJson = await yesterdayHourlyResponse.json();
+
+              if (!hourlyJson.error) hourlyData = hourlyJson;
+              if (!todayHourlyJson.error) todayHourlyData = todayHourlyJson;
+              if (!yesterdayHourlyJson.error) yesterdayHourlyData = yesterdayHourlyJson;
+            } catch {
+              // Hourly data is optional
+            }
+
+            return {
+              ok: true,
+              data: {
+                daily: reportsData,
+                hourly: hourlyData,
+                todayHourly: todayHourlyData,
+                yesterdayHourly: yesterdayHourlyData,
+              },
+            };
+          } catch (err) {
+            return { ok: false, data: { error: err instanceof Error ? err.message : 'Analytics fetch failed' } };
+          }
+        })(),
+
+        // Videos data
+        (async () => {
+          try {
+            const maxResults = parseMaxResults(req.query?.maxResults, 50);
+            const recentSeedResult = await fetchMineVideoSeeds(authHeader, maxResults);
+            if (recentSeedResult.ok === false) {
+              return { ok: false, data: [] };
+            }
+
+            const videoIds = recentSeedResult.seeds
+              .map((item) => item.videoId)
+              .filter(Boolean)
+              .join(',');
+
+            if (!videoIds) {
+              return { ok: true, data: [] };
+            }
+
+            const statsResponse = await fetch(
+              `https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics,contentDetails&id=${videoIds}`,
+              { headers: authHeader }
+            );
+            const statsData = await statsResponse.json().catch(() => ({}));
+
+            if (!statsResponse.ok || statsData?.error) {
+              return { ok: false, data: [] };
+            }
+
+            return { ok: true, data: statsData.items || [] };
+          } catch (err) {
+            return { ok: false, data: [] };
+          }
+        })(),
+
+        // Best posting time data
+        (async () => {
+          try {
+            const recentSeedResult = await fetchMineVideoSeeds(authHeader, 50);
+            if (recentSeedResult.ok === false) {
+              return { ok: false, data: { bestHour: null, bestDay: null, confidence: 'low' } };
+            }
+
+            const videoIds = recentSeedResult.seeds.map((item) => item.videoId).filter(Boolean).join(',');
+            if (!videoIds) {
+              return {
+                ok: true,
+                data: {
+                  bestHour: null,
+                  bestDay: null,
+                  confidence: 'low',
+                  message: 'Not enough video data to analyze posting patterns',
+                },
+              };
+            }
+
+            const videosResponse = await fetch(
+              `https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics&id=${videoIds}`,
+              { headers: authHeader }
+            );
+            const videosData = await videosResponse.json();
+            const videos = videosData.items || [];
+
+            if (videos.length < 5) {
+              return {
+                ok: true,
+                data: {
+                  bestHour: null,
+                  bestDay: null,
+                  confidence: 'low',
+                  message: 'Need at least 5 videos to analyze posting patterns',
+                },
+              };
+            }
+
+            const hourlyPerformance: Record<number, { totalViews: number; totalEngagement: number; count: number; avgViewsPerDay: number }> = {};
+            const dailyPerformance: Record<number, { totalViews: number; totalEngagement: number; count: number; avgViewsPerDay: number }> = {};
+            const now = Date.now();
+
+            for (const video of videos) {
+              const publishedAt = new Date(video.snippet?.publishedAt || '');
+              if (Number.isNaN(publishedAt.getTime())) continue;
+
+              const hour = publishedAt.getUTCHours();
+              const day = publishedAt.getUTCDay();
+              const viewCount = toNumber(video.statistics?.viewCount);
+              const likeCount = toNumber(video.statistics?.likeCount);
+              const commentCount = toNumber(video.statistics?.commentCount);
+              const engagement = likeCount + commentCount;
+              const ageDays = Math.max(1, (now - publishedAt.getTime()) / (24 * 60 * 60 * 1000));
+              const viewsPerDay = viewCount / ageDays;
+
+              if (!hourlyPerformance[hour]) {
+                hourlyPerformance[hour] = { totalViews: 0, totalEngagement: 0, count: 0, avgViewsPerDay: 0 };
+              }
+              hourlyPerformance[hour].totalViews += viewCount;
+              hourlyPerformance[hour].totalEngagement += engagement;
+              hourlyPerformance[hour].avgViewsPerDay += viewsPerDay;
+              hourlyPerformance[hour].count += 1;
+
+              if (!dailyPerformance[day]) {
+                dailyPerformance[day] = { totalViews: 0, totalEngagement: 0, count: 0, avgViewsPerDay: 0 };
+              }
+              dailyPerformance[day].totalViews += viewCount;
+              dailyPerformance[day].totalEngagement += engagement;
+              dailyPerformance[day].avgViewsPerDay += viewsPerDay;
+              dailyPerformance[day].count += 1;
+            }
+
+            const hourlyEntries = Object.entries(hourlyPerformance);
+            const dailyEntries = Object.entries(dailyPerformance);
+            if (hourlyEntries.length === 0 || dailyEntries.length === 0) {
+              return {
+                ok: true,
+                data: {
+                  bestHour: null,
+                  bestDay: null,
+                  confidence: 'low',
+                  message: 'Not enough valid publishing data to analyze patterns',
+                },
+              };
+            }
+
+            let bestHour = 0,
+              bestHourScore = 0;
+            for (const [hour, data] of hourlyEntries) {
+              const score = data.avgViewsPerDay / data.count;
+              if (score > bestHourScore) {
+                bestHourScore = score;
+                bestHour = parseInt(hour, 10);
+              }
+            }
+
+            let bestDay = 0,
+              bestDayScore = 0;
+            for (const [day, data] of dailyEntries) {
+              const score = data.avgViewsPerDay / data.count;
+              if (score > bestDayScore) {
+                bestDayScore = score;
+                bestDay = parseInt(day, 10);
+              }
+            }
+
+            const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+            const uniqueHours = hourlyEntries.length;
+            let confidence: 'low' | 'medium' | 'high' = 'low';
+            if (videos.length >= 20 && uniqueHours >= 5) confidence = 'high';
+            else if (videos.length >= 10 && uniqueHours >= 3) confidence = 'medium';
+
+            return {
+              ok: true,
+              data: {
+                bestHour,
+                bestHourFormatted: `${String(bestHour).padStart(2, '0')}:00 UTC`,
+                bestDay: dayNames[bestDay],
+                bestDayIndex: bestDay,
+                confidence,
+                videosAnalyzed: videos.length,
+                aiInsight: `Based on your recent uploads, ${dayNames[bestDay]} around ${String(bestHour).padStart(2, '0')}:00 UTC tends to drive the strongest daily view velocity.`,
+                hourlyBreakdown: hourlyEntries
+                  .map(([hour, data]) => ({
+                    hour: parseInt(hour, 10),
+                    avgViewsPerDay: Math.round(data.avgViewsPerDay / data.count),
+                    videoCount: data.count,
+                  }))
+                  .sort((a, b) => b.avgViewsPerDay - a.avgViewsPerDay),
+              },
+            };
+          } catch (err) {
+            return { ok: false, data: { bestHour: null, bestDay: null, confidence: 'low', error: 'Analysis failed' } };
+          }
+        })(),
+      ]);
+
+      // Check for auth errors
+      if (!channelResponse.ok || analyticsResponse.data?.error || !videosResponse.ok) {
+        return res.status(401).json({ error: 'Failed to load dashboard data' });
+      }
+
+      return res.json({
+        channel: channelResponse.data,
+        analytics: analyticsResponse.data,
+        videos: videosResponse.data,
+        bestPostingTime: bestTimeResponse.data,
+      });
+    } catch (error) {
+      console.error('Dashboard endpoint error:', error);
+      return res.status(500).json({ error: 'Failed to load dashboard' });
+    }
+  }
+
   // Thumbnail authorization queue
   if (path === 'api/thumbnails/authorizations') {
     const userData = await getActiveYouTubeUser(req);
