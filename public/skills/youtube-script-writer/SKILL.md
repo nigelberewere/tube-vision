@@ -52,8 +52,6 @@ Default structure for mid-length (8–14 min) narrative/documentary/educational 
 
 For other lengths and formats, see `/references/structures.md`.
 
----
-
 ## Step 3 — Write the script
 
 ### Golden rules for every script
@@ -91,8 +89,6 @@ For other lengths and formats, see `/references/structures.md`.
 - Frame subscribe as access to something rare, not a favour the viewer does for you.
 - Comment prompts should invite genuine responses: "What's the smallest decision you think changed the most?" not "Let me know in the comments!"
 - End card: queue the most thematically related video, not the most recent.
-
----
 
 ## Step 4 — Format the output
 
@@ -137,8 +133,6 @@ Structure every script with:
 [Primary sources, public domain assets, credibility anchors for description box]
 ```
 
----
-
 ## Step 5 — After delivering the script
 
 Offer these next steps naturally (not as a bulleted list of options — weave them into a sentence):
@@ -148,8 +142,6 @@ Offer these next steps naturally (not as a bulleted list of options — weave th
 - YouTube title options (5–10 variants, A/B testable)
 - Video description and SEO tags
 - Follow-up episode ideas that pair with this video
-
----
 
 ## Reference files
 

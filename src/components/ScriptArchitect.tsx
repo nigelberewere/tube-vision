@@ -185,6 +185,9 @@ export default function ScriptArchitect({ initialTopic, onTopicUsed, channelCont
 
   const connectedChannelName = String(channelContext?.title || '').trim();
   const [skillInstruction, setSkillInstruction] = useState<string | null>(null);
+  const [skillStructures, setSkillStructures] = useState<string | null>(null);
+  const [skillHooks, setSkillHooks] = useState<string | null>(null);
+  const [skillCtas, setSkillCtas] = useState<string | null>(null);
   
   // Computed target length string for display and API
   const targetLength = targetLengthValue ? `${targetLengthValue} ${targetLengthUnit}` : '';
@@ -201,21 +204,40 @@ export default function ScriptArchitect({ initialTopic, onTopicUsed, channelCont
   useEffect(() => {
     let isCancelled = false;
 
-    const tryLoadSkill = async () => {
-      const candidates = [
-        '/skills/youtube-script-writer/SKILL.md',
-        '/skills/youtube-script-writer/youtube-script-writer/SKILL.md',
-      ];
+    const fetchIfExists = async (path: string) => {
+      try {
+        const res = await fetch(path);
+        if (!res.ok) return null;
+        return await res.text();
+      } catch {
+        return null;
+      }
+    };
 
-      for (const path of candidates) {
-        try {
-          const res = await fetch(path);
-          if (!res.ok) continue;
-          const txt = await res.text();
-          if (!isCancelled) setSkillInstruction(txt);
+    const tryLoadSkill = async () => {
+      const baseCandidates = ['/skills/youtube-script-writer/'];
+
+      for (const base of baseCandidates) {
+        const skillPath = base + 'SKILL.md';
+        const structuresPath = base + 'references/structures.md';
+        const hooksPath = base + 'references/hooks.md';
+        const ctasPath = base + 'references/cta-templates.md';
+
+        const [s, st, h, c] = await Promise.all([
+          fetchIfExists(skillPath),
+          fetchIfExists(structuresPath),
+          fetchIfExists(hooksPath),
+          fetchIfExists(ctasPath),
+        ]);
+
+        if (s && !isCancelled) setSkillInstruction(s);
+        if (st && !isCancelled) setSkillStructures(st);
+        if (h && !isCancelled) setSkillHooks(h);
+        if (c && !isCancelled) setSkillCtas(c);
+
+        if (s || st || h || c) {
+          // stop after first successful base that yields any content
           return;
-        } catch (_) {
-          // try next
         }
       }
     };
@@ -331,7 +353,7 @@ export default function ScriptArchitect({ initialTopic, onTopicUsed, channelCont
       const estimatedWords = Math.max(40, Math.round((isNaN(targetMinutesNumeric) ? 0 : targetMinutesNumeric) * NEURAL_VOICE_WPM));
       const toleranceWords = Math.max(5, Math.round(estimatedWords * WPM_TOLERANCE_PCT));
 
-      const prompt = `Act as a master YouTube scriptwriter. Write a highly engaging, retention-optimized script for a ${formatLabel} about: "${trimmedTopic}".
+      const basePrompt = `Act as a master YouTube scriptwriter. Write a highly engaging, retention-optimized script for a ${formatLabel} about: "${trimmedTopic}".
 
       Strict requirements:
       - Required final script length: ${trimmedTargetLength}
@@ -347,6 +369,10 @@ export default function ScriptArchitect({ initialTopic, onTopicUsed, channelCont
       - If a greeting is used, address the audience neutrally ("everyone", "friends") or based on the connected channel identity only.
       - Never use "Janso Studio" as an audience nickname unless the connected channel name itself is exactly Janso Studio.
       - Return only JSON matching the schema.`;
+
+      const referencesBlock = `\n\n=== SKILL REFERENCES ===\n\n${skillStructures ? `--- STRUCTURES ---\n${skillStructures}\n\n` : ''}${skillHooks ? `--- HOOKS ---\n${skillHooks}\n\n` : ''}${skillCtas ? `--- CTA TEMPLATES ---\n${skillCtas}\n\n` : ''}Use the above references to follow the appropriate structure, hook formula, and CTA style when generating the script.`;
+
+      const prompt = basePrompt + (skillStructures || skillHooks || skillCtas ? referencesBlock : '');
       
       const systemInstr = skillInstruction || SCRIPT_ARCHITECT_SYSTEM_INSTRUCTION;
 

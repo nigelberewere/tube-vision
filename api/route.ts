@@ -14,6 +14,7 @@ import {
   extractYouTubeError,
   formatDurationLabel,
   getGeminiKeyFromRequest,
+  getSessionAccountsAndActiveIndex,
   installYouTubeDataApiCacheFetch,
   isMissingConfigValue,
   mapSupabaseAccountToLegacyUser,
@@ -22,6 +23,7 @@ import {
   parseISODurationToSeconds,
   parseMaxResults,
   pickBestTopicInsight,
+  setSessionAccountsAndActiveIndex,
   toNumber,
   type CoachVideoSignal,
   type SupabaseProfileRow,
@@ -520,13 +522,11 @@ async function refreshActiveYouTubeChannel(req: VercelRequest, res: VercelRespon
   }
 
   const authHeader = await getAuthHeaderForAccount(userData);
+  const headersForRefresh = { ...(authHeader as Record<string, string>), 'Cache-Control': 'no-cache' };
   const response = await fetch(
     'https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics&mine=true',
     {
-      headers: {
-        ...authHeader,
-        'Cache-Control': 'no-cache',
-      },
+      headers: headersForRefresh,
     },
   );
   const data = await response.json().catch(() => ({}));
@@ -733,23 +733,27 @@ async function persistYouTubeAccountToSupabase(
   }
 }
 
-async function getAuthHeaderForAccount(userData: any) {
+async function getAuthHeaderForAccount(userData: any): Promise<Record<string, string>> {
   const refreshToken = userData?.tokens?.refresh_token;
   const fallbackAccessToken = userData?.tokens?.access_token;
   const rawCacheScope = String(userData?.channel?.id || userData?.id || '').trim();
-  const cacheScopeHeader = rawCacheScope ? { 'X-VidVision-Cache-Scope': `channel:${rawCacheScope}` } : {};
+
+  const headers: Record<string, string> = {};
+  if (rawCacheScope) {
+    headers['X-VidVision-Cache-Scope'] = `channel:${rawCacheScope}`;
+  }
 
   if (refreshToken) {
     const client = createOAuthClient();
     client.setCredentials({ refresh_token: refreshToken });
     const token = (await client.getAccessToken())?.token;
     if (token) {
-      return { Authorization: `Bearer ${token}`, ...cacheScopeHeader };
+      return { Authorization: `Bearer ${token}`, ...headers };
     }
   }
 
   if (fallbackAccessToken) {
-    return { Authorization: `Bearer ${fallbackAccessToken}`, ...cacheScopeHeader };
+    return { Authorization: `Bearer ${fallbackAccessToken}`, ...headers };
   }
 
   throw new Error('No OAuth token available for active account');
@@ -2133,7 +2137,7 @@ Recent videos: ${recentTitles.join(' | ') || 'No recent titles'}`;
           };
         })
         .filter((signal: CoachVideoSignal | null): signal is CoachVideoSignal => Boolean(signal))
-        .sort((a, b) => b.publishedAtMs - a.publishedAtMs)
+        .sort((a: CoachVideoSignal, b: CoachVideoSignal) => b.publishedAtMs - a.publishedAtMs)
         .slice(0, 24);
 
       const topicInsight = pickBestTopicInsight(signals);
@@ -2172,7 +2176,7 @@ Trend data:
 - Topic with strongest positive momentum: ${topicInsight.topicLabel}
 - Lift over baseline: ${liftPercent}%
 - Signal type: ${signalType}
-- Most recent 3 matching videos: ${topicInsight.recent.map((video) => video.title).join(' | ')}
+- Most recent 3 matching videos: ${topicInsight.recent.map((video: CoachVideoSignal) => video.title).join(' | ')}
 
 Return JSON with:
 1) headline: one sentence like "Your last 3 videos on X had Y% higher retention..."
@@ -2233,7 +2237,7 @@ Return JSON with:
           headline,
           summary,
           ideas: ideas.slice(0, 3),
-          supportingVideos: topicInsight.recent.map((video) => ({
+          supportingVideos: topicInsight.recent.map((video: CoachVideoSignal) => ({
             id: video.id,
             title: video.title,
             publishedAt: video.publishedAt,
@@ -2442,7 +2446,7 @@ Return JSON with:
       // First, get the current video details
       const getResponse = await fetch(
         `https://www.googleapis.com/youtube/v3/videos?part=snippet&id=${videoId}`,
-        { headers: authHeader }
+        { headers: authHeader as Record<string, string> }
       );
 
       if (!getResponse.ok) {
@@ -2470,14 +2474,12 @@ Return JSON with:
         }
       };
 
+      const updateHeaders = { ...(authHeader as Record<string, string>), 'Content-Type': 'application/json' };
       const updateResponse = await fetch(
         'https://www.googleapis.com/youtube/v3/videos?part=snippet',
         {
           method: 'PUT',
-          headers: {
-            ...authHeader,
-            'Content-Type': 'application/json',
-          },
+          headers: updateHeaders,
           body: JSON.stringify(updatePayload),
         }
       );
@@ -2517,13 +2519,13 @@ Return JSON with:
     }
 
     const authHeader = await getAuthHeaderForAccount(userData);
-    const results = { success: [], failed: [] };
+    const results: { success: string[]; failed: Array<{ videoId: any; error: string }> } = { success: [], failed: [] };
 
     for (const videoId of videoIds) {
       try {
         const getResponse = await fetch(
           `https://www.googleapis.com/youtube/v3/videos?part=snippet&id=${videoId}`,
-          { headers: authHeader }
+          { headers: authHeader as Record<string, string> }
         );
 
         if (!getResponse.ok) {
@@ -2557,14 +2559,12 @@ Return JSON with:
           }
         };
 
+        const updateHeaders = { ...(authHeader as Record<string, string>), 'Content-Type': 'application/json' };
         const updateResponse = await fetch(
           'https://www.googleapis.com/youtube/v3/videos?part=snippet',
           {
             method: 'PUT',
-            headers: {
-              ...authHeader,
-              'Content-Type': 'application/json',
-            },
+            headers: updateHeaders,
             body: JSON.stringify(updatePayload),
           }
         );
@@ -2603,13 +2603,13 @@ Return JSON with:
 
     const updateMode = mode || 'replace'; // 'replace', 'append', 'prepend'
     const authHeader = await getAuthHeaderForAccount(userData);
-    const results = { success: [], failed: [] };
+    const results: { success: string[]; failed: Array<{ videoId: any; error: string }> } = { success: [], failed: [] };
 
     for (const videoId of videoIds) {
       try {
         const getResponse = await fetch(
           `https://www.googleapis.com/youtube/v3/videos?part=snippet&id=${videoId}`,
-          { headers: authHeader }
+          { headers: authHeader as Record<string, string> }
         );
 
         if (!getResponse.ok) {
@@ -2623,7 +2623,7 @@ Return JSON with:
           continue;
         }
 
-        const video = getData.items[0];
+        const video = getData.items[0] as any;
         let newTags = tags;
 
         if (updateMode === 'append') {
@@ -2645,14 +2645,12 @@ Return JSON with:
           }
         };
 
+        const updateHeaders = { ...(authHeader as Record<string, string>), 'Content-Type': 'application/json' };
         const updateResponse = await fetch(
           'https://www.googleapis.com/youtube/v3/videos?part=snippet',
           {
             method: 'PUT',
-            headers: {
-              ...authHeader,
-              'Content-Type': 'application/json',
-            },
+            headers: updateHeaders,
             body: JSON.stringify(updatePayload),
           }
         );

@@ -25,7 +25,10 @@ import {
   installYouTubeDataApiCacheFetch,
   isMissingConfigValue,
   mapSupabaseAccountToLegacyUser,
+  normalizeYouTubeSearchQueries,
+  normalizeYouTubeSearchQuery,
   parseISODurationToSeconds,
+  parseMaxResults,
   pickBestTopicInsight,
   resolveAppUrl,
   setSessionAccountsAndActiveIndex,
@@ -459,38 +462,6 @@ export async function createApp(options: CreateAppOptions = {}) {
     }
 
     return refreshedUser;
-  }
-
-  function parseMaxResults(rawValue: unknown, fallback: number = 50): number {
-    const raw = Array.isArray(rawValue) ? rawValue[0] : rawValue;
-    const parsed = Number(raw);
-    if (!Number.isFinite(parsed)) {
-      return fallback;
-    }
-
-    return Math.min(50, Math.max(1, Math.floor(parsed)));
-  }
-
-  function normalizeYouTubeSearchQuery(rawValue: unknown): string {
-    return String(rawValue || "")
-      .toLowerCase()
-      .trim()
-      .replace(/\s+/g, " ");
-  }
-
-  function normalizeYouTubeSearchQueries(queries: unknown[], limit: number = 5): string[] {
-    const deduped = new Set<string>();
-    const normalized: string[] = [];
-
-    for (const query of queries) {
-      const cleanQuery = normalizeYouTubeSearchQuery(query);
-      if (!cleanQuery || deduped.has(cleanQuery)) continue;
-      deduped.add(cleanQuery);
-      normalized.push(cleanQuery);
-      if (normalized.length >= limit) break;
-    }
-
-    return normalized;
   }
 
   async function fetchMineVideoSeeds(authHeader: any, maxResults: number) {

@@ -1,7 +1,7 @@
 
 import express from "express";
 import { createHmac } from "node:crypto";
-import { supabaseServer } from "../../supabaseServer.ts";
+import { supabaseServer } from "../../supabaseServer.js";
 
 const IS_PRODUCTION = process.env.NODE_ENV === "production";
 const DEFAULT_PRODUCTION_APP_URL = "https://app.janso.studio";
@@ -38,7 +38,7 @@ export function parseISODurationToSeconds(duration: string): number {
  * Get Gemini API key from request header (BYOK model)
  * Never logs, persists, or echoes the key
  */
-export function getGeminiKeyFromRequest(req: express.Request): string {
+export function getGeminiKeyFromRequest(req: { headers: any }): string {
   const apiKey = req.headers["x-gemini-key"] as string;
 
   if (!apiKey || !apiKey.trim()) {
@@ -57,6 +57,38 @@ export function formatDurationLabel(totalSeconds: number): string {
     return `${hours}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
   }
   return `${minutes}:${String(seconds).padStart(2, "0")}`;
+}
+
+export function parseMaxResults(rawValue: unknown, fallback = 50): number {
+  const raw = Array.isArray(rawValue) ? rawValue[0] : rawValue;
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed)) {
+    return fallback;
+  }
+
+  return Math.min(50, Math.max(1, Math.floor(parsed)));
+}
+
+export function normalizeYouTubeSearchQuery(rawValue: unknown): string {
+  return String(rawValue || "")
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, " ");
+}
+
+export function normalizeYouTubeSearchQueries(queries: unknown[], limit = 5): string[] {
+  const deduped = new Set<string>();
+  const normalized: string[] = [];
+
+  for (const query of queries) {
+    const cleanQuery = normalizeYouTubeSearchQuery(query);
+    if (!cleanQuery || deduped.has(cleanQuery)) continue;
+    deduped.add(cleanQuery);
+    normalized.push(cleanQuery);
+    if (normalized.length >= limit) break;
+  }
+
+  return normalized;
 }
 
 export function toNumber(value: unknown): number {
@@ -330,7 +362,7 @@ async function writeYouTubeDataCache(params: {
   await maybePruneYouTubeDataCache();
 }
 
-export function installYouTubeDataApiCacheFetch() {
+export function installYouTubeDataApiCacheFetch(_params: { supabaseServer?: unknown; cacheSecret?: string } = {}) {
   const globalCacheState = globalThis as Record<string, unknown>;
   if (globalCacheState[YOUTUBE_DATA_CACHE_PATCH_FLAG]) {
     return;
@@ -626,7 +658,7 @@ export type SupabaseYouTubeAccountRow = {
 export type UnifiedAccountState = {
   accounts: any[];
   activeIndex: number;
-  source: "supabase" | "session";
+  source: "supabase" | "session" | "cookie";
 };
 
 function normalizeChannelStatistics(rawStatistics: unknown) {
